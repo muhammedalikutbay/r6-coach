@@ -1,0 +1,174 @@
+// v2 data contract (docs/v2-spec.md §3-§5, docs/v2-contract.md). The Rust side serializes the
+// same shapes with serde `rename_all = "camelCase"`.
+
+export type Range = 'last1' | 'last5' | 'last20' | 'season' | 'all';
+export type Mode = 'all' | 'ranked' | 'unranked' | 'quick';
+export type Side = 'both' | 'attack' | 'defense';
+export type TeamSide = 'attack' | 'defense';
+
+/** Global filter shared by every view. `operators` and `maps` hold `key`s (lowercase ids). */
+export interface Filter {
+  range: Range;
+  mode: Mode;
+  side: Side;
+  operators: string[];
+  maps: string[];
+}
+
+export const DEFAULT_FILTER: Filter = {
+  range: 'all',
+  mode: 'all',
+  side: 'both',
+  operators: [],
+  maps: []
+};
+
+export interface Kpis {
+  kd: number;
+  winPct: number;
+  hsPct: number;
+  killsPerRound: number;
+  /** First kills divided by first deaths. */
+  fkFdRatio: number;
+  clutchPct: number;
+  survivalPct: number;
+  rounds: number;
+  matches: number;
+}
+
+export interface TrendPoint {
+  /** Match number within the filtered set, 1 = oldest. */
+  index: number;
+  /** ISO 8601 UTC. */
+  timestamp: string;
+  matchId: string;
+  kd: number;
+  won: boolean;
+}
+
+export interface OperatorCard {
+  key: string;
+  name: string;
+  side: TeamSide;
+  rounds: number;
+  winPct: number;
+  kd: number;
+  hsPct: number;
+  /** K/D minus the player's overall K/D. */
+  deltaKd?: number;
+}
+
+export interface MapCard {
+  key: string;
+  name: string;
+  matches: number;
+  winPct: number;
+  attackWinPct: number;
+  defenseWinPct: number;
+  kd: number;
+}
+
+export interface MatchRow {
+  matchId: string;
+  /** ISO 8601 UTC. */
+  timestamp: string;
+  mapKey: string;
+  mapName: string;
+  mode: string;
+  won: boolean;
+  scoreUs: number;
+  scoreThem: number;
+  kills: number;
+  deaths: number;
+  hsPct: number;
+  /** For example '3K', '1v2 Won'. */
+  badges: string[];
+}
+
+export interface QueryResult {
+  /** `career` = baseline + replays; `replays` = computed from local replays only. */
+  source: 'career' | 'replays';
+  matchCount: number;
+  kpis: Kpis;
+  trend: TrendPoint[];
+  operators: OperatorCard[];
+  maps: MapCard[];
+  recentMatches: MatchRow[];
+}
+
+export interface ScoreboardRow {
+  username: string;
+  isMe: boolean;
+  /** Operator key per round, in round order. Unknown ids are kept raw. */
+  operatorsByRound: string[];
+  kills: number;
+  deaths: number;
+  hsPct: number;
+  /** First kills / first deaths. */
+  fk: number;
+  fd: number;
+  clutchesWon: number;
+  clutchesLost: number;
+  /** Rounds with 2+ kills. */
+  multiKills: number;
+  kostPct: number;
+}
+
+export interface KillEventView {
+  timeS: number;
+  killer: string;
+  killerOperator: string;
+  victim: string;
+  victimOperator: string;
+  headshot: boolean;
+  /** 0 = my team, 1 = other team. */
+  killerTeam: 0 | 1;
+}
+
+export interface RoundDetail {
+  number: number;
+  /** 0 = my team, 1 = other team. */
+  winnerTeam: 0 | 1;
+  /** For example 'Eliminated enemies', 'Defused bomb', 'Planted bomb', 'Time ran out'. */
+  winCondition: string;
+  site: string;
+  mySide: TeamSide;
+  kills: KillEventView[];
+}
+
+export interface MatchDetail {
+  match: MatchRow;
+  /** teams[0] = my team, teams[1] = opponents. */
+  teams: [ScoreboardRow[], ScoreboardRow[]];
+  rounds: RoundDetail[];
+}
+
+export type InsightKind = 'praise' | 'improve' | 'info';
+
+export interface Insight {
+  kind: InsightKind;
+  title: string;
+  text: string;
+  evidence: string;
+  operatorKey?: string;
+  mapKey?: string;
+}
+
+export interface Comparison {
+  metric: string;
+  focus: number;
+  reference: number;
+  delta: number;
+  /** True when the focus value is better than the reference (accounts for metrics where lower is better). */
+  better: boolean;
+}
+
+export interface CoachReport {
+  summary: string;
+  insights: Insight[];
+  strengths: string[];
+  workOn: string[];
+  comparisons: Comparison[];
+  focusLabel: string;
+  referenceLabel: string;
+}
