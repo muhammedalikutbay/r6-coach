@@ -687,8 +687,10 @@ fn career_kpis(f: &Filter, merged: &Baseline, replays: &Kpis) -> Kpis {
     } else {
         (merged.overall.kd(), merged.overall.win_pct(), merged.overall.matches_played)
     };
-    let hs = if merged.overall.headshots > 0 && merged.overall.kills > 0 && want.is_none() {
-        merged.overall.headshot_pct()
+    // Career headshot rate from the operator segments (overall.headshots is not usable).
+    let career_hs = merged.career_headshot_pct();
+    let hs = if want.is_none() && career_hs > 0.0 {
+        career_hs
     } else {
         ops.headshot_pct()
     };

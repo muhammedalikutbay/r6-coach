@@ -151,6 +151,23 @@ impl Baseline {
         self.operators.get(&names::operator_key(operator_id)?)
     }
 
+    /// Career headshot percentage: summed operator headshots over summed operator kills.
+    ///
+    /// Why not `overall.headshots`: Tracker's overall headshot counter covers a narrower window
+    /// than overall kills (1825 HS against 8004 kills, about 22.8%), so it understates the rate.
+    /// The per-operator segments (Y8S1 and later) are consistent with each other and with the
+    /// replay definition of a headshot (about 49-54%). Tracker's own overall
+    /// `headshotPercentage` (about 50.4%) uses a different formula and is not used either.
+    ///
+    /// Returns 0.0 when the baseline has no operator kills.
+    pub fn career_headshot_pct(&self) -> f64 {
+        let (hs, kills) = self
+            .operators
+            .values()
+            .fold((0u64, 0u64), |(h, k), c| (h + c.headshots, k + c.kills));
+        100.0 * ratio(hs, kills)
+    }
+
     /// Top `n` operators by rounds played (ties broken by slug).
     pub fn top_operators(&self, n: usize) -> Vec<(&str, &CounterSet)> {
         let mut v: Vec<_> = self.operators.iter().map(|(k, c)| (k.as_str(), c)).collect();
@@ -328,6 +345,21 @@ mod tests {
         assert_eq!(z.kd(), 0.0);
         assert_eq!(z.win_pct(), 0.0);
         assert_eq!(z.kills_per_round(), 0.0);
+    }
+
+    #[test]
+    fn career_headshot_pct_uses_operator_segments() {
+        let b = Baseline::embedded().unwrap();
+        let (hs, kills) = b
+            .operators
+            .values()
+            .fold((0u64, 0u64), |(h, k), c| (h + c.headshots, k + c.kills));
+        assert_eq!((hs, kills), (1976, 3662));
+        let pct = b.career_headshot_pct();
+        assert!((pct - 53.96).abs() < 0.05, "{pct}");
+        // Tracker's overall counter is the wrong source (about 22.8%).
+        assert!(b.overall.headshot_pct() < 25.0);
+        assert_eq!(Baseline::default().career_headshot_pct(), 0.0);
     }
 
     #[test]

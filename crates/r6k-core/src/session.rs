@@ -189,7 +189,7 @@ fn expected_headshot_pct(session: &[Match], b: &Baseline) -> Option<f64> {
             .operator(r.operator_id)
             .filter(|c| c.kills >= 20)
             .map(|c| c.headshot_pct())
-            .unwrap_or_else(|| b.overall.headshot_pct());
+            .unwrap_or_else(|| b.career_headshot_pct());
         num += pct * r.kills as f64;
         den += r.kills as f64;
     }
@@ -1024,9 +1024,12 @@ mod tests {
 
     #[test]
     fn rule_headshot_rate() {
-        // Baseline: no headshots -> usual 0% (rule needs usual > 0), so give it 40%.
+        // Baseline: no headshots -> usual 0% (rule needs usual > 0), so give JAGER 40%
+        // (320 of 800 kills, read from the operator segments).
         let mut b = base();
-        b.overall.headshots = 320;
+        let jager = b.operators.entry(names::operator_key(JAGER).unwrap()).or_default();
+        jager.kills = 800;
+        jager.headshots = 320;
         let mut r = rs(JAGER, 10, 1, 1);
         for x in r.iter_mut().take(8) {
             x.headshots = 1;

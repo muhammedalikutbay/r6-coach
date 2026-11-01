@@ -505,8 +505,11 @@ fn range_label(r: Range) -> &'static str {
     }
 }
 
-/// Counters of the Tracker baseline that stand for "career" under a filter, with a label.
-fn career_counters<'a>(f: &Filter, b: &'a Baseline) -> Option<(&'a CounterSet, String)> {
+/// Career counters of the Tracker baseline for a filter, with a label and the career headshot
+/// percentage. The overall headshot counter is not usable (see [`Baseline::career_headshot_pct`]),
+/// so the all-operators career takes its headshot rate from the operator segments. Gamemode
+/// blocks carry no headshot counter, so their headshot rate reads 0 and the HS card is skipped.
+fn career_counters<'a>(f: &Filter, b: &'a Baseline) -> Option<(&'a CounterSet, String, f64)> {
     if f.side != SideFilter::Both || !f.maps.is_empty() || f.operators.len() > 1 {
         return None;
     }
@@ -515,14 +518,21 @@ fn career_counters<'a>(f: &Filter, b: &'a Baseline) -> Option<(&'a CounterSet, S
             return None;
         }
         let key = op.to_ascii_lowercase();
-        return b.operators.get(&key).map(|c| (c, format!("{} career", op_name(&key))));
+        return b
+            .operators
+            .get(&key)
+            .map(|c| (c, format!("{} career", op_name(&key)), c.headshot_pct()));
     }
     match f.mode {
-        Mode::All => Some((&b.overall, "career".to_string())),
-        Mode::Ranked => b.gamemodes.get("pvp_ranked").map(|c| (c, "ranked career".to_string())),
-        Mode::Unranked | Mode::Quick => {
-            b.gamemodes.get("pvp_quickplay").map(|c| (c, "casual career".to_string()))
-        }
+        Mode::All => Some((&b.overall, "career".to_string(), b.career_headshot_pct())),
+        Mode::Ranked => b
+            .gamemodes
+            .get("pvp_ranked")
+            .map(|c| (c, "ranked career".to_string(), c.headshot_pct())),
+        Mode::Unranked | Mode::Quick => b
+            .gamemodes
+            .get("pvp_quickplay")
+            .map(|c| (c, "casual career".to_string(), c.headshot_pct())),
     }
 }
 
@@ -771,13 +781,13 @@ fn map_candidates(f: &Agg, r: &Agg, filter: &Filter, baseline: &Baseline) -> Vec
 }
 
 /// Focus K/D, hs and win against the Tracker career, when the reference is the replay history.
-fn career_candidates(m: Metric, f: &Agg, c: &CounterSet, label: &str) -> Option<Candidate> {
+fn career_candidates(m: Metric, f: &Agg, c: &CounterSet, hs_pct: f64, label: &str) -> Option<Candidate> {
     if !matches!(m, Metric::Kd | Metric::Hs | Metric::Win) || !m.enough(f, true) {
         return None;
     }
     let (cv, rate_n) = match m {
         Metric::Kd => (c.kd(), c.deaths + c.kills),
-        Metric::Hs => (c.headshot_pct(), c.kills),
+        Metric::Hs => (hs_pct, c.kills),
         _ => (c.win_pct(), c.matches_played),
     };
     if cv <= 0.0 || rate_n < 30 {
@@ -978,14 +988,14 @@ pub fn coach(filter: &Filter, all: &[FullMatch], baseline: &Baseline) -> CoachRe
         }
         cands.extend(operator_candidates(&f, &r, filter, baseline));
         cands.extend(map_candidates(&f, &r, filter, baseline));
-    } else if let Some((c, label)) = &career {
+    } else if let Some((c, label, hs_pct)) = &career {
         // No replay history to compare with: use the career headline numbers instead.
         reference_label_text = format!("Your {label}");
         let kpr = c.kills_per_round();
         let rows: [(Metric, f64); 4] = [
             (Metric::Kd, c.kd()),
             (Metric::Kpr, kpr),
-            (Metric::Hs, c.headshot_pct()),
+            (Metric::Hs, *hs_pct),
             (Metric::Win, c.win_pct()),
         ];
         for (m, rv) in rows {
@@ -1007,11 +1017,10 @@ pub fn coach(filter: &Filter, all: &[FullMatch], baseline: &Baseline) -> CoachRe
     }
 
     // Career cards for the focus sets that are shorter than the reference.
-    if let (Some((c, label)), true) = (&career, matches!(filter.range, Range::Last1 | Range::Last5 | Range::Last20)) {
+    if let (Some((c, label, hs_pct)), true) = (&career, matches!(filter.range, Range::Last1 | Range::Last5 | Range::Last20)) {
         if r.t.rounds > 0 {
-            // Not Hs: the parser counts headshots differently from Tracker (about 2x on the same games).
-            for m in [Metric::Kd, Metric::Win] {
-                if let Some(cand) = career_candidates(m, &f, c, label) {
+            for m in [Metric::Kd, Metric::Hs, Metric::Win] {
+                if let Some(cand) = career_candidates(m, &f, c, *hs_pct, label) {
                     cands.push(cand);
                 }
             }

@@ -178,7 +178,7 @@ fn expected_headshot_pct(m: &Match, b: &Baseline) -> Option<f64> {
             .operator(r.operator_id)
             .filter(|c| c.kills >= 20)
             .map(|c| c.headshot_pct())
-            .unwrap_or_else(|| b.overall.headshot_pct());
+            .unwrap_or_else(|| b.career_headshot_pct());
         num += pct * r.kills as f64;
         den += r.kills as f64;
     }
@@ -473,12 +473,17 @@ mod tests {
         }
     }
 
-    /// Baseline with a 40% overall headshot rate and no operator or map data.
+    /// Baseline with a flat 40% headshot rate (every operator 400 of 1000 kills) and no map data.
     fn flat_baseline() -> Baseline {
         let mut b = Baseline { captured_at: "2026-11-01T00:00:00Z".into(), ..Default::default() };
         b.overall.kills = 1000;
-        b.overall.headshots = 400;
         b.overall.deaths = 1000;
+        for id in [JAGER, ASH, ARUNI] {
+            let c = b.operators.entry(names::operator_key(id).unwrap()).or_default();
+            c.kills = 1000;
+            c.headshots = 400;
+            c.deaths = 1000;
+        }
         b
     }
 
