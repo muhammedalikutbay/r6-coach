@@ -75,6 +75,27 @@ pub fn map_key(id: u64) -> Option<String> {
     T.get_or_init(|| keys(MAPS_JSON, false)).get(&id).cloned()
 }
 
+fn names_by_key(raw: &str, pick_ops: bool) -> HashMap<String, String> {
+    let entries: Vec<Entry> = if pick_ops {
+        serde_json::from_str::<OperatorTable>(raw).map(|t| t.operators).unwrap_or_default()
+    } else {
+        serde_json::from_str::<MapTable>(raw).map(|t| t.maps).unwrap_or_default()
+    };
+    entries.into_iter().map(|e| (e.key, e.name)).collect()
+}
+
+/// Display name for an operator `key`, if known.
+pub fn operator_name_by_key(key: &str) -> Option<String> {
+    static T: OnceLock<HashMap<String, String>> = OnceLock::new();
+    T.get_or_init(|| names_by_key(OPERATORS_JSON, true)).get(key).cloned()
+}
+
+/// Display name for a map `key`, if known.
+pub fn map_name_by_key(key: &str) -> Option<String> {
+    static T: OnceLock<HashMap<String, String>> = OnceLock::new();
+    T.get_or_init(|| names_by_key(MAPS_JSON, false)).get(key).cloned()
+}
+
 pub fn operator_name(id: u64) -> String {
     operators().get(&id).cloned().unwrap_or_else(|| {
         log::warn!("unknown operator id {id}");

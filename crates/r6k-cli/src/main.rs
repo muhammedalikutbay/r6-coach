@@ -4,10 +4,12 @@
 //!   r6k baseline --show
 //!   r6k advise (--last | --match <id>) [--replays <dir>] [--dissect <exe>] [--cache <dir>]
 //!   r6k match <id|folder> [--cache <dir>] [--replays <dir>] [--dissect <exe>]
+//!   r6k query [--range last5] [--mode ranked] [--side attack] [--operator zofia] [--map outback]
 //!   r6k bench [--iterations <n>] [--cache <dir>]
 
 mod bench;
 mod matchview;
+mod queryview;
 
 use anyhow::{bail, Context, Result};
 use clap::{Parser, Subcommand};
@@ -76,6 +78,26 @@ enum Cmd {
         #[arg(long, default_value = DEFAULT_CACHE)]
         cache: PathBuf,
     },
+    /// Run the v2 query engine over the cached matches and print the QueryResult as JSON.
+    Query {
+        /// last1 | last5 | last20 | season | all
+        #[arg(long, default_value = "all")]
+        range: String,
+        /// all | ranked | unranked | quick
+        #[arg(long, default_value = "all")]
+        mode: String,
+        /// both | attack | defense
+        #[arg(long, default_value = "both")]
+        side: String,
+        /// Operator key (repeatable), e.g. zofia.
+        #[arg(long = "operator")]
+        operators: Vec<String>,
+        /// Map key (repeatable), e.g. outback.
+        #[arg(long = "map")]
+        maps: Vec<String>,
+        #[arg(long, default_value = DEFAULT_CACHE)]
+        cache: PathBuf,
+    },
     /// Time parsing and advice over the cached matches (Rust speed and memory check).
     Bench {
         /// How many full passes to time.
@@ -109,6 +131,14 @@ fn main() -> Result<()> {
             dissect,
             cache,
         } => matchview::run(&target, &replays, dissect.as_deref(), &cache),
+        Cmd::Query {
+            range,
+            mode,
+            side,
+            operators,
+            maps,
+            cache,
+        } => queryview::run(&range, &mode, &side, &operators, &maps, &cache),
         Cmd::Bench { iterations, cache } => bench::run(&cache, iterations),
     }
 }

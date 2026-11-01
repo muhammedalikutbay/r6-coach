@@ -8,6 +8,7 @@ pub mod derive;
 pub mod full;
 pub mod model;
 pub mod names;
+pub mod query;
 pub mod raw;
 pub mod session;
 pub mod stats;
