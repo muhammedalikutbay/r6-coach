@@ -3,6 +3,9 @@
 //!   r6k ingest <MatchReplay dir> --dissect <exe> [--cache <dir>] [--out <file>]
 //!   r6k baseline --show
 //!   r6k advise (--last | --match <id>) [--replays <dir>] [--dissect <exe>] [--cache <dir>]
+//!   r6k bench [--iterations <n>] [--cache <dir>]
+
+mod bench;
 
 use anyhow::{bail, Context, Result};
 use clap::{Parser, Subcommand};
@@ -59,6 +62,14 @@ enum Cmd {
         #[arg(long, default_value = DEFAULT_CACHE)]
         cache: PathBuf,
     },
+    /// Time parsing and advice over the cached matches (Rust speed and memory check).
+    Bench {
+        /// How many full passes to time.
+        #[arg(long, default_value_t = 1000)]
+        iterations: u32,
+        #[arg(long, default_value = DEFAULT_CACHE)]
+        cache: PathBuf,
+    },
 }
 
 fn main() -> Result<()> {
@@ -78,6 +89,7 @@ fn main() -> Result<()> {
             dissect,
             cache,
         } => advise_cmd(last, match_id.as_deref(), &replays, dissect.as_deref(), &cache),
+        Cmd::Bench { iterations, cache } => bench::run(&cache, iterations),
     }
 }
 
