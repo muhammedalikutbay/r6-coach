@@ -1,0 +1,17 @@
+[package]
+name = "r6k-paths"
+version = "0.1.0"
+edition = "2021"
+description = "Finds the Rainbow Six Siege MatchReplay folder"
+
+# Empty workspace table: keeps this crate standalone until it is merged into the root workspace.
+[workspace]
+
+[dependencies]
+log = "0.4"
+
+[target.'cfg(windows)'.dependencies]
+winreg = "0.52"
+
+[dev-dependencies]
+tempfile = "3"
