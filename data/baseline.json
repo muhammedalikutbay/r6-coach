@@ -1249,6 +1249,38 @@
    "matchesWon": 35,
    "roundsPlayed": 376,
    "roundsWon": 200,
+   "sides": {
+    "attacker": {
+     "aces": 0,
+     "assists": 53,
+     "clutches": 3,
+     "deaths": 132,
+     "firstBloods": 13,
+     "firstDeaths": 14,
+     "headshots": 78,
+     "kills": 147,
+     "matchesPlayed": 61,
+     "matchesWon": 35,
+     "roundsPlayed": 192,
+     "roundsWon": 93,
+     "timePlayed": 221075729
+    },
+    "defender": {
+     "aces": 0,
+     "assists": 48,
+     "clutches": 3,
+     "deaths": 123,
+     "firstBloods": 18,
+     "firstDeaths": 22,
+     "headshots": 58,
+     "kills": 138,
+     "matchesPlayed": 61,
+     "matchesWon": 35,
+     "roundsPlayed": 184,
+     "roundsWon": 107,
+     "timePlayed": 226562026
+    }
+   },
    "timePlayed": 447637755
   },
   "border": {
@@ -1264,6 +1296,38 @@
    "matchesWon": 29,
    "roundsPlayed": 302,
    "roundsWon": 169,
+   "sides": {
+    "attacker": {
+     "aces": 0,
+     "assists": 32,
+     "clutches": 4,
+     "deaths": 99,
+     "firstBloods": 15,
+     "firstDeaths": 10,
+     "headshots": 73,
+     "kills": 115,
+     "matchesPlayed": 48,
+     "matchesWon": 29,
+     "roundsPlayed": 152,
+     "roundsWon": 83,
+     "timePlayed": 174303383
+    },
+    "defender": {
+     "aces": 0,
+     "assists": 44,
+     "clutches": 7,
+     "deaths": 96,
+     "firstBloods": 18,
+     "firstDeaths": 5,
+     "headshots": 61,
+     "kills": 128,
+     "matchesPlayed": 48,
+     "matchesWon": 29,
+     "roundsPlayed": 150,
+     "roundsWon": 86,
+     "timePlayed": 181516848
+    }
+   },
    "timePlayed": 355820231
   },
   "calypso-casino": {
@@ -1279,6 +1343,38 @@
    "matchesWon": 5,
    "roundsPlayed": 66,
    "roundsWon": 35,
+   "sides": {
+    "attacker": {
+     "aces": 0,
+     "assists": 3,
+     "clutches": 0,
+     "deaths": 19,
+     "firstBloods": 1,
+     "firstDeaths": 3,
+     "headshots": 10,
+     "kills": 20,
+     "matchesPlayed": 11,
+     "matchesWon": 5,
+     "roundsPlayed": 30,
+     "roundsWon": 14,
+     "timePlayed": 32474135
+    },
+    "defender": {
+     "aces": 0,
+     "assists": 10,
+     "clutches": 0,
+     "deaths": 21,
+     "firstBloods": 1,
+     "firstDeaths": 4,
+     "headshots": 16,
+     "kills": 25,
+     "matchesPlayed": 11,
+     "matchesWon": 5,
+     "roundsPlayed": 36,
+     "roundsWon": 21,
+     "timePlayed": 40989379
+    }
+   },
    "timePlayed": 73463514
   },
   "chalet": {
@@ -1294,6 +1390,38 @@
    "matchesWon": 40,
    "roundsPlayed": 434,
    "roundsWon": 225,
+   "sides": {
+    "attacker": {
+     "aces": 0,
+     "assists": 25,
+     "clutches": 4,
+     "deaths": 150,
+     "firstBloods": 25,
+     "firstDeaths": 16,
+     "headshots": 97,
+     "kills": 170,
+     "matchesPlayed": 72,
+     "matchesWon": 39,
+     "roundsPlayed": 216,
+     "roundsWon": 100,
+     "timePlayed": 210857849
+    },
+    "defender": {
+     "aces": 0,
+     "assists": 75,
+     "clutches": 4,
+     "deaths": 148,
+     "firstBloods": 31,
+     "firstDeaths": 27,
+     "headshots": 88,
+     "kills": 165,
+     "matchesPlayed": 71,
+     "matchesWon": 39,
+     "roundsPlayed": 218,
+     "roundsWon": 125,
+     "timePlayed": 237780930
+    }
+   },
    "timePlayed": 448638779
   },
   "clubhouse": {
@@ -1309,6 +1437,38 @@
    "matchesWon": 46,
    "roundsPlayed": 476,
    "roundsWon": 256,
+   "sides": {
+    "attacker": {
+     "aces": 1,
+     "assists": 43,
+     "clutches": 3,
+     "deaths": 154,
+     "firstBloods": 24,
+     "firstDeaths": 16,
+     "headshots": 103,
+     "kills": 200,
+     "matchesPlayed": 76,
+     "matchesWon": 46,
+     "roundsPlayed": 231,
+     "roundsWon": 121,
+     "timePlayed": 234390186
+    },
+    "defender": {
+     "aces": 0,
+     "assists": 64,
+     "clutches": 3,
+     "deaths": 150,
+     "firstBloods": 31,
+     "firstDeaths": 16,
+     "headshots": 105,
+     "kills": 213,
+     "matchesPlayed": 76,
+     "matchesWon": 46,
+     "roundsPlayed": 245,
+     "roundsWon": 135,
+     "timePlayed": 308138446
+    }
+   },
    "timePlayed": 542528632
   },
   "coastline": {
@@ -1324,6 +1484,38 @@
    "matchesWon": 22,
    "roundsPlayed": 260,
    "roundsWon": 131,
+   "sides": {
+    "attacker": {
+     "aces": 1,
+     "assists": 27,
+     "clutches": 7,
+     "deaths": 81,
+     "firstBloods": 10,
+     "firstDeaths": 8,
+     "headshots": 55,
+     "kills": 112,
+     "matchesPlayed": 45,
+     "matchesWon": 22,
+     "roundsPlayed": 128,
+     "roundsWon": 69,
+     "timePlayed": 133395138
+    },
+    "defender": {
+     "aces": 0,
+     "assists": 39,
+     "clutches": 4,
+     "deaths": 100,
+     "firstBloods": 16,
+     "firstDeaths": 11,
+     "headshots": 50,
+     "kills": 94,
+     "matchesPlayed": 45,
+     "matchesWon": 22,
+     "roundsPlayed": 132,
+     "roundsWon": 62,
+     "timePlayed": 139968473
+    }
+   },
    "timePlayed": 273363611
   },
   "consulate": {
@@ -1339,6 +1531,38 @@
    "matchesWon": 21,
    "roundsPlayed": 242,
    "roundsWon": 127,
+   "sides": {
+    "attacker": {
+     "aces": 0,
+     "assists": 16,
+     "clutches": 3,
+     "deaths": 90,
+     "firstBloods": 16,
+     "firstDeaths": 12,
+     "headshots": 51,
+     "kills": 93,
+     "matchesPlayed": 41,
+     "matchesWon": 21,
+     "roundsPlayed": 127,
+     "roundsWon": 60,
+     "timePlayed": 132473410
+    },
+    "defender": {
+     "aces": 0,
+     "assists": 33,
+     "clutches": 5,
+     "deaths": 75,
+     "firstBloods": 19,
+     "firstDeaths": 4,
+     "headshots": 73,
+     "kills": 128,
+     "matchesPlayed": 41,
+     "matchesWon": 21,
+     "roundsPlayed": 115,
+     "roundsWon": 67,
+     "timePlayed": 128107424
+    }
+   },
    "timePlayed": 260580834
   },
   "emerald-plains": {
@@ -1354,6 +1578,38 @@
    "matchesWon": 4,
    "roundsPlayed": 39,
    "roundsWon": 21,
+   "sides": {
+    "attacker": {
+     "aces": 0,
+     "assists": 6,
+     "clutches": 4,
+     "deaths": 14,
+     "firstBloods": 1,
+     "firstDeaths": 2,
+     "headshots": 9,
+     "kills": 13,
+     "matchesPlayed": 6,
+     "matchesWon": 4,
+     "roundsPlayed": 20,
+     "roundsWon": 8,
+     "timePlayed": 23887648
+    },
+    "defender": {
+     "aces": 0,
+     "assists": 3,
+     "clutches": 2,
+     "deaths": 11,
+     "firstBloods": 2,
+     "firstDeaths": 0,
+     "headshots": 18,
+     "kills": 24,
+     "matchesPlayed": 6,
+     "matchesWon": 4,
+     "roundsPlayed": 19,
+     "roundsWon": 13,
+     "timePlayed": 16872183
+    }
+   },
    "timePlayed": 40759831
   },
   "fortress": {
@@ -1369,6 +1625,38 @@
    "matchesWon": 2,
    "roundsPlayed": 40,
    "roundsWon": 17,
+   "sides": {
+    "attacker": {
+     "aces": 0,
+     "assists": 1,
+     "clutches": 0,
+     "deaths": 16,
+     "firstBloods": 2,
+     "firstDeaths": 2,
+     "headshots": 2,
+     "kills": 6,
+     "matchesPlayed": 8,
+     "matchesWon": 2,
+     "roundsPlayed": 18,
+     "roundsWon": 5,
+     "timePlayed": 17484810
+    },
+    "defender": {
+     "aces": 0,
+     "assists": 6,
+     "clutches": 0,
+     "deaths": 15,
+     "firstBloods": 3,
+     "firstDeaths": 1,
+     "headshots": 7,
+     "kills": 17,
+     "matchesPlayed": 8,
+     "matchesWon": 2,
+     "roundsPlayed": 22,
+     "roundsWon": 12,
+     "timePlayed": 20877287
+    }
+   },
    "timePlayed": 38362097
   },
   "kafe-dostoyevsky": {
@@ -1384,6 +1672,38 @@
    "matchesWon": 24,
    "roundsPlayed": 319,
    "roundsWon": 156,
+   "sides": {
+    "attacker": {
+     "aces": 0,
+     "assists": 26,
+     "clutches": 4,
+     "deaths": 118,
+     "firstBloods": 22,
+     "firstDeaths": 13,
+     "headshots": 79,
+     "kills": 141,
+     "matchesPlayed": 54,
+     "matchesWon": 24,
+     "roundsPlayed": 164,
+     "roundsWon": 71,
+     "timePlayed": 174019935
+    },
+    "defender": {
+     "aces": 0,
+     "assists": 37,
+     "clutches": 6,
+     "deaths": 104,
+     "firstBloods": 18,
+     "firstDeaths": 16,
+     "headshots": 79,
+     "kills": 152,
+     "matchesPlayed": 54,
+     "matchesWon": 24,
+     "roundsPlayed": 155,
+     "roundsWon": 85,
+     "timePlayed": 200488854
+    }
+   },
    "timePlayed": 374508789
   },
   "kanal": {
@@ -1399,6 +1719,38 @@
    "matchesWon": 25,
    "roundsPlayed": 230,
    "roundsWon": 129,
+   "sides": {
+    "attacker": {
+     "aces": 0,
+     "assists": 20,
+     "clutches": 2,
+     "deaths": 72,
+     "firstBloods": 9,
+     "firstDeaths": 4,
+     "headshots": 53,
+     "kills": 102,
+     "matchesPlayed": 39,
+     "matchesWon": 25,
+     "roundsPlayed": 111,
+     "roundsWon": 61,
+     "timePlayed": 117386799
+    },
+    "defender": {
+     "aces": 0,
+     "assists": 27,
+     "clutches": 4,
+     "deaths": 71,
+     "firstBloods": 11,
+     "firstDeaths": 9,
+     "headshots": 47,
+     "kills": 94,
+     "matchesPlayed": 39,
+     "matchesWon": 25,
+     "roundsPlayed": 119,
+     "roundsWon": 68,
+     "timePlayed": 120968872
+    }
+   },
    "timePlayed": 238355671
   },
   "lair": {
@@ -1414,6 +1766,38 @@
    "matchesWon": 2,
    "roundsPlayed": 36,
    "roundsWon": 11,
+   "sides": {
+    "attacker": {
+     "aces": 0,
+     "assists": 3,
+     "clutches": 1,
+     "deaths": 17,
+     "firstBloods": 2,
+     "firstDeaths": 4,
+     "headshots": 10,
+     "kills": 14,
+     "matchesPlayed": 7,
+     "matchesWon": 2,
+     "roundsPlayed": 20,
+     "roundsWon": 4,
+     "timePlayed": 15642358
+    },
+    "defender": {
+     "aces": 0,
+     "assists": 2,
+     "clutches": 0,
+     "deaths": 12,
+     "firstBloods": 4,
+     "firstDeaths": 3,
+     "headshots": 9,
+     "kills": 12,
+     "matchesPlayed": 7,
+     "matchesWon": 2,
+     "roundsPlayed": 16,
+     "roundsWon": 7,
+     "timePlayed": 15434211
+    }
+   },
    "timePlayed": 31076569
   },
   "nighthaven-labs": {
@@ -1429,6 +1813,38 @@
    "matchesWon": 23,
    "roundsPlayed": 297,
    "roundsWon": 149,
+   "sides": {
+    "attacker": {
+     "aces": 0,
+     "assists": 18,
+     "clutches": 4,
+     "deaths": 104,
+     "firstBloods": 10,
+     "firstDeaths": 20,
+     "headshots": 74,
+     "kills": 121,
+     "matchesPlayed": 47,
+     "matchesWon": 23,
+     "roundsPlayed": 146,
+     "roundsWon": 57,
+     "timePlayed": 181657474
+    },
+    "defender": {
+     "aces": 0,
+     "assists": 39,
+     "clutches": 4,
+     "deaths": 87,
+     "firstBloods": 23,
+     "firstDeaths": 10,
+     "headshots": 68,
+     "kills": 144,
+     "matchesPlayed": 47,
+     "matchesWon": 23,
+     "roundsPlayed": 151,
+     "roundsWon": 92,
+     "timePlayed": 176407210
+    }
+   },
    "timePlayed": 358064684
   },
   "oregon": {
@@ -1444,6 +1860,38 @@
    "matchesWon": 17,
    "roundsPlayed": 280,
    "roundsWon": 126,
+   "sides": {
+    "attacker": {
+     "aces": 1,
+     "assists": 27,
+     "clutches": 6,
+     "deaths": 100,
+     "firstBloods": 14,
+     "firstDeaths": 10,
+     "headshots": 82,
+     "kills": 136,
+     "matchesPlayed": 44,
+     "matchesWon": 17,
+     "roundsPlayed": 145,
+     "roundsWon": 60,
+     "timePlayed": 148687471
+    },
+    "defender": {
+     "aces": 1,
+     "assists": 41,
+     "clutches": 0,
+     "deaths": 94,
+     "firstBloods": 22,
+     "firstDeaths": 13,
+     "headshots": 73,
+     "kills": 134,
+     "matchesPlayed": 44,
+     "matchesWon": 17,
+     "roundsPlayed": 135,
+     "roundsWon": 66,
+     "timePlayed": 163670742
+    }
+   },
    "timePlayed": 312358213
   },
   "outback": {
@@ -1459,6 +1907,38 @@
    "matchesWon": 17,
    "roundsPlayed": 212,
    "roundsWon": 106,
+   "sides": {
+    "attacker": {
+     "aces": 0,
+     "assists": 21,
+     "clutches": 1,
+     "deaths": 78,
+     "firstBloods": 5,
+     "firstDeaths": 8,
+     "headshots": 51,
+     "kills": 78,
+     "matchesPlayed": 36,
+     "matchesWon": 17,
+     "roundsPlayed": 103,
+     "roundsWon": 46,
+     "timePlayed": 102319303
+    },
+    "defender": {
+     "aces": 1,
+     "assists": 28,
+     "clutches": 8,
+     "deaths": 65,
+     "firstBloods": 11,
+     "firstDeaths": 8,
+     "headshots": 67,
+     "kills": 120,
+     "matchesPlayed": 36,
+     "matchesWon": 17,
+     "roundsPlayed": 109,
+     "roundsWon": 60,
+     "timePlayed": 93831134
+    }
+   },
    "timePlayed": 196150437
   },
   "presidential-plane": {
@@ -1474,6 +1954,38 @@
    "matchesWon": 1,
    "roundsPlayed": 4,
    "roundsWon": 3,
+   "sides": {
+    "attacker": {
+     "aces": 0,
+     "assists": 0,
+     "clutches": 0,
+     "deaths": 2,
+     "firstBloods": 0,
+     "firstDeaths": 0,
+     "headshots": 1,
+     "kills": 2,
+     "matchesPlayed": 1,
+     "matchesWon": 1,
+     "roundsPlayed": 2,
+     "roundsWon": 1,
+     "timePlayed": 1024007
+    },
+    "defender": {
+     "aces": 0,
+     "assists": 0,
+     "clutches": 0,
+     "deaths": 1,
+     "firstBloods": 0,
+     "firstDeaths": 1,
+     "headshots": 0,
+     "kills": 3,
+     "matchesPlayed": 1,
+     "matchesWon": 1,
+     "roundsPlayed": 2,
+     "roundsWon": 2,
+     "timePlayed": 1024007
+    }
+   },
    "timePlayed": 2048014
   },
   "skyscraper": {
@@ -1489,6 +2001,38 @@
    "matchesWon": 17,
    "roundsPlayed": 196,
    "roundsWon": 106,
+   "sides": {
+    "attacker": {
+     "aces": 0,
+     "assists": 12,
+     "clutches": 1,
+     "deaths": 70,
+     "firstBloods": 8,
+     "firstDeaths": 5,
+     "headshots": 50,
+     "kills": 80,
+     "matchesPlayed": 31,
+     "matchesWon": 17,
+     "roundsPlayed": 98,
+     "roundsWon": 46,
+     "timePlayed": 104316330
+    },
+    "defender": {
+     "aces": 0,
+     "assists": 40,
+     "clutches": 4,
+     "deaths": 67,
+     "firstBloods": 12,
+     "firstDeaths": 9,
+     "headshots": 50,
+     "kills": 89,
+     "matchesPlayed": 31,
+     "matchesWon": 17,
+     "roundsPlayed": 98,
+     "roundsWon": 60,
+     "timePlayed": 97971711
+    }
+   },
    "timePlayed": 202288041
   },
   "stadium-alpha": {
@@ -1504,6 +2048,23 @@
    "matchesWon": 0,
    "roundsPlayed": 1,
    "roundsWon": 1,
+   "sides": {
+    "attacker": {
+     "aces": 0,
+     "assists": 1,
+     "clutches": 0,
+     "deaths": 2,
+     "firstBloods": 1,
+     "firstDeaths": 0,
+     "headshots": 1,
+     "kills": 1,
+     "matchesPlayed": 1,
+     "matchesWon": 0,
+     "roundsPlayed": 1,
+     "roundsWon": 1,
+     "timePlayed": 2553756
+    }
+   },
    "timePlayed": 2553756
   },
   "theme-park": {
@@ -1519,6 +2080,38 @@
    "matchesWon": 12,
    "roundsPlayed": 161,
    "roundsWon": 74,
+   "sides": {
+    "attacker": {
+     "aces": 0,
+     "assists": 15,
+     "clutches": 1,
+     "deaths": 64,
+     "firstBloods": 9,
+     "firstDeaths": 7,
+     "headshots": 38,
+     "kills": 66,
+     "matchesPlayed": 27,
+     "matchesWon": 12,
+     "roundsPlayed": 82,
+     "roundsWon": 29,
+     "timePlayed": 89729670
+    },
+    "defender": {
+     "aces": 0,
+     "assists": 23,
+     "clutches": 5,
+     "deaths": 52,
+     "firstBloods": 5,
+     "firstDeaths": 5,
+     "headshots": 28,
+     "kills": 68,
+     "matchesPlayed": 27,
+     "matchesWon": 12,
+     "roundsPlayed": 79,
+     "roundsWon": 45,
+     "timePlayed": 84434055
+    }
+   },
    "timePlayed": 174163725
   },
   "villa": {
@@ -1534,6 +2127,38 @@
    "matchesWon": 30,
    "roundsPlayed": 368,
    "roundsWon": 186,
+   "sides": {
+    "attacker": {
+     "aces": 0,
+     "assists": 32,
+     "clutches": 3,
+     "deaths": 135,
+     "firstBloods": 20,
+     "firstDeaths": 14,
+     "headshots": 80,
+     "kills": 146,
+     "matchesPlayed": 58,
+     "matchesWon": 30,
+     "roundsPlayed": 184,
+     "roundsWon": 77,
+     "timePlayed": 177849803
+    },
+    "defender": {
+     "aces": 1,
+     "assists": 54,
+     "clutches": 7,
+     "deaths": 120,
+     "firstBloods": 15,
+     "firstDeaths": 9,
+     "headshots": 84,
+     "kills": 153,
+     "matchesPlayed": 58,
+     "matchesWon": 30,
+     "roundsPlayed": 184,
+     "roundsWon": 109,
+     "timePlayed": 206179570
+    }
+   },
    "timePlayed": 384029373
   }
  },

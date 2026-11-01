@@ -54,9 +54,10 @@ function counters(stats) {
   return out;
 }
 
-// Object with keys in sorted order (deterministic output).
+// Object with keys in sorted order at every level (deterministic output).
 function sortKeys(obj) {
-  return Object.fromEntries(Object.keys(obj).sort().map((k) => [k, obj[k]]));
+  const sortVal = (v) => (v && typeof v === 'object' && !Array.isArray(v) ? sortKeys(v) : v);
+  return Object.fromEntries(Object.keys(obj).sort().map((k) => [k, sortVal(obj[k])]));
 }
 
 // ---- operators: one segment per operator (side comes from the segment) -------
@@ -67,13 +68,28 @@ for (const seg of readData('profile_ubi_H.A.N-01_segments_operator-season_all-se
   operators[slug] = { side: seg.attributes.side, ...counters(seg.stats) };
 }
 
-// ---- maps: 59 segments = 20 maps x (all sides, attacker, defender). Keep the all-sides one. -----
+// ---- maps: 59 segments = 20 maps x (all sides, attacker, defender). ---------
+// Top-level counters are the all-sides segment; `sides` holds the attacker / defender segments.
+// A side is omitted when Tracker has no segment for it (e.g. one map has no defender segment).
 const maps = {};
+const mapSides = {};
 for (const seg of readData('profile_ubi_H.A.N-01_segments_map-season_all-sessionType_all.json')) {
-  if (seg.attributes.side !== null) continue;
   const slug = seg.attributes.map;
-  if (maps[slug]) throw new Error(`duplicate map segment: ${slug}`);
-  maps[slug] = counters(seg.stats);
+  const side = seg.attributes.side;
+  if (side === null) {
+    if (maps[slug]) throw new Error(`duplicate map segment: ${slug}`);
+    maps[slug] = counters(seg.stats);
+  } else if (side === 'attacker' || side === 'defender') {
+    mapSides[slug] ??= {};
+    if (mapSides[slug][side]) throw new Error(`duplicate map ${side} segment: ${slug}`);
+    mapSides[slug][side] = counters(seg.stats);
+  } else {
+    throw new Error(`unknown map side "${side}": ${slug}`);
+  }
+}
+for (const slug of Object.keys(mapSides)) {
+  if (!maps[slug]) throw new Error(`map side segments without all-sides segment: ${slug}`);
+  maps[slug].sides = { ...mapSides[slug] };
 }
 
 // ---- profile overview + game-mode segments ----------------------------------
