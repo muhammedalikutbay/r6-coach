@@ -1,3 +1,4 @@
+mod report;
 mod store;
 mod summary;
 mod tables;
@@ -136,7 +137,9 @@ pub fn run() {
             map_table,
             get_replay_dir,
             set_replay_dir,
-            reset_database
+            reset_database,
+            report::last_match_report,
+            report::match_report
         ])
         .run(tauri::generate_context!())
     {
