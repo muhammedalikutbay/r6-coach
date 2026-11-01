@@ -1,8 +1,17 @@
 <script lang="ts">
   import '../app.css';
   import { page } from '$app/state';
+  import { goto } from '$app/navigation';
+  import { onMount } from 'svelte';
+  import { getReplayDir } from '$lib/api';
   import WelcomeScreen from '$lib/WelcomeScreen.svelte';
   let { children } = $props();
+  // First launch: when no replay folder is known (not saved, not auto-found), go to Settings to pick one.
+  onMount(async () => {
+    try {
+      if (!(await getReplayDir())) await goto('/settings?setup=1');
+    } catch (e) { console.error('first-run folder check failed', e); }
+  });
   const tabs = [
     { href: '/', label: 'Home' },
     { href: '/operators', label: 'Operators' },

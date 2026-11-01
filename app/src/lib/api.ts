@@ -1,5 +1,5 @@
 // Front-end API. Flip USE_MOCK to false when the Rust commands exist.
-import type { LastMatchReport, MatchSummary, MapRow, OperatorRow, RefreshResult } from './types';
+import type { ReplayDirInfo, LastMatchReport, MatchSummary, MapRow, OperatorRow, RefreshResult } from './types';
 import { mockMaps, mockOperators, mockRefresh, mockReplayDir, mockReport } from './mock';
 
 export const USE_MOCK = true;
@@ -58,6 +58,19 @@ export const getReplayDir = () =>
 
 export const setReplayDir = (path: string) =>
   call<void>('set_replay_dir', { path }, () => delay(undefined, 300));
+
+export const inspectReplayDir = (path: string) =>
+  call<ReplayDirInfo>('inspect_replay_dir', { path }, () =>
+    delay<ReplayDirInfo>({ status: 'ready', matchCount: 30 }, 150)
+  );
+
+/** Opens the native folder picker. Returns null when cancelled. */
+export async function pickReplayDir(current: string): Promise<string | null> {
+  if (USE_MOCK) return window.prompt('Replay folder path', current);
+  const { open } = await import('@tauri-apps/plugin-dialog');
+  const picked = await open({ directory: true, multiple: false, defaultPath: current || undefined });
+  return typeof picked === 'string' ? picked : null;
+}
 
 export const resetDatabase = () =>
   call<void>('reset_database', undefined, () => delay(undefined, 600));

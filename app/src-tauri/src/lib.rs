@@ -65,13 +65,42 @@ fn lock(db: &store::Db) -> Cmd<std::sync::MutexGuard<'_, rusqlite::Connection>> 
     db.0.lock().map_err(|_| "database lock poisoned".to_string())
 }
 
-/// Saved replay folder, else the auto-detected one, else empty.
+/// Saved replay folder, else the auto-detected one (which is then saved), else empty.
 fn replay_dir_of(db: &store::Db) -> Cmd<String> {
-    let saved = store::get_setting(&*lock(db)?, store::KEY_REPLAY_DIR).map_err(|e| e.to_string())?;
-    Ok(saved
-        .filter(|s| !s.trim().is_empty())
-        .or_else(|| r6k_paths::find_replay_dir().map(|p| p.to_string_lossy().into_owned()))
-        .unwrap_or_default())
+    let conn = lock(db)?;
+    let saved = store::get_setting(&conn, store::KEY_REPLAY_DIR).map_err(|e| e.to_string())?;
+    if let Some(s) = saved.filter(|s| !s.trim().is_empty()) {
+        return Ok(s);
+    }
+    match r6k_paths::find_replay_dir() {
+        Some(p) => {
+            let found = p.to_string_lossy().into_owned();
+            log::info!("replay folder auto-detected: {found}");
+            store::set_setting(&conn, store::KEY_REPLAY_DIR, &found).map_err(|e| e.to_string())?;
+            Ok(found)
+        }
+        None => Ok(String::new()),
+    }
+}
+
+/// State of a replay folder, as shown on the Settings page.
+#[derive(serde::Serialize)]
+#[serde(tag = "status", rename_all = "camelCase")]
+enum ReplayDirInfo {
+    Missing,
+    Empty,
+    #[serde(rename_all = "camelCase")]
+    Ready { match_count: usize },
+}
+
+#[tauri::command]
+fn inspect_replay_dir(path: String) -> ReplayDirInfo {
+    use r6k_paths::ReplayDirStatus as S;
+    match r6k_paths::inspect(Path::new(path.trim())) {
+        S::Missing => ReplayDirInfo::Missing,
+        S::Empty => ReplayDirInfo::Empty,
+        S::Ready { match_count } => ReplayDirInfo::Ready { match_count },
+    }
 }
 
 #[tauri::command]
@@ -123,6 +152,7 @@ fn reset_database(db: tauri::State<store::Db>) -> Cmd<()> {
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     if let Err(e) = tauri::Builder::default()
+        .plugin(tauri_plugin_dialog::init())
         .setup(|app| {
             let dir = app.path().app_data_dir()?;
             std::fs::create_dir_all(&dir)?;
@@ -137,6 +167,7 @@ pub fn run() {
             map_table,
             get_replay_dir,
             set_replay_dir,
+            inspect_replay_dir,
             reset_database,
             report::last_match_report,
             report::match_report

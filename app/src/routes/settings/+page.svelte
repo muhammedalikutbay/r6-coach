@@ -1,6 +1,8 @@
 <script lang="ts">
   import { onMount } from 'svelte';
-  import { getReplayDir, setReplayDir, resetDatabase, parseMatch } from '$lib/api';
+  import { page } from '$app/state';
+  import type { ReplayDirInfo } from '$lib/types';
+  import { getReplayDir, setReplayDir, inspectReplayDir, pickReplayDir, resetDatabase, parseMatch } from '$lib/api';
   import { showWelcomeAgain } from '$lib/welcome.svelte';
 
   let dir = $state('');
@@ -8,22 +10,31 @@
   let busy = $state(false);
   let msg = $state('');
   let error = $state('');
+  let info = $state<ReplayDirInfo | null>(null);
   let confirmReset = $state(false);
 
   const text = (e: unknown) => String(e instanceof Error ? e.message : e);
 
+  async function check(path: string) {
+    try { info = path ? await inspectReplayDir(path) : { status: 'missing' }; }
+    catch (e) { console.error(e); info = null; }
+  }
+
   onMount(async () => {
-    try { dir = await getReplayDir(); }
+    try { dir = await getReplayDir(); await check(dir); }
     catch (e) { console.error(e); error = text(e); }
     finally { loading = false; }
+    // First launch with no folder found: ask for one right away.
+    if (!dir && page.url.searchParams.get('setup')) await change();
   });
 
   async function change() {
-    // Real build: open a native folder picker first. Until then ask with a prompt.
-    const next = window.prompt('Replay folder path', dir);
+    let next: string | null;
+    try { next = await pickReplayDir(dir); }
+    catch (e) { console.error(e); error = text(e); return; }
     if (!next || next === dir) return;
     busy = true; msg = ''; error = '';
-    try { await setReplayDir(next); dir = next; msg = 'Folder saved.'; }
+    try { await setReplayDir(next); dir = next; msg = 'Folder saved.'; await check(next); }
     catch (e) { console.error(e); error = text(e); }
     finally { busy = false; }
   }
@@ -66,6 +77,15 @@
   {:else}
     <code class="path">{dir || 'Not set'}</code>
   {/if}
+  {#if info && info.status !== 'ready'}
+    <p class="hint">
+      {info.status === 'missing' ? 'This folder was not found. ' : 'No matches found in this folder. '}
+      In Rainbow Six Siege, open Settings and turn on "Match Replay" recording, play a match,
+      then pick the <code>MatchReplay</code> folder here.
+    </p>
+  {:else if info}
+    <p class="muted">{info.matchCount} match{info.matchCount === 1 ? '' : 'es'} found.</p>
+  {/if}
   <div><button class="btn" onclick={change} disabled={busy || loading}>Change folder</button></div>
 </section>
 
@@ -93,5 +113,6 @@
   h3 { font-size: 15px; } p { margin: 4px 0 10px; }
   .path { display: block; background: var(--panel2); border-radius: 6px; padding: 8px 10px;
     margin-bottom: 10px; word-break: break-all; font-size: 12px; }
+  .hint { color: var(--orange); }
   .ok { color: var(--green); margin-bottom: 10px; }
 </style>

@@ -57,3 +57,8 @@ export interface RefreshResult {
   newMatches: number;
   failed: { folder: string; error: string }[];
 }
+
+export type ReplayDirInfo =
+  | { status: 'missing' }
+  | { status: 'empty' }
+  | { status: 'ready'; matchCount: number };
