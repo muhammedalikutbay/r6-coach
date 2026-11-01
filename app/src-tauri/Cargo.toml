@@ -27,3 +27,7 @@ r6k-core = { path = "../../crates/r6k-core" }
 r6k-paths = { path = "../../crates/r6k-paths" }
 
 
+rusqlite = { version = "0.32", features = ["bundled"] }
+
+[dev-dependencies]
+tempfile = "3"
