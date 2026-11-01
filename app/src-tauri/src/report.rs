@@ -1,24 +1,44 @@
 //! Match report commands: a stored match plus the advice engine's output for it.
 
-use crate::summary::MatchSummary;
+use crate::summary::{MatchSummary, SessionView};
 use crate::{baseline, lock, store, Cmd};
-use r6k_core::{advise, Advice, Baseline, Match};
+use r6k_core::session::{advise_session, session_ending_at};
+use r6k_core::{advise, Advice, AdviceKind, Baseline, Match, TOPIC_HEADSHOT};
 use serde::Serialize;
 
 /// Same shape as `LastMatchReport` in `app/src/lib/types.ts`.
 #[derive(Debug, Serialize, PartialEq)]
+#[serde(rename_all = "camelCase")]
 pub struct LastMatchReport {
     #[serde(rename = "match")]
     pub match_summary: MatchSummary,
     pub advice: Vec<Advice>,
+    /// The sitting that ends with this match (up to 10 matches, gaps under 3 h); `None` when
+    /// the match is not part of the stored history.
+    pub session: Option<SessionView>,
+    pub session_advice: Vec<Advice>,
 }
 
 /// Builds the report for `target`; the history is every stored match (the engine itself
 /// ignores `target` and anything newer).
 fn build(target: &Match, history: &[Match], baseline: &Baseline) -> LastMatchReport {
+    let advice = advise(target, history, baseline);
+    let sitting = session_ending_at(history, target);
+    let (session, mut session_advice) = if sitting.is_empty() {
+        (None, Vec::new())
+    } else {
+        (Some(SessionView::from(sitting.as_slice())), advise_session(&sitting, history, baseline))
+    };
+    // Do not praise the headshot rate twice: the match card already did.
+    let has_hs_praise = |a: &Advice| a.kind == AdviceKind::Praise && a.topic.as_deref() == Some(TOPIC_HEADSHOT);
+    if advice.iter().any(has_hs_praise) {
+        session_advice.retain(|a| !has_hs_praise(a));
+    }
     LastMatchReport {
         match_summary: MatchSummary::from(target),
-        advice: advise(target, history, baseline),
+        advice,
+        session,
+        session_advice,
     }
 }
 
@@ -137,11 +157,32 @@ mod tests {
     }
 
     #[test]
+    fn unknown_match_has_no_session() {
+        let b = Baseline::embedded().unwrap();
+        let r = build(&mat("a", 2), &[], &b);
+        assert!(r.session.is_none() && r.session_advice.is_empty());
+    }
+
+    #[test]
+    fn session_covers_the_sitting_only() {
+        let b = Baseline::embedded().unwrap();
+        // The stamps are a day or more apart, so the sitting for "c" is just "c".
+        let ms = vec![mat("a", 1), mat("b", 20), mat("c", 21)];
+        let r = build(&ms[2], &ms, &b);
+        assert_eq!(r.session.unwrap().matches, 1);
+    }
+
+    #[test]
     fn serializes_like_the_typescript_dto() {
         let b = Baseline::embedded().unwrap();
-        let v = serde_json::to_value(build(&mat("a", 2), &[], &b)).unwrap();
+        let m = mat("a", 2);
+        let v = serde_json::to_value(build(&m, std::slice::from_ref(&m), &b)).unwrap();
         assert!(v["match"]["matchId"].is_string());
         assert!(v["advice"][0]["evidence"].is_string());
         assert_eq!(v["advice"][0]["kind"], "info");
+        assert_eq!(v["session"]["matches"], 1);
+        assert!(v["session"]["operators"][0]["name"].is_string());
+        assert!(v["session"]["maps"][0]["name"].is_string());
+        assert!(v["sessionAdvice"].is_array());
     }
 }

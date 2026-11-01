@@ -25,11 +25,35 @@ export interface Advice {
   kind: 'praise' | 'improve' | 'info';
   text: string;
   evidence: string;
+  topic?: string;
+}
+
+export interface MapUse {
+  name: string;
+  matches: number;
+  wins: number;
+}
+
+/** The sitting (up to 10 matches, gaps under 3 hours) that ends with the report's match. */
+export interface SessionSummary {
+  matches: number;
+  wins: number;
+  losses: number;
+  rounds: number;
+  kills: number;
+  deaths: number;
+  headshots: number;
+  firstBloods: number;
+  firstDeaths: number;
+  operators: OperatorUse[];
+  maps: MapUse[];
 }
 
 export interface LastMatchReport {
   match: MatchSummary;
   advice: Advice[];
+  session: SessionSummary | null;
+  sessionAdvice: Advice[];
 }
 
 export type Side = 'attack' | 'defense';

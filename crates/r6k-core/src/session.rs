@@ -162,6 +162,11 @@ pub fn summarize(session: &[Match]) -> SessionSummary {
     }
 }
 
+/// "1 round", "2 rounds".
+fn count(n: u32, word: &str) -> String {
+    format!("{n} {}", plural(n, word))
+}
+
 fn plural(n: u32, word: &str) -> String {
     if n == 1 {
         word.to_string()
@@ -225,6 +230,12 @@ fn op_base<'a>(b: &'a Baseline, op: u64) -> &'a CounterSet {
         .unwrap_or(&b.overall)
 }
 
+/// Marks an item as being about headshots so the UI can avoid saying it twice.
+fn headshot_topic(mut it: Item) -> Item {
+    it.advice.topic = Some(crate::advice::TOPIC_HEADSHOT.to_string());
+    it
+}
+
 struct Item {
     priority: u8,
     advice: Advice,
@@ -237,6 +248,7 @@ fn item(priority: u8, kind: AdviceKind, text: String, evidence: String) -> Item 
             kind,
             text,
             evidence,
+            topic: None,
         },
     }
 }
@@ -279,8 +291,8 @@ pub fn advise_session(session: &[Match], history: &[Match], baseline: &Baseline)
                 String::new()
             };
             let evidence = format!(
-                "{} rounds, K {} / D {}, K/D {raw:.2} (adjusted {adj:.2}); usual K/D {base_kd:.2}; {}-{} in matches{base_wins}",
-                sum.rounds, sum.kills, sum.deaths, sum.wins, sum.losses
+                "{}, K {} / D {}, K/D {raw:.2} (adjusted {adj:.2}); usual K/D {base_kd:.2}; {}-{} in matches{base_wins}",
+                count(sum.rounds, "round"), sum.kills, sum.deaths, sum.wins, sum.losses
             );
             let rec = format!("{} of {n_matches} won", sum.wins);
             if adj > base_kd * (1.0 + REL_THRESHOLD) {
@@ -314,16 +326,14 @@ pub fn advise_session(session: &[Match], history: &[Match], baseline: &Baseline)
             1,
             AdviceKind::Info,
             format!(
-                "Your last {n_matches} {} in one sitting: {} {} and {} {} over {} rounds ({} of {n_matches} won). Too few rounds to judge, but it is a start.",
-                plural(n_matches, "match"),
-                sum.kills,
-                plural(sum.kills, "kill"),
-                sum.deaths,
-                plural(sum.deaths, "death"),
-                sum.rounds,
+                "Your last {} in one sitting: {} and {} over {} ({} of {n_matches} won). Too few rounds to judge, but it is a start.",
+                count(n_matches, "match"),
+                count(sum.kills, "kill"),
+                count(sum.deaths, "death"),
+                count(sum.rounds, "round"),
                 sum.wins
             ),
-            format!("{} rounds, K/D {:.2}", sum.rounds, kd(sum.kills, sum.deaths)),
+            format!("{}, K/D {:.2}", count(sum.rounds, "round"), kd(sum.kills, sum.deaths)),
         ));
     }
 
@@ -333,10 +343,11 @@ pub fn advise_session(session: &[Match], history: &[Match], baseline: &Baseline)
             2,
             AdviceKind::Praise,
             format!(
-                "You won the opening duel in {} rounds and lost it in {}. Taking the first fight is a real strength.",
-                sum.first_bloods, sum.first_deaths
+                "You won the opening duel in {} and lost it in {}. Taking the first fight is a real strength.",
+                count(sum.first_bloods, "round"),
+                count(sum.first_deaths, "round")
             ),
-            format!("first kills {}, first deaths {}, {} rounds", sum.first_bloods, sum.first_deaths, sum.rounds),
+            format!("first kills {}, first deaths {}, {}", sum.first_bloods, sum.first_deaths, count(sum.rounds, "round")),
         ));
     }
 
@@ -347,19 +358,19 @@ pub fn advise_session(session: &[Match], history: &[Match], baseline: &Baseline)
         if usual > 0.0 && diff.abs() >= HS_GAP_POINTS && diff.abs() / usual >= REL_THRESHOLD {
             let evidence = format!("HS {hs:.0}% on {} kills; your usual {usual:.0}%", sum.kills);
             if diff > 0.0 {
-                items.push(item(
+                items.push(headshot_topic(item(
                     4,
                     AdviceKind::Praise,
                     format!("Your headshot rate this session was {hs:.0}%, above your usual {usual:.0}%. Your aim looked sharp."),
                     evidence,
-                ));
+                )));
             } else {
-                items.push(item(
+                items.push(headshot_topic(item(
                     4,
                     AdviceKind::Improve,
                     format!("Your headshot rate this session was {hs:.0}%, below your usual {usual:.0}%. Keep your crosshair at head height while you clear angles."),
                     evidence,
-                ));
+                )));
             }
         }
     }
@@ -411,14 +422,14 @@ pub fn advise_session(session: &[Match], history: &[Match], baseline: &Baseline)
                 4,
                 AdviceKind::Praise,
                 format!(
-                    "{} was your best operator this session: {bk:.2} K/D over {} rounds.",
+                    "{} was your best operator this session: {bk:.2} K/D over {}.",
                     names::operator_name(best.0),
-                    best.1
+                    count(best.1, "round")
                 ),
                 format!(
-                    "{}: {} rounds, K {} / D {}",
+                    "{}: {}, K {} / D {}",
                     names::operator_name(best.0),
-                    best.1,
+                    count(best.1, "round"),
                     best.2,
                     best.3
                 ),
@@ -428,8 +439,8 @@ pub fn advise_session(session: &[Match], history: &[Match], baseline: &Baseline)
             items.push(item(
                 4,
                 AdviceKind::Improve,
-                format!("{} was the hardest one this session ({wk:.2} K/D over {} rounds). Worth a rethink of how you play it.", names::operator_name(worst.0), worst.1),
-                format!("{}: {} rounds, K {} / D {}", names::operator_name(worst.0), worst.1, worst.2, worst.3),
+                format!("{} was the hardest one this session ({wk:.2} K/D over {}). Worth a rethink of how you play it.", names::operator_name(worst.0), count(worst.1, "round")),
+                format!("{}: {}, K {} / D {}", names::operator_name(worst.0), count(worst.1, "round"), worst.2, worst.3),
             ));
         }
     }
@@ -468,9 +479,9 @@ pub fn advise_session(session: &[Match], history: &[Match], baseline: &Baseline)
                 2,
                 AdviceKind::Improve,
                 format!(
-                    "You died first in {} of {} rounds this session (usually about {:.0}%). Send the drone or wait a few seconds before the first fight.",
+                    "You died first in {} of {} this session (usually about {:.0}%). Send the drone or wait a few seconds before the first fight.",
                     sum.first_deaths,
-                    sum.rounds,
+                    count(sum.rounds, "round"),
                     base_rate * 100.0
                 ),
                 format!(
@@ -512,11 +523,11 @@ pub fn advise_session(session: &[Match], history: &[Match], baseline: &Baseline)
                     names::map_name(m.map_id)
                 ),
                 format!(
-                    "{}/{} in {} rounds; previous best {prev_best:.2} over {} matches",
+                    "{}/{} in {}; previous best {prev_best:.2} over {}",
                     m.kills(),
                     m.deaths(),
-                    m.rounds.len(),
-                    earlier.len()
+                    count(m.rounds.len() as u32, "round"),
+                    count(earlier.len() as u32, "match")
                 ),
             ));
         }
@@ -586,7 +597,7 @@ fn fallback_praise(sum: &SessionSummary) -> Item {
                 sum.first_bloods,
                 plural(sum.first_bloods, "round")
             ),
-            format!("first kills {} in {} rounds", sum.first_bloods, sum.rounds),
+            format!("first kills {} in {}", sum.first_bloods, count(sum.rounds, "round")),
         )
     } else {
         item(
@@ -596,7 +607,7 @@ fn fallback_praise(sum: &SessionSummary) -> Item {
                 "You stayed at it for {n} {} in one sitting. That is how you get better!",
                 plural(n, "match")
             ),
-            format!("{} rounds played", sum.rounds),
+            format!("{} played", count(sum.rounds, "round")),
         )
     }
 }
@@ -605,6 +616,13 @@ fn fallback_praise(sum: &SessionSummary) -> Item {
 mod tests {
     use super::*;
     use crate::model::{Round, Side};
+
+    #[test]
+    fn counts_use_the_right_plural() {
+        assert_eq!(count(1, "round"), "1 round");
+        assert_eq!(count(0, "round"), "0 rounds");
+        assert_eq!(count(2, "match"), "2 matches");
+    }
 
     const JAGER: u64 = 92270642604;
     const ASH: u64 = 92270642656;

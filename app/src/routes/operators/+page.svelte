@@ -47,9 +47,9 @@
             <td class="name">{r.name}</td>
             <td class="muted">{r.side === 'attack' ? 'Attack' : 'Defense'}</td>
             <td><div class="bar"><i style="width:{(r.rounds / maxRounds) * 100}%"></i><span>{r.rounds}</span></div></td>
-            <td>{r.winPct}%</td>
+            <td>{Math.round(r.winPct)}%</td>
             <td>{r.kd.toFixed(2)}</td>
-            <td>{r.hsPct}%</td>
+            <td>{Math.round(r.hsPct)}%</td>
             <td class="t {r.trend}">{arrow[r.trend]}</td>
           </tr>
         {/each}

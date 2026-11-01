@@ -1,8 +1,9 @@
-// Front-end API. Flip USE_MOCK to false when the Rust commands exist.
-import type { ReplayDirInfo, LastMatchReport, MatchSummary, MapRow, OperatorRow, RefreshResult } from './types';
+// Front-end API. Inside the Tauri window every call goes to the Rust commands; the mock data
+// is used only when the page runs in a plain browser (npm run dev).
+import type { ReplayDirInfo, LastMatchReport, MapRow, OperatorRow, RefreshResult } from './types';
 import { mockMaps, mockOperators, mockRefresh, mockReplayDir, mockReport } from './mock';
 
-export const USE_MOCK = true;
+export const USE_MOCK = typeof window === 'undefined' || !('__TAURI_INTERNALS__' in window);
 
 // Simulated latency so loading states are visible with mock data.
 const delay = <T>(v: T, ms = 600) => new Promise<T>((r) => setTimeout(() => r(v), ms));
@@ -74,9 +75,3 @@ export async function pickReplayDir(current: string): Promise<string | null> {
 
 export const resetDatabase = () =>
   call<void>('reset_database', undefined, () => delay(undefined, 600));
-
-// TEMPORARY (r6k-rxr.11): always calls the real backend, even while USE_MOCK is on.
-export const parseMatch = async (path: string) => {
-  const { invoke } = await import('@tauri-apps/api/core');
-  return invoke<MatchSummary>('parse_match', { path });
-};

@@ -30,14 +30,14 @@
       <div class="card row">
         <div class="info">
           <div class="name">{m.name}</div>
-          <div class="muted small">{m.rounds} rounds · {m.winPct}% win · K/D {m.kd.toFixed(2)}</div>
+          <div class="muted small">{m.rounds} rounds · {Math.round(m.winPct)}% win · K/D {m.kd.toFixed(2)}</div>
         </div>
         <div class="sides">
           {#each [{ l: 'Attack', p: m.attackWinPct }, { l: 'Defense', p: m.defenseWinPct }] as s}
             <div class="side">
               <span class="lbl">{s.l}</span>
               <div class="track"><i class={tone(s.p)} style="width:{s.p}%"></i></div>
-              <span class="pct">{s.p}%</span>
+              <span class="pct">{Math.round(s.p)}%</span>
             </div>
           {/each}
         </div>

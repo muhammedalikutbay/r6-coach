@@ -2,7 +2,7 @@
   import { onMount } from 'svelte';
   import { page } from '$app/state';
   import type { ReplayDirInfo } from '$lib/types';
-  import { getReplayDir, setReplayDir, inspectReplayDir, pickReplayDir, resetDatabase, parseMatch } from '$lib/api';
+  import { getReplayDir, setReplayDir, inspectReplayDir, pickReplayDir, resetDatabase } from '$lib/api';
   import { showWelcomeAgain } from '$lib/welcome.svelte';
 
   let dir = $state('');
@@ -39,18 +39,6 @@
     finally { busy = false; }
   }
 
-  // TEMPORARY test button (r6k-rxr.11): parses one known match through the real backend.
-  let parsed = $state('');
-  async function testParse() {
-    busy = true; error = ''; parsed = '';
-    try {
-      const s = await parseMatch(String.raw`C:\Users\Kutbay\Desktop\R6Koc-veri\MatchReplay\Match-2026-10-31_00-54-47-11844`);
-      console.log('parse_match', s);
-      parsed = JSON.stringify(s, null, 2);
-    } catch (e) { console.error(e); error = text(e); }
-    finally { busy = false; }
-  }
-
   async function reset() {
     busy = true; msg = ''; error = '';
     try { await resetDatabase(); msg = 'Database reset. Press Update on Home to read your replays again.'; }
@@ -60,11 +48,6 @@
 </script>
 
 <h1>Settings</h1>
-
-<div class="card">
-  <button onclick={testParse} disabled={busy}>Test parse_match (temporary)</button>
-  {#if parsed}<pre>{parsed}</pre>{/if}
-</div>
 
 {#if error}<div class="card state error">Something went wrong: {error}</div>{/if}
 {#if msg}<div class="ok">{msg}</div>{/if}

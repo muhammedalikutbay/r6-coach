@@ -43,6 +43,38 @@ export const mockReport: LastMatchReport = {
       text: 'Kaid was played for only one round. Not enough data for a verdict yet.',
       evidence: '1 round this match, 9 rounds in total'
     }
+  ],
+  session: {
+    matches: 3,
+    wins: 2,
+    losses: 1,
+    rounds: 19,
+    kills: 24,
+    deaths: 17,
+    headshots: 10,
+    firstBloods: 6,
+    firstDeaths: 4,
+    operators: [
+      { name: 'Osa', rounds: 8 },
+      { name: 'Jäger', rounds: 6 },
+      { name: 'Zofia', rounds: 5 }
+    ],
+    maps: [
+      { name: 'Outback', matches: 2, wins: 2 },
+      { name: 'Clubhouse', matches: 1, wins: 0 }
+    ]
+  },
+  sessionAdvice: [
+    {
+      kind: 'praise',
+      text: 'Strong session: a 1.41 K/D over 3 matches (2 of 3 won), above your usual 1.10. Keep this rhythm!',
+      evidence: '19 rounds, K 24 / D 17, K/D 1.41 (adjusted 1.30); usual K/D 1.10; 2-1 in matches'
+    },
+    {
+      kind: 'praise',
+      text: 'You played Outback 2 times and won every one. This map suits you!',
+      evidence: 'Outback: 2 of 2 matches won'
+    }
   ]
 };
 

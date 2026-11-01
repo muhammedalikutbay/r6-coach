@@ -1,0 +1,31 @@
+{
+  "name": "accept-real-data",
+  "description": "Acceptance for r6k-rxr.4. Real window, real data: reset the database, set the replay folder through invoke (the native dialog cannot be automated), press Update (the first refresh of 30 matches takes about 45 s) and check Home, Operators and Maps. Needs the sidecar in app/src-tauri/binaries.",
+  "steps": [
+    { "type": "localStorage.clear" },
+    { "type": "reload" },
+    { "type": "wait", "text": "Let's go", "timeout": 30000 },
+    { "type": "click", "text": "Let's go" },
+    { "type": "eval", "expr": "Promise.resolve(window.__TAURI_INTERNALS__.invoke('reset_database')).then(() => 'reset')", "expect": "reset" },
+    { "type": "eval", "expr": "Promise.resolve(window.__TAURI_INTERNALS__.invoke('set_replay_dir', { path: 'C:/Users/Kutbay/Desktop/R6Koc-veri/MatchReplay' })).then(() => 'saved')", "expect": "saved" },
+    { "type": "reload" },
+    { "type": "wait", "text": "No matches yet", "timeout": 15000 },
+    { "type": "screenshot", "path": "real-home-empty.png" },
+    { "type": "click", "text": "Update" },
+    { "type": "wait", "text": "Outback", "timeout": 240000 },
+    { "type": "wait", "text": "This session", "timeout": 15000 },
+    { "type": "eval", "expr": "document.body.innerText.includes('30 new matches added')", "expect": true },
+    { "type": "eval", "expr": "document.querySelectorAll('ul.advice li').length > 2", "expect": true },
+    { "type": "screenshot", "path": "real-home.png" },
+    { "type": "click", "text": "Operators" },
+    { "type": "wait", "selector": "table tbody tr", "timeout": 15000 },
+    { "type": "eval", "expr": "document.querySelectorAll('table tbody tr').length > 5", "expect": true },
+    { "type": "eval", "expr": "!/\\d\\.\\d{4,}%/.test(document.body.innerText)", "expect": true },
+    { "type": "screenshot", "path": "real-operators.png" },
+    { "type": "click", "text": "Maps" },
+    { "type": "wait", "selector": ".list .card.row", "timeout": 15000 },
+    { "type": "eval", "expr": "document.querySelectorAll('.list .card.row').length > 3", "expect": true },
+    { "type": "eval", "expr": "!/\\d\\.\\d{4,}%/.test(document.body.innerText)", "expect": true },
+    { "type": "screenshot", "path": "real-maps.png" }
+  ]
+}

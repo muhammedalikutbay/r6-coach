@@ -59,9 +59,16 @@
   {:else if result.newMatches > 0}
     <div class="notice ok">{result.newMatches} new {result.newMatches === 1 ? 'match' : 'matches'} added.</div>
   {/if}
-  {#each result.failed as f}
-    <div class="notice bad">Could not read <b>{f.folder}</b>: {f.error}</div>
-  {/each}
+  {#if result.failed.length > 0}
+    <div class="notice bad">
+      <div>{result.failed.length === 1 ? '1 folder' : result.failed.length + ' folders'} could not be read:</div>
+      <ul class="warn">
+        {#each result.failed as f}
+          <li><b>{f.folder}</b>: {f.error}</li>
+        {/each}
+      </ul>
+    </div>
+  {/if}
 {/if}
 
 {#if loading}
@@ -103,6 +110,37 @@
       </li>
     {/each}
   </ul>
+
+  {#if report.session}
+    {@const s = report.session}
+    <h2 class="sess-title">This session</h2>
+    <section class="card sess">
+      <div class="line">
+        <b>{s.matches} {s.matches === 1 ? 'match' : 'matches'}</b>
+        <span>{s.wins}–{s.losses} in matches</span>
+        <span>{s.kills}/{s.deaths} K / D ({kd(s.kills, s.deaths)})</span>
+        <span>{s.headshots} {s.headshots === 1 ? 'headshot' : 'headshots'}</span>
+        <span>{s.rounds} {s.rounds === 1 ? 'round' : 'rounds'}</span>
+      </div>
+      <div class="ops muted">
+        {#each s.operators.slice(0, 4) as o}<span class="chip">{o.name} ×{o.rounds}</span>{/each}
+        {#each s.maps as mp}<span class="chip">{mp.name} {mp.wins}/{mp.matches} won</span>{/each}
+      </div>
+    </section>
+    {#if report.sessionAdvice.length > 0}
+      <ul class="advice">
+        {#each report.sessionAdvice as a}
+          <li class={a.kind}>
+            <span class="ic">{icon[a.kind]}</span>
+            <div>
+              <div class="text">{a.text}</div>
+              <div class="ev">{a.evidence}</div>
+            </div>
+          </li>
+        {/each}
+      </ul>
+    {/if}
+  {/if}
 {/if}
 
 <style>
@@ -124,6 +162,11 @@
   .ops { margin-top: 12px; display: flex; gap: 6px; flex-wrap: wrap; }
   .chip { background: var(--panel2); border-radius: 12px; padding: 2px 10px; font-size: 12px; }
   h2 { font-size: 15px; margin-bottom: 10px; }
+  .sess-title { margin-top: 22px; }
+  .warn { margin: 4px 0 0; padding-left: 18px; font-size: 12px; }
+  .sess { margin-bottom: 10px; }
+  .sess .line { display: flex; gap: 8px 18px; flex-wrap: wrap; align-items: baseline; }
+  .sess .ops { margin-top: 10px; }
   .advice { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
   .advice li { display: flex; gap: 12px; background: var(--panel); border: 1px solid var(--line);
     border-left: 4px solid var(--c); border-radius: 10px; padding: 10px 14px; }

@@ -63,6 +63,68 @@ impl From<&Match> for MatchSummary {
     }
 }
 
+#[derive(Debug, Serialize, PartialEq)]
+#[serde(rename_all = "camelCase")]
+pub struct MapUse {
+    pub name: String,
+    pub matches: u32,
+    pub wins: u32,
+}
+
+/// Totals of one sitting with readable names (the core `SessionSummary` keeps raw IDs).
+#[derive(Debug, Serialize, PartialEq)]
+#[serde(rename_all = "camelCase")]
+pub struct SessionView {
+    pub matches: u32,
+    pub wins: u32,
+    pub losses: u32,
+    pub rounds: u32,
+    pub kills: u32,
+    pub deaths: u32,
+    pub headshots: u32,
+    pub first_bloods: u32,
+    pub first_deaths: u32,
+    pub operators: Vec<OperatorUse>,
+    pub maps: Vec<MapUse>,
+}
+
+impl From<&[Match]> for SessionView {
+    fn from(session: &[Match]) -> Self {
+        let sum = r6k_core::session::summarize(session);
+        // Group by display name, so unknown maps with different IDs stay separate but known
+        // duplicate IDs of one map merge.
+        let mut maps: Vec<MapUse> = Vec::new();
+        for m in session {
+            let name = names::map_name(m.map_id);
+            match maps.iter_mut().find(|u| u.name == name) {
+                Some(u) => {
+                    u.matches += 1;
+                    u.wins += m.won as u32;
+                }
+                None => maps.push(MapUse { name, matches: 1, wins: m.won as u32 }),
+            }
+        }
+        maps.sort_by(|a, b| b.matches.cmp(&a.matches).then(a.name.cmp(&b.name)));
+        SessionView {
+            matches: sum.matches,
+            wins: sum.wins,
+            losses: sum.losses,
+            rounds: sum.rounds,
+            kills: sum.kills,
+            deaths: sum.deaths,
+            headshots: sum.headshots,
+            first_bloods: sum.first_bloods,
+            first_deaths: sum.first_deaths,
+            operators: sum
+                .top_operators
+                .iter()
+                .map(|&(id, rounds, _, _)| OperatorUse { name: names::operator_name(id), rounds })
+                .collect(),
+            maps,
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

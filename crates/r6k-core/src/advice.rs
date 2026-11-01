@@ -42,10 +42,17 @@ pub struct Advice {
     pub kind: AdviceKind,
     pub text: String,
     pub evidence: String,
+    /// Optional subject tag (e.g. [`TOPIC_HEADSHOT`]) used to avoid repeating a point across the
+    /// match and session reports. Absent in the JSON when unset.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub topic: Option<String>,
 }
 
+/// `Advice::topic` of headshot-rate items.
+pub const TOPIC_HEADSHOT: &str = "headshot";
+
 fn advice(kind: AdviceKind, text: String, evidence: String) -> Advice {
-    Advice { kind, text, evidence }
+    Advice { kind, text, evidence, topic: None }
 }
 
 fn norm_slug(s: &str) -> String {
@@ -202,15 +209,20 @@ fn headshot_rule(m: &Match, b: &Baseline, conf: Confidence) -> Option<(AdviceKin
         } else {
             format!("Your headshot rate was {hs:.0}%, normally it is {expected:.0}%. Your aim looks sharp today.")
         };
-        Some((AdviceKind::Praise, advice(AdviceKind::Praise, text, evidence)))
+        Some((AdviceKind::Praise, topic_headshot(advice(AdviceKind::Praise, text, evidence))))
     } else {
         let text = if firm {
             format!("Lots of body shots this match (headshot rate {hs:.0}%, normally {expected:.0}%). Hold your crosshair at head height while you clear angles.")
         } else {
             format!("There may have been a few too many body shots (headshot rate {hs:.0}%, normally {expected:.0}%). Try keeping your crosshair at head height while you clear angles.")
         };
-        Some((AdviceKind::Improve, advice(AdviceKind::Improve, text, evidence)))
+        Some((AdviceKind::Improve, topic_headshot(advice(AdviceKind::Improve, text, evidence))))
     }
+}
+
+fn topic_headshot(mut a: Advice) -> Advice {
+    a.topic = Some(TOPIC_HEADSHOT.to_string());
+    a
 }
 
 /// Rule 4: dying first much more often than getting the first kill.

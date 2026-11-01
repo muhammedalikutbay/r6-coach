@@ -1,6 +1,6 @@
 {
   "name": "accept-parse-welcome",
-  "description": "Acceptance for r6k-rxr.11 (parse_match returns MatchSummary in the real window) and r6k-rxr.5 (welcome shows once, persists, can be reopened).",
+  "description": "Acceptance for r6k-rxr.5 (welcome shows once, persists, can be reopened). The temporary parse_match button was removed in r6k-rxr.4.",
   "steps": [
     { "type": "localStorage.clear" },
     { "type": "reload" },
@@ -12,10 +12,6 @@
     { "type": "eval", "expr": "!document.body.innerText.includes('Happy Birthday!')", "expect": true },
     { "type": "click", "text": "Settings" },
     { "type": "wait", "text": "Show welcome again", "timeout": 15000 },
-    { "type": "click", "text": "Test parse_match (temporary)" },
-    { "type": "wait", "text": "Outback", "timeout": 60000 },
-    { "type": "eval", "expr": "(() => { const s = JSON.parse(document.querySelector('pre').textContent); return s.map + '|' + s.operators.length + '|' + s.matchId; })()" },
-    { "type": "screenshot", "path": "parse-match.png" },
     { "type": "click", "text": "Show welcome again" },
     { "type": "wait", "text": "Happy Birthday!", "timeout": 10000 },
     { "type": "screenshot", "path": "welcome-again.png" }
