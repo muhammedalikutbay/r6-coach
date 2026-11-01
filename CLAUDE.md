@@ -21,7 +21,7 @@ Only derived, player-only data (e.g. `data/baseline.json`) and anonymized test f
 The app itself must never send requests to Tracker Network or Ubisoft.
 
 ## Rules
-- Code, identifiers and code comments: English only. UI text and advice: Turkish.
+- Everything in English: code, identifiers, comments, UI text, advice text, the birthday welcome. (User decision, 2026-11-01.) Beads issues and vault notes stay Turkish.
 - Single branch `main`; one commit per task.
 - Log where it helps (the `log` crate in Rust, `console` in the frontend).
 - Verify with `cargo test`, the CLI against the real data folder, and the running app (`npm run tauri dev`).
