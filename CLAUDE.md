@@ -25,7 +25,8 @@ The app itself must never send requests to Tracker Network or Ubisoft.
 - `main` is the only long-lived branch; one commit per task. Parallel workers run in git worktrees (`C:\Users\Kutbay\Desktop\R6Koc-wt\<issue>`, branch `task/<issue>`); the orchestrator rebases and fast-forwards them into `main`. Touch only the files your task names.
 - Build environment: Windows 11 SDK + MSVC are installed. Run `cargo` and `npm run tauri ...` from PowerShell (Git Bash's `link.exe` shadows MSVC's). Never kill processes by image name; other workers run in parallel.
 - Log where it helps (the `log` crate in Rust, `console` in the frontend).
-- Verify with `cargo test`, the CLI against the real data folder, and the running app (`npm run tauri dev`).
+- Keep verification light (user decision, 2026-11-01): `cargo test` for new pure logic, `npm run check`, and a quick run when needed. The user does the detailed testing at the end of each milestone. No installer until the user says the app is done; milestone builds are standalone exes (`npm run tauri build -- --no-bundle`).
+- v2 work follows `docs/v2-spec.md` (Tracker-like UI, one global filter bar, operator/map images, coach v2).
 - Unknown operator or map IDs must never crash anything: keep the raw ID and show a readable fallback.
 
 ## Lessons
