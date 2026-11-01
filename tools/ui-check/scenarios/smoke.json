@@ -1,0 +1,14 @@
+{
+  "name": "smoke",
+  "description": "Fresh profile: welcome screen shows, dismiss it, Home is visible.",
+  "steps": [
+    { "type": "localStorage.clear" },
+    { "type": "reload" },
+    { "type": "wait", "text": "Happy Birthday!", "timeout": 30000 },
+    { "type": "screenshot", "path": "welcome.png" },
+    { "type": "click", "text": "Let's go" },
+    { "type": "wait", "text": "Last match", "timeout": 15000 },
+    { "type": "eval", "expr": "!document.querySelector('[role=dialog]')", "expect": true },
+    { "type": "screenshot", "path": "home.png" }
+  ]
+}
