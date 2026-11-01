@@ -718,8 +718,8 @@ fn career_operator_cards(f: &Filter, merged: &Baseline, career_kd: f64) -> Vec<O
         .iter()
         .filter(|(_, c)| c.rounds_played > 0 && (want.is_none() || c.side.as_deref() == want))
         .map(|(key, c)| OperatorCard {
-            key: key.clone(),
-            name: op_name(key),
+            key: norm_slug(key),
+            name: op_name(&norm_slug(key)),
             side: if c.side.as_deref() == Some("attacker") { TeamSide::Attack } else { TeamSide::Defense },
             rounds: c.rounds_played.min(u32::MAX as u64) as u32,
             win_pct: r1(c.round_win_pct()),
@@ -746,7 +746,7 @@ fn career_map_cards(f: &Filter, merged: &Baseline) -> Vec<MapCard> {
             };
             let side_win = |s: &str| ms.sides.get(s).map_or(0.0, |c| c.round_win_pct());
             MapCard {
-                name: map_name_of(&key),
+                name: names::map_name_by_key(&key).unwrap_or_else(|| pretty_slug(slug)),
                 matches: c.matches_played.min(u32::MAX as u64) as u32,
                 win_pct: r1(c.win_pct()),
                 attack_win_pct: r1(side_win("attacker")),
@@ -1063,6 +1063,18 @@ mod tests {
         assert_eq!(r.recent_matches[0].match_id, "m7");
         // 2 kills, 1 death per match.
         assert_eq!(r.trend[4].kd, 2.0);
+    }
+
+    #[test]
+    fn career_trend_comes_from_replays_and_keys_are_normalised() {
+        let ms = set();
+        let b = Baseline::embedded().unwrap();
+        let r = query(&Filter::default(), &ms, &b);
+        assert!(matches!(r.source, Source::Career));
+        assert_eq!(r.trend.len(), ms.len());
+        for k in r.maps.iter().map(|m| &m.key).chain(r.operators.iter().map(|o| &o.key)) {
+            assert_eq!(k, &norm_slug(k), "key {k} is not normalised");
+        }
     }
 
     #[test]

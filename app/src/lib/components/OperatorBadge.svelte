@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { normKey } from '$lib/v2/catalog';
   import { cn } from '$lib/utils';
   // `opKey` is the lowercase operator key, used for the image file name.
   // Unknown operators (no image) fall back to the initials of `name` (or of the raw key).
@@ -11,7 +12,7 @@
   let failed = $state(false);
   const label = $derived(name || opKey);
   const initials = $derived(label.replace(/[^A-Za-z0-9 ]/g, '').trim().slice(0, 2).toUpperCase() || '?');
-  const safeKey = $derived(opKey.toLowerCase().replace(/[^a-z0-9_-]/g, ''));
+  const safeKey = $derived(normKey(opKey));
   $effect(() => {
     safeKey;
     failed = false;

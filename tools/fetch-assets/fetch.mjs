@@ -134,10 +134,15 @@ async function filesOnDisk(dir, subdir, ext, keys) {
 
 async function main() {
   const operators = (await readJson(join(ROOT, 'data', 'operators.json'))).operators.map((o) => o.key);
-  const maps = (await readJson(join(ROOT, 'data', 'maps.json'))).maps.map((m) => m.key);
-
   const opImages = await trackerImages('operator');
   const mapImages = await trackerImages('map');
+  // Normalised keys only; every Tracker map is included, even if data/maps.json lacks it.
+  const maps = [
+    ...new Set([
+      ...(await readJson(join(ROOT, 'data', 'maps.json'))).maps.map((m) => norm(m.key)),
+      ...mapImages.keys(),
+    ]),
+  ].sort();
 
   console.log('--- operators');
   const missingOps = await fetchKind({

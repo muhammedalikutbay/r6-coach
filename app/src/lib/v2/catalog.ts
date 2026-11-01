@@ -8,13 +8,16 @@ export interface MapEntry { key: string; name: string }
 export const OPERATORS: OperatorEntry[] = (ops.operators as OperatorEntry[])
   .map((o) => ({ key: o.key, name: o.name, side: o.side }))
   .sort((a, b) => a.name.localeCompare(b.name));
-export const MAPS: MapEntry[] = (maps.maps as MapEntry[])
-  .map((m) => ({ key: m.key, name: m.name }))
-  .sort((a, b) => a.name.localeCompare(b.name));
+/** Single asset/lookup key: lowercase alphanumerics only ("calypso-casino" -> "calypsocasino"). */
+export const normKey = (s: string) => s.toLowerCase().replace(/[^a-z0-9]/g, '');
+
+export const MAPS: MapEntry[] = [
+  ...new Map((maps.maps as MapEntry[]).map((m) => [normKey(m.key), { key: normKey(m.key), name: m.name }])).values()
+].sort((a, b) => a.name.localeCompare(b.name));
 
 const opByKey = new Map(OPERATORS.map((o) => [o.key, o]));
 const mapByKey = new Map(MAPS.map((m) => [m.key, m]));
 
 /** Unknown keys never crash: fall back to the raw key. */
-export const operatorName = (key: string) => opByKey.get(key)?.name ?? key;
-export const mapName = (key: string) => mapByKey.get(key)?.name ?? key;
+export const operatorName = (key: string) => opByKey.get(normKey(key))?.name ?? key;
+export const mapName = (key: string) => mapByKey.get(normKey(key))?.name ?? key;

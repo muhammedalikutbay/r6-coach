@@ -81,38 +81,38 @@
     "noor": "operators/noor.png"
   },
   "maps": {
+    "bank": "maps/bank.jpg",
+    "border": "maps/border.jpg",
+    "calypsocasino": "maps/calypsocasino.jpg",
+    "chalet": "maps/chalet.jpg",
     "clubhouse": "maps/clubhouse.jpg",
+    "coastline": "maps/coastline.jpg",
+    "consulate": "maps/consulate.jpg",
+    "emeraldplains": "maps/emeraldplains.jpg",
+    "favela": "maps/favela.jpg",
+    "fortress": "maps/fortress.jpg",
+    "house": "maps/house.jpg",
     "kafedostoyevsky": "maps/kafedostoyevsky.jpg",
     "kanal": "maps/kanal.jpg",
-    "yacht": "maps/yacht.jpg",
+    "lair": "maps/lair.jpg",
+    "nighthavenlabs": "maps/nighthavenlabs.jpg",
+    "oregon": "maps/oregon.jpg",
+    "outback": "maps/outback.jpg",
     "presidentialplane": "maps/presidentialplane.jpg",
-    "consulate": "maps/consulate.jpg",
-    "coastline": "maps/coastline.jpg",
+    "skyscraper": "maps/skyscraper.jpg",
+    "stadiumalpha": "maps/stadiumalpha.jpg",
+    "themepark": "maps/themepark.jpg",
     "tower": "maps/tower.jpg",
     "villa": "maps/villa.jpg",
-    "fortress": "maps/fortress.jpg",
-    "themepark": "maps/themepark.jpg",
-    "oregon": "maps/oregon.jpg",
-    "house": "maps/house.jpg",
-    "chalet": "maps/chalet.jpg",
-    "skyscraper": "maps/skyscraper.jpg",
-    "border": "maps/border.jpg",
-    "favela": "maps/favela.jpg",
-    "bank": "maps/bank.jpg",
-    "outback": "maps/outback.jpg",
-    "emeraldplains": "maps/emeraldplains.jpg",
-    "nighthavenlabs": "maps/nighthavenlabs.jpg",
-    "lair": "maps/lair.jpg",
-    "kafe-dostoyevsky": "maps/kafe-dostoyevsky.jpg",
-    "nighthaven-labs": "maps/nighthaven-labs.jpg"
+    "yacht": "maps/yacht.jpg"
   },
   "missing": {
     "operators": [],
     "maps": [
       "bartlettu",
       "herefordbase",
-      "stadiumbravo",
-      "stadium2020"
+      "stadium2020",
+      "stadiumbravo"
     ]
   }
 }

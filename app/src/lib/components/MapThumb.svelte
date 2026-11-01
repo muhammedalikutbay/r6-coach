@@ -1,11 +1,12 @@
 <script lang="ts">
+  import { normKey } from '$lib/v2/catalog';
   import { cn } from '$lib/utils';
   // `mapKey` is the lowercase map key, used for the image file name.
   // Without an image: gradient plus the map name.
   let { mapKey, name = '', class: cls = '' }: { mapKey: string; name?: string; class?: string } = $props();
   let failed = $state(false);
   const label = $derived(name || mapKey);
-  const safeKey = $derived(mapKey.toLowerCase().replace(/[^a-z0-9_-]/g, ''));
+  const safeKey = $derived(normKey(mapKey));
   $effect(() => {
     safeKey;
     failed = false;
