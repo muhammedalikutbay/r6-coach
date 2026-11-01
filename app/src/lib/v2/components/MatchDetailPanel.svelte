@@ -4,6 +4,7 @@
   import MapThumb from '$lib/components/MapThumb.svelte';
   import Skeleton from '$lib/components/Skeleton.svelte';
   import { cn } from '$lib/utils';
+  import { formatDateTime } from '$lib/v2/format';
   import * as api from '$lib/v2/api';
   import type { MatchDetail, RoundDetail, ScoreboardRow } from '$lib/v2/types';
 
@@ -80,7 +81,7 @@
       <MapThumb mapKey={m.mapKey} name={m.mapName} class="w-36 shrink-0" />
       <div class="min-w-0 flex-1">
         <div class="text-lg font-bold">{m.mapName}</div>
-        <div class="text-xs text-muted">{m.mode} · {new Date(m.timestamp).toLocaleString()}</div>
+        <div class="text-xs text-muted">{m.mode} · {formatDateTime(m.timestamp)}</div>
       </div>
       <div class="text-right">
         <div class={cn('text-2xl font-bold', m.won ? 'text-good' : 'text-bad')}>{m.scoreUs} - {m.scoreThem}</div>

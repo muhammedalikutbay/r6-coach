@@ -8,9 +8,11 @@
   import MatchDetailPanel from '$lib/v2/components/MatchDetailPanel.svelte';
   import { filterStore } from '$lib/v2/filter.svelte';
   import * as api from '$lib/v2/api';
+  import { refreshTick } from '$lib/v2/refresh.svelte';
+  import { dayKey, formatDayHeader } from '$lib/v2/format';
   import type { MatchRow } from '$lib/v2/types';
 
-  const PAGE_SIZE = 20;
+  const PAGE_SIZE = api.PAGE_SIZE;
 
   let matches = $state<MatchRow[]>([]);
   let loading = $state(true);
@@ -23,6 +25,7 @@
   // Reload from the first page whenever the global filter changes.
   $effect(() => {
     const f = $state.snapshot(filterStore.value);
+    void refreshTick.value; // re-query after Update
     let stale = false;
     loading = true;
     error = '';
@@ -62,11 +65,6 @@
     }
   }
 
-  const dayKey = (iso: string) => {
-    const d = new Date(iso);
-    return `${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`;
-  };
-
   const groups = $derived.by(() => {
     const out: { key: string; label: string; rows: MatchRow[] }[] = [];
     for (const m of matches) {
@@ -75,11 +73,7 @@
       if (!g) {
         g = {
           key,
-          label: new Date(m.timestamp).toLocaleDateString([], {
-            weekday: 'long',
-            day: 'numeric',
-            month: 'long'
-          }),
+          label: formatDayHeader(m.timestamp),
           rows: []
         };
         out.push(g);

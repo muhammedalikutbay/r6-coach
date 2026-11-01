@@ -1,7 +1,7 @@
 // Front-end API. Inside the Tauri window every call goes to the Rust commands; the mock data
 // is used only when the page runs in a plain browser (npm run dev).
-import type { ReplayDirInfo, LastMatchReport, MapRow, OperatorRow, RefreshResult } from './types';
-import { mockMaps, mockOperators, mockRefresh, mockReplayDir, mockReport } from './mock';
+import type { ReplayDirInfo, RefreshResult } from './types';
+import { mockRefresh, mockReplayDir } from './mock';
 
 export const USE_MOCK = typeof window === 'undefined' || !('__TAURI_INTERNALS__' in window);
 
@@ -43,16 +43,6 @@ export const refresh = () =>
       );
     return delay(mockRefresh, 1200);
   });
-
-export const lastMatchReport = () =>
-  call<LastMatchReport | null>('last_match_report', undefined, () =>
-    delay(mockMode() === 'empty' ? null : mockReport)
-  );
-
-export const operatorTable = () =>
-  call<OperatorRow[]>('operator_table', undefined, () => delay(mockOperators, 300));
-
-export const mapTable = () => call<MapRow[]>('map_table', undefined, () => delay(mockMaps, 300));
 
 export const getReplayDir = () =>
   call<string>('get_replay_dir', undefined, () => delay(mockReplayDir, 150));

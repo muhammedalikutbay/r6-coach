@@ -13,6 +13,8 @@
   import MatchRowItem from '$lib/v2/components/MatchRowItem.svelte';
   import { filterStore } from '$lib/v2/filter.svelte';
   import { query } from '$lib/v2/api';
+  import { refreshTick } from '$lib/v2/refresh.svelte';
+  import { formatShortDate } from '$lib/v2/format';
   import { toast } from '$lib/toast.svelte';
   import type { QueryResult } from '$lib/v2/types';
 
@@ -23,6 +25,7 @@
 
   $effect(() => {
     const f = $state.snapshot(filterStore.value);
+    void refreshTick.value; // re-query after Update
     const mine = ++seq;
     loading = true;
     query(f)
@@ -51,7 +54,7 @@
   );
   const trend = $derived(
     (data?.trend ?? []).map((t) => ({
-      label: `#${t.index} · ${new Date(t.timestamp).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })} · ${t.won ? 'Win' : 'Loss'}`,
+      label: `#${t.index} · ${formatShortDate(t.timestamp)} · ${t.won ? 'Win' : 'Loss'}`,
       value: t.kd
     }))
   );

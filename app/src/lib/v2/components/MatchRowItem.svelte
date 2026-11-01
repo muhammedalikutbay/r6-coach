@@ -1,13 +1,14 @@
 <script lang="ts">
   import MapThumb from '$lib/components/MapThumb.svelte';
   import { cn } from '$lib/utils';
+  import { formatTime } from '$lib/v2/format';
   import type { MatchRow } from '$lib/v2/types';
 
   let { match, onclick, active = false }: { match: MatchRow; onclick?: () => void; active?: boolean } = $props();
 
   const kd = $derived(match.deaths > 0 ? match.kills / match.deaths : match.kills);
   const time = $derived(
-    new Date(match.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+    formatTime(match.timestamp)
   );
 </script>
 

@@ -7,6 +7,7 @@
   import { getReplayDir, refresh } from '$lib/api';
   import { toast, toastError } from '$lib/toast.svelte';
   import { cn } from '$lib/utils';
+  import { refreshTick } from '$lib/v2/refresh.svelte';
   import WelcomeScreen from '$lib/WelcomeScreen.svelte';
   import Toaster from '$lib/components/Toaster.svelte';
   import FilterBar from '$lib/v2/components/FilterBar.svelte';
@@ -35,6 +36,7 @@
     updating = true;
     try {
       const r = await refresh();
+      if (r.newMatches > 0 || r.failed.length === 0) refreshTick.bump();
       if (r.failed.length > 0) toast('error', `${r.failed.length} folder(s) could not be read: ${r.failed[0].error}`);
       else if (r.newMatches > 0) toast('success', `${r.newMatches} new ${r.newMatches === 1 ? 'match' : 'matches'} added.`);
       else toast('info', 'No new matches found. Play a game, then press Update.');
