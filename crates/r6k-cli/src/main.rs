@@ -1,10 +1,11 @@
 //! Developer CLI for R6Koc.
 //!
 //!   r6k ingest <MatchReplay dir> --dissect <exe> [--cache <dir>] [--out <file>]
+//!   r6k baseline --show
 
 use anyhow::{bail, Context, Result};
 use clap::{Parser, Subcommand};
-use r6k_core::{names, Match};
+use r6k_core::{names, Baseline, Match};
 use std::collections::BTreeMap;
 use std::path::{Path, PathBuf};
 use std::process::Command;
@@ -34,6 +35,12 @@ enum Cmd {
         #[arg(long)]
         out: Option<PathBuf>,
     },
+    /// Inspect the embedded personal baseline (data/baseline.json).
+    Baseline {
+        /// Print the 10 most played operators (rounds, K/D, HS%).
+        #[arg(long)]
+        show: bool,
+    },
 }
 
 fn main() -> Result<()> {
@@ -45,7 +52,32 @@ fn main() -> Result<()> {
             cache,
             out,
         } => ingest(&replays, &dissect, &cache, out.as_deref()),
+        Cmd::Baseline { show } => baseline(show),
     }
+}
+
+fn baseline(show: bool) -> Result<()> {
+    let b = Baseline::embedded().context("embedded baseline is invalid")?;
+    println!(
+        "baseline: {} operators, {} maps, {} gamemodes (captured {})",
+        b.operators.len(),
+        b.maps.len(),
+        b.gamemodes.len(),
+        b.captured_at
+    );
+    if show {
+        println!("operator         rounds   K/D    HS%");
+        for (slug, c) in b.top_operators(10) {
+            println!(
+                "{:<16} {:>6}   {:>5.2}  {:>5.1}%",
+                slug,
+                c.rounds_played,
+                c.kd(),
+                c.headshot_pct()
+            );
+        }
+    }
+    Ok(())
 }
 
 fn ingest(replays: &Path, dissect: &Path, cache: &Path, out: Option<&Path>) -> Result<()> {

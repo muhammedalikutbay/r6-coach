@@ -19,6 +19,8 @@ struct MapTable {
 #[derive(Deserialize)]
 struct Entry {
     id: u64,
+    #[serde(default)]
+    key: String,
     name: String,
 }
 
@@ -50,6 +52,27 @@ fn maps() -> &'static HashMap<u64, String> {
             serde_json::from_str::<MapTable>(MAPS_JSON).map(|t| t.maps),
         )
     })
+}
+
+fn keys(raw: &str, pick_ops: bool) -> HashMap<u64, String> {
+    let entries: Vec<Entry> = if pick_ops {
+        serde_json::from_str::<OperatorTable>(raw).map(|t| t.operators).unwrap_or_default()
+    } else {
+        serde_json::from_str::<MapTable>(raw).map(|t| t.maps).unwrap_or_default()
+    };
+    entries.into_iter().map(|e| (e.id, e.key)).collect()
+}
+
+/// Tracker slug (`key` in `data/operators.json`, e.g. "jager") for an operator ID.
+pub fn operator_key(id: u64) -> Option<String> {
+    static T: OnceLock<HashMap<u64, String>> = OnceLock::new();
+    T.get_or_init(|| keys(OPERATORS_JSON, true)).get(&id).cloned()
+}
+
+/// Map `key` from `data/maps.json` for a map ID.
+pub fn map_key(id: u64) -> Option<String> {
+    static T: OnceLock<HashMap<u64, String>> = OnceLock::new();
+    T.get_or_init(|| keys(MAPS_JSON, false)).get(&id).cloned()
 }
 
 pub fn operator_name(id: u64) -> String {
