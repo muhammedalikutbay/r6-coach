@@ -24,8 +24,8 @@ fn sidecar_path() -> Result<PathBuf, String> {
     }
 }
 
-/// Runs the given r6-dissect executable on a match folder and converts the output.
-fn dissect_match(sidecar: &Path, path: &Path) -> Result<r6k_core::Match, String> {
+/// Runs the given r6-dissect executable on a match folder and returns its JSON output.
+fn dissect_json(sidecar: &Path, path: &Path) -> Result<String, String> {
     log::info!("parse: {} {}", sidecar.display(), path.display());
     let mut cmd = Command::new(sidecar);
     cmd.arg(path)
@@ -42,8 +42,17 @@ fn dissect_match(sidecar: &Path, path: &Path) -> Result<r6k_core::Match, String>
         let err = String::from_utf8_lossy(&out.stderr);
         return Err(format!("r6-dissect failed ({}): {}", out.status, err.trim()));
     }
-    let json = String::from_utf8_lossy(&out.stdout);
+    Ok(String::from_utf8_lossy(&out.stdout).into_owned())
+}
+
+fn dissect_match(sidecar: &Path, path: &Path) -> Result<r6k_core::Match, String> {
+    let json = dissect_json(sidecar, path)?;
     r6k_core::match_from_json(&json).map_err(|e| format!("cannot convert match: {e}"))
+}
+
+fn dissect_full_match(sidecar: &Path, path: &Path) -> Result<r6k_core::FullMatch, String> {
+    let json = dissect_json(sidecar, path)?;
+    r6k_core::full_match_from_json(&json).map_err(|e| format!("cannot convert match: {e}"))
 }
 
 fn run_parse(path: &str) -> Result<summary::MatchSummary, String> {
@@ -112,7 +121,7 @@ async fn refresh(app: tauri::AppHandle) -> Cmd<store::RefreshResult> {
             return Err("Replay folder is not set.".to_string());
         }
         let sidecar = sidecar_path()?;
-        store::refresh(&db, Path::new(&dir), |p| dissect_match(&sidecar, p))
+        store::refresh(&db, Path::new(&dir), |p| dissect_full_match(&sidecar, p))
     })
     .await
     .map_err(|e| format!("refresh task failed: {e}"))?
@@ -190,12 +199,34 @@ mod real_data {
         let dir = Path::new(r"C:\Users\Kutbay\Desktop\R6Koc-veri\MatchReplay");
         let t = tempfile::tempdir().unwrap();
         let db = store::Db(std::sync::Mutex::new(store::open(&t.path().join("r6koc.db")).unwrap()));
-        let parse = |p: &Path| dissect_match(&sidecar, p);
+        let parse = |p: &Path| dissect_full_match(&sidecar, p);
         let first = store::refresh(&db, dir, parse).unwrap();
         println!("first: {} new, failed {:?}", first.new_matches, first.failed);
         assert_eq!(first.new_matches, 30);
         let second = store::refresh(&db, dir, parse).unwrap();
         assert_eq!(second.new_matches, 0);
+        // The full model survives the database round trip: 30 matches, and the tracked
+        // player's Outback numbers (5 K / 4 D).
+        let full = store::load_full_matches(&db.0.lock().unwrap()).unwrap();
+        assert_eq!(full.len(), 30);
+        let outback: Vec<_> = full
+            .iter()
+            .filter(|m| r6k_core::names::map_name(m.map_id) == "Outback")
+            .collect();
+        let (mut k, mut d) = (0, 0);
+        for m in &outback {
+            let me = m.player(&m.me_profile_id).expect("me in player list");
+            assert_eq!(me.username, "H.A.N-01");
+            for r in &m.rounds {
+                for p in r.players.iter().filter(|p| p.profile_id == m.me_profile_id) {
+                    k += p.kills;
+                    d += p.deaths;
+                }
+            }
+            assert!(m.rounds.iter().all(|r| !r.kills.is_empty() || r.players.iter().all(|p| p.kills == 0)));
+        }
+        println!("Outback: {} match(es), {k} K / {d} D", outback.len());
+        assert_eq!((k, d), (5, 4));
         let matches = store::load_matches(&db.0.lock().unwrap()).unwrap();
         let b = r6k_core::Baseline::embedded().unwrap();
         let ops = tables::operator_table(&b, &matches);

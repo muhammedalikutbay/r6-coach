@@ -99,6 +99,47 @@ mod tests {
         }
     }
 
+    /// Wraps a v1 match into the stored full model (only the tracked player is present).
+    fn full(m: &Match) -> r6k_core::FullMatch {
+        use r6k_core::{FullRound, PlayerInfo, RoundPlayer, WinCondition};
+        r6k_core::FullMatch {
+            match_id: m.match_id.clone(),
+            timestamp: m.timestamp.clone(),
+            match_type: m.match_type.clone(),
+            gamemode: m.gamemode.clone(),
+            map_id: m.map_id,
+            score_us: 0,
+            score_them: 0,
+            won: m.won,
+            me_profile_id: "me".into(),
+            players: vec![PlayerInfo { profile_id: "me".into(), username: "Me".into(), team_index: 0 }],
+            rounds: m
+                .rounds
+                .iter()
+                .map(|r| FullRound {
+                    number: r.number,
+                    winner_team: Some(if r.won { 0 } else { 1 }),
+                    win_condition: WinCondition::Elimination,
+                    site: String::new(),
+                    my_side: r.side,
+                    players: vec![RoundPlayer {
+                        profile_id: "me".into(),
+                        team_index: 0,
+                        operator_id: r.operator_id,
+                        side: r.side,
+                        kills: r.kills,
+                        deaths: r.deaths,
+                        headshots: r.headshots,
+                        first_kill: r.first_blood,
+                        first_death: r.first_death,
+                        survived: r.deaths == 0,
+                    }],
+                    kills: vec![],
+                })
+                .collect(),
+        }
+    }
+
     #[test]
     fn empty_store_gives_none() {
         let conn = store::open_in_memory().unwrap();
@@ -111,8 +152,8 @@ mod tests {
     #[test]
     fn last_and_by_id() {
         let mut conn = store::open_in_memory().unwrap();
-        store::insert_match(&mut conn, &mat("new", 20), "Match-new").unwrap();
-        store::insert_match(&mut conn, &mat("old", 10), "Match-old").unwrap();
+        store::insert_full_match(&mut conn, &full(&mat("new", 20)), "Match-new").unwrap();
+        store::insert_full_match(&mut conn, &full(&mat("old", 10)), "Match-old").unwrap();
         let ms = store::load_matches(&conn).unwrap();
         let b = Baseline::embedded().unwrap();
         let last = report_from(&ms, None, &b).unwrap();
@@ -134,7 +175,7 @@ mod tests {
         let dir = Path::new(r"C:\Users\Kutbay\Desktop\R6Koc-veri\MatchReplay");
         let t = tempfile::tempdir().unwrap();
         let db = store::Db(std::sync::Mutex::new(store::open(&t.path().join("r6koc.db")).unwrap()));
-        let first = store::refresh(&db, dir, |p| crate::dissect_match(&sidecar, p)).unwrap();
+        let first = store::refresh(&db, dir, |p| crate::dissect_full_match(&sidecar, p)).unwrap();
         assert_eq!(first.new_matches, 30, "failed: {:?}", first.failed);
 
         let matches = store::load_matches(&db.0.lock().unwrap()).unwrap();
