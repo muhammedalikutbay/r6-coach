@@ -1,0 +1,21 @@
+:root {
+  --bg: #12141a; --panel: #1b1e27; --panel2: #232733; --line: #2d3240;
+  --text: #e6e8ee; --muted: #8b92a5;
+  --green: #4cc38a; --orange: #f0a04b; --gray: #8b92a5; --red: #ef6461; --accent: #5b8def;
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; height: 100%; background: var(--bg); color: var(--text);
+  font: 14px/1.45 system-ui, "Segoe UI", sans-serif; }
+h1, h2, h3 { margin: 0; font-weight: 600; }
+button { font: inherit; color: inherit; cursor: pointer; }
+.btn { background: var(--panel2); border: 1px solid var(--line); border-radius: 8px; padding: 8px 14px; }
+.btn:hover:not(:disabled) { border-color: var(--accent); }
+.btn:disabled { opacity: .5; cursor: default; }
+.btn.danger { border-color: #6b3433; color: var(--red); }
+.card { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 16px; }
+.muted { color: var(--muted); }
+.state { text-align: center; padding: 40px 16px; color: var(--muted); }
+.state.error { color: var(--red); }
+.spinner { display: inline-block; width: 18px; height: 18px; border: 2px solid var(--line);
+  border-top-color: var(--accent); border-radius: 50%; animation: spin .8s linear infinite; vertical-align: middle; }
+@keyframes spin { to { transform: rotate(360deg); } }
