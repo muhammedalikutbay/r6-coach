@@ -1,0 +1,210 @@
+{
+  "maps": [
+    {
+      "id": 837214085,
+      "key": "clubhouse",
+      "name": "Club House"
+    },
+    {
+      "id": 1378191338,
+      "key": "kafedostoyevsky",
+      "name": "Kafe Dostoyevsky"
+    },
+    {
+      "id": 1460220617,
+      "key": "kanal",
+      "name": "Kanal"
+    },
+    {
+      "id": 1767965020,
+      "key": "yacht",
+      "name": "Yacht"
+    },
+    {
+      "id": 2609218856,
+      "key": "presidentialplane",
+      "name": "Presidential Plane"
+    },
+    {
+      "id": 2609221242,
+      "key": "consulate",
+      "name": "Consulate"
+    },
+    {
+      "id": 2697268122,
+      "key": "bartlettu",
+      "name": "Bartlett U"
+    },
+    {
+      "id": 42090092951,
+      "key": "coastline",
+      "name": "Coastline"
+    },
+    {
+      "id": 53627213396,
+      "key": "tower",
+      "name": "Tower"
+    },
+    {
+      "id": 88107330328,
+      "key": "villa",
+      "name": "Villa"
+    },
+    {
+      "id": 126196841359,
+      "key": "fortress",
+      "name": "Fortress"
+    },
+    {
+      "id": 127951053400,
+      "key": "herefordbase",
+      "name": "Hereford Base"
+    },
+    {
+      "id": 199824623654,
+      "key": "themepark",
+      "name": "Theme Park"
+    },
+    {
+      "id": 231702797556,
+      "key": "oregon",
+      "name": "Oregon"
+    },
+    {
+      "id": 237873412352,
+      "key": "house",
+      "name": "House"
+    },
+    {
+      "id": 259816839773,
+      "key": "chalet",
+      "name": "Chalet"
+    },
+    {
+      "id": 270063334510,
+      "key": "stadiumbravo",
+      "name": "Stadium Bravo"
+    },
+    {
+      "id": 276279025182,
+      "key": "skyscraper",
+      "name": "Skyscraper"
+    },
+    {
+      "id": 305979357167,
+      "key": "border",
+      "name": "Border"
+    },
+    {
+      "id": 329867321446,
+      "key": "favela",
+      "name": "Favela"
+    },
+    {
+      "id": 355496559878,
+      "key": "bank",
+      "name": "Bank"
+    },
+    {
+      "id": 362605108559,
+      "key": "outback",
+      "name": "Outback"
+    },
+    {
+      "id": 365284490964,
+      "key": "emeraldplains",
+      "name": "Emerald Plains"
+    },
+    {
+      "id": 378595635123,
+      "key": "nighthavenlabs",
+      "name": "Nighthaven Labs"
+    },
+    {
+      "id": 379218689149,
+      "key": "consulate",
+      "name": "Consulate"
+    },
+    {
+      "id": 388073319671,
+      "key": "lair",
+      "name": "Lair"
+    },
+    {
+      "id": 398899676157,
+      "key": "fortress",
+      "name": "Fortress"
+    },
+    {
+      "id": 405306299908,
+      "key": "stadium2020",
+      "name": "Stadium 2020"
+    },
+    {
+      "id": 407193663917,
+      "key": "clubhouse",
+      "name": "Clubhouse"
+    },
+    {
+      "id": 407558616688,
+      "key": "chalet",
+      "name": "Chalet"
+    },
+    {
+      "id": 407987100456,
+      "key": "border",
+      "name": "Border"
+    },
+    {
+      "id": 409325881472,
+      "key": "villa",
+      "name": "Villa"
+    },
+    {
+      "id": 413779563590,
+      "key": "bank",
+      "name": "Bank"
+    },
+    {
+      "id": 413845419788,
+      "key": "kafe-dostoyevsky",
+      "name": "Kafe Dostoyevsky"
+    },
+    {
+      "id": 417890697769,
+      "key": "lair",
+      "name": "Lair"
+    },
+    {
+      "id": 418119057546,
+      "key": "nighthaven-labs",
+      "name": "Nighthaven Labs"
+    },
+    {
+      "id": 418126004176,
+      "key": "consulate",
+      "name": "Consulate"
+    },
+    {
+      "id": 434715462383,
+      "key": "oregon",
+      "name": "Oregon"
+    },
+    {
+      "id": 436375283234,
+      "key": "coastline",
+      "name": "Coastline"
+    },
+    {
+      "id": 441408792952,
+      "key": "kanal",
+      "name": "Kanal"
+    },
+    {
+      "id": 441825219764,
+      "key": "outback",
+      "name": "Outback"
+    }
+  ],
+  "unresolved": []
+}

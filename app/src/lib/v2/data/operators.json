@@ -1,0 +1,479 @@
+{
+  "operators": [
+    {
+      "id": 92270641980,
+      "key": "kapkan",
+      "name": "Kapkan",
+      "side": "defender"
+    },
+    {
+      "id": 92270642032,
+      "key": "fuze",
+      "name": "Fuze",
+      "side": "attacker"
+    },
+    {
+      "id": 92270642084,
+      "key": "glaz",
+      "name": "Glaz",
+      "side": "attacker"
+    },
+    {
+      "id": 92270642136,
+      "key": "blackbeard",
+      "name": "Blackbeard",
+      "side": "attacker"
+    },
+    {
+      "id": 92270642188,
+      "key": "valkyrie",
+      "name": "Valkyrie",
+      "side": "defender"
+    },
+    {
+      "id": 92270642214,
+      "key": "echo",
+      "name": "Echo",
+      "side": "defender"
+    },
+    {
+      "id": 92270642240,
+      "key": "hibana",
+      "name": "Hibana",
+      "side": "attacker"
+    },
+    {
+      "id": 92270642266,
+      "key": "lesion",
+      "name": "Lesion",
+      "side": "defender"
+    },
+    {
+      "id": 92270642292,
+      "key": "ying",
+      "name": "Ying",
+      "side": "attacker"
+    },
+    {
+      "id": 92270642318,
+      "key": "mute",
+      "name": "Mute",
+      "side": "defender"
+    },
+    {
+      "id": 92270642344,
+      "key": "sledge",
+      "name": "Sledge",
+      "side": "attacker"
+    },
+    {
+      "id": 92270642396,
+      "key": "smoke",
+      "name": "Smoke",
+      "side": "defender"
+    },
+    {
+      "id": 92270642422,
+      "key": "thatcher",
+      "name": "Thatcher",
+      "side": "attacker"
+    },
+    {
+      "id": 92270642474,
+      "key": "buck",
+      "name": "Buck",
+      "side": "attacker"
+    },
+    {
+      "id": 92270642500,
+      "key": "frost",
+      "name": "Frost",
+      "side": "defender"
+    },
+    {
+      "id": 92270642526,
+      "key": "bandit",
+      "name": "Bandit",
+      "side": "defender"
+    },
+    {
+      "id": 92270642539,
+      "key": "blitz",
+      "name": "Blitz",
+      "side": "attacker"
+    },
+    {
+      "id": 92270642578,
+      "key": "iq",
+      "name": "IQ",
+      "side": "attacker"
+    },
+    {
+      "id": 92270642604,
+      "key": "jager",
+      "name": "Jäger",
+      "side": "defender"
+    },
+    {
+      "id": 92270642656,
+      "key": "ash",
+      "name": "Ash",
+      "side": "attacker"
+    },
+    {
+      "id": 92270642682,
+      "key": "castle",
+      "name": "Castle",
+      "side": "defender"
+    },
+    {
+      "id": 92270642708,
+      "key": "pulse",
+      "name": "Pulse",
+      "side": "defender"
+    },
+    {
+      "id": 92270642760,
+      "key": "thermite",
+      "name": "Thermite",
+      "side": "attacker"
+    },
+    {
+      "id": 92270644007,
+      "key": "doc",
+      "name": "Doc",
+      "side": "defender"
+    },
+    {
+      "id": 92270644033,
+      "key": "montagne",
+      "name": "Montagne",
+      "side": "attacker"
+    },
+    {
+      "id": 92270644059,
+      "key": "rook",
+      "name": "Rook",
+      "side": "defender"
+    },
+    {
+      "id": 92270644111,
+      "key": "twitch",
+      "name": "Twitch",
+      "side": "attacker"
+    },
+    {
+      "id": 92270644163,
+      "key": "ela",
+      "name": "Ela",
+      "side": "defender"
+    },
+    {
+      "id": 92270644189,
+      "key": "zofia",
+      "name": "Zofia",
+      "side": "attacker"
+    },
+    {
+      "id": 92270644215,
+      "key": "capitao",
+      "name": "Capitão",
+      "side": "attacker"
+    },
+    {
+      "id": 92270644241,
+      "key": "caveira",
+      "name": "Caveira",
+      "side": "defender"
+    },
+    {
+      "id": 92270644267,
+      "key": "dokkaebi",
+      "name": "Dokkaebi",
+      "side": "attacker"
+    },
+    {
+      "id": 92270644293,
+      "key": "vigil",
+      "name": "Vigil",
+      "side": "defender"
+    },
+    {
+      "id": 92270644319,
+      "key": "mira",
+      "name": "Mira",
+      "side": "defender"
+    },
+    {
+      "id": 92270644345,
+      "key": "jackal",
+      "name": "Jackal",
+      "side": "attacker"
+    },
+    {
+      "id": 104189661861,
+      "key": "lion",
+      "name": "Lion",
+      "side": "attacker"
+    },
+    {
+      "id": 104189661965,
+      "key": "finka",
+      "name": "Finka",
+      "side": "attacker"
+    },
+    {
+      "id": 104189662071,
+      "key": "alibi",
+      "name": "Alibi",
+      "side": "defender"
+    },
+    {
+      "id": 104189662175,
+      "key": "maestro",
+      "name": "Maestro",
+      "side": "defender"
+    },
+    {
+      "id": 104189662280,
+      "key": "clash",
+      "name": "Clash",
+      "side": "defender"
+    },
+    {
+      "id": 104189662384,
+      "key": "maverick",
+      "name": "Maverick",
+      "side": "attacker"
+    },
+    {
+      "id": 104189662920,
+      "key": "warden",
+      "name": "Warden",
+      "side": "defender"
+    },
+    {
+      "id": 104189663024,
+      "key": "nokk",
+      "name": "Nøkk",
+      "side": "attacker"
+    },
+    {
+      "id": 104189663607,
+      "key": "amaru",
+      "name": "Amaru",
+      "side": "attacker"
+    },
+    {
+      "id": 104189663698,
+      "key": "goyo",
+      "name": "Goyo",
+      "side": "defender"
+    },
+    {
+      "id": 104189663803,
+      "key": "wamai",
+      "name": "Wamai",
+      "side": "defender"
+    },
+    {
+      "id": 104189663920,
+      "key": "kali",
+      "name": "Kali",
+      "side": "attacker"
+    },
+    {
+      "id": 104189664038,
+      "key": "iana",
+      "name": "Iana",
+      "side": "attacker"
+    },
+    {
+      "id": 104189664155,
+      "key": "oryx",
+      "name": "Oryx",
+      "side": "defender"
+    },
+    {
+      "id": 104189664273,
+      "key": "melusi",
+      "name": "Melusi",
+      "side": "defender"
+    },
+    {
+      "id": 104189664390,
+      "key": "ace",
+      "name": "Ace",
+      "side": "attacker"
+    },
+    {
+      "id": 104189664704,
+      "key": "aruni",
+      "name": "Aruni",
+      "side": "defender"
+    },
+    {
+      "id": 161289666230,
+      "key": "kaid",
+      "name": "Kaid",
+      "side": "defender"
+    },
+    {
+      "id": 161289666248,
+      "key": "nomad",
+      "name": "Nomad",
+      "side": "attacker"
+    },
+    {
+      "id": 174977508808,
+      "key": "gridlock",
+      "name": "Gridlock",
+      "side": "attacker"
+    },
+    {
+      "id": 174977508820,
+      "key": "mozzie",
+      "name": "Mozzie",
+      "side": "defender"
+    },
+    {
+      "id": 288200866821,
+      "key": "brava",
+      "name": "Brava",
+      "side": "attacker"
+    },
+    {
+      "id": 288200867339,
+      "key": "fenrir",
+      "name": "Fenrir",
+      "side": "defender"
+    },
+    {
+      "id": 288200867351,
+      "key": "thunderbird",
+      "name": "Thunderbird",
+      "side": "defender"
+    },
+    {
+      "id": 288200867444,
+      "key": "osa",
+      "name": "Osa",
+      "side": "attacker"
+    },
+    {
+      "id": 288200867549,
+      "key": "tubarao",
+      "name": "Tubarão",
+      "side": "defender"
+    },
+    {
+      "id": 291191151607,
+      "key": "zero",
+      "name": "Zero",
+      "side": "attacker"
+    },
+    {
+      "id": 291437347686,
+      "key": "tachanka",
+      "name": "Tachanka",
+      "side": "defender"
+    },
+    {
+      "id": 328397386974,
+      "key": "flores",
+      "name": "Flores",
+      "side": "attacker"
+    },
+    {
+      "id": 359656345734,
+      "key": "recruit",
+      "name": "Recruit",
+      "side": "unknown"
+    },
+    {
+      "id": 373711624351,
+      "key": "thorn",
+      "name": "Thorn",
+      "side": "defender"
+    },
+    {
+      "id": 374667787816,
+      "key": "deimos",
+      "name": "Deimos",
+      "side": "attacker"
+    },
+    {
+      "id": 374667787937,
+      "key": "denari",
+      "name": "Denari",
+      "side": "defender"
+    },
+    {
+      "id": 374667788042,
+      "key": "grim",
+      "name": "Grim",
+      "side": "attacker"
+    },
+    {
+      "id": 378305069945,
+      "key": "azami",
+      "name": "Azami",
+      "side": "defender"
+    },
+    {
+      "id": 384797789346,
+      "key": "sens",
+      "name": "Sens",
+      "side": "attacker"
+    },
+    {
+      "id": 386098331713,
+      "key": "skopos",
+      "name": "Skopós",
+      "side": "defender"
+    },
+    {
+      "id": 386098331923,
+      "key": "rauora",
+      "name": "Rauora",
+      "side": "attacker"
+    },
+    {
+      "id": 391752120891,
+      "key": "solis",
+      "name": "Solis",
+      "side": "defender"
+    },
+    {
+      "id": 395943091136,
+      "key": "ram",
+      "name": "Ram",
+      "side": "attacker"
+    },
+    {
+      "id": 409899350403,
+      "key": "sentry",
+      "name": "Sentry",
+      "side": "defender"
+    },
+    {
+      "id": 409899350463,
+      "key": "striker",
+      "name": "Striker",
+      "side": "attacker"
+    },
+    {
+      "id": 444310693746,
+      "key": "solidsnake",
+      "name": "Solid Snake",
+      "side": "attacker"
+    },
+    {
+      "id": 456757346397,
+      "key": "noor",
+      "name": "Noor",
+      "side": "defender"
+    }
+  ],
+  "unresolved": []
+}

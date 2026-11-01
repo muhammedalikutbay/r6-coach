@@ -9,7 +9,7 @@
   import { cn } from '$lib/utils';
   import WelcomeScreen from '$lib/WelcomeScreen.svelte';
   import Toaster from '$lib/components/Toaster.svelte';
-  import FilterBar from '$lib/components/FilterBar.svelte';
+  import FilterBar from '$lib/v2/components/FilterBar.svelte';
   import Button from '$lib/components/ui/Button.svelte';
 
   let { children } = $props();
