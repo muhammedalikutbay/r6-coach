@@ -1,6 +1,7 @@
 <script lang="ts">
   import { onMount } from 'svelte';
   import { getReplayDir, setReplayDir, resetDatabase } from '$lib/api';
+  import { showWelcomeAgain } from '$lib/welcome.svelte';
 
   let dir = $state('');
   let loading = $state(true);
@@ -49,6 +50,12 @@
     <code class="path">{dir || 'Not set'}</code>
   {/if}
   <div><button class="btn" onclick={change} disabled={busy || loading}>Change folder</button></div>
+</section>
+
+<section class="card">
+  <h3>Welcome</h3>
+  <p class="muted">The welcome screen is shown once, on first launch.</p>
+  <button class="btn" onclick={showWelcomeAgain}>Show welcome again</button>
 </section>
 
 <section class="card">

@@ -1,6 +1,7 @@
 <script lang="ts">
   import '../app.css';
   import { page } from '$app/state';
+  import WelcomeScreen from '$lib/WelcomeScreen.svelte';
   let { children } = $props();
   const tabs = [
     { href: '/', label: 'Home' },
@@ -19,6 +20,7 @@
   </nav>
   <main>{@render children()}</main>
 </div>
+<WelcomeScreen />
 
 <style>
   .shell { display: flex; height: 100vh; min-width: 0; }
