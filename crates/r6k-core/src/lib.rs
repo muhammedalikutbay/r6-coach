@@ -3,6 +3,7 @@
 
 pub mod advice;
 pub mod baseline;
+pub mod coach;
 pub mod convert;
 pub mod derive;
 pub mod full;
