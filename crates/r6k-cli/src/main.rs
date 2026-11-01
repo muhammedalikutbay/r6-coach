@@ -2,14 +2,16 @@
 //!
 //!   r6k ingest <MatchReplay dir> --dissect <exe> [--cache <dir>] [--out <file>]
 //!   r6k baseline --show
+//!   r6k advise (--last | --match <id>) [--replays <dir>] [--dissect <exe>] [--cache <dir>]
 
 use anyhow::{bail, Context, Result};
 use clap::{Parser, Subcommand};
-use r6k_core::{names, Baseline, Match};
+use r6k_core::{advise, names, AdviceKind, Baseline, Match};
 use std::collections::BTreeMap;
 use std::path::{Path, PathBuf};
 use std::process::Command;
 
+const DEFAULT_REPLAYS: &str = r"C:\Users\Kutbay\Desktop\R6Koc-veri\MatchReplay";
 const DEFAULT_CACHE: &str = r"C:\Users\Kutbay\Desktop\R6Koc-veri\dissect";
 
 #[derive(Parser)]
@@ -41,6 +43,22 @@ enum Cmd {
         #[arg(long)]
         show: bool,
     },
+    /// Print advice for one match, compared with the personal baseline and replay history.
+    Advise {
+        /// Advise on the newest match.
+        #[arg(long, conflicts_with = "match_id", required_unless_present = "match_id")]
+        last: bool,
+        /// Advise on the match with this ID (the folder name, e.g. Match-2026-10-31_00-54-47-11844).
+        #[arg(long = "match", value_name = "ID")]
+        match_id: Option<String>,
+        #[arg(long, default_value = DEFAULT_REPLAYS)]
+        replays: PathBuf,
+        /// Path to the r6-dissect executable (only needed for matches that are not cached yet).
+        #[arg(long)]
+        dissect: Option<PathBuf>,
+        #[arg(long, default_value = DEFAULT_CACHE)]
+        cache: PathBuf,
+    },
 }
 
 fn main() -> Result<()> {
@@ -53,6 +71,13 @@ fn main() -> Result<()> {
             out,
         } => ingest(&replays, &dissect, &cache, out.as_deref()),
         Cmd::Baseline { show } => baseline(show),
+        Cmd::Advise {
+            last,
+            match_id,
+            replays,
+            dissect,
+            cache,
+        } => advise_cmd(last, match_id.as_deref(), &replays, dissect.as_deref(), &cache),
     }
 }
 
@@ -81,6 +106,62 @@ fn baseline(show: bool) -> Result<()> {
 }
 
 fn ingest(replays: &Path, dissect: &Path, cache: &Path, out: Option<&Path>) -> Result<()> {
+    let matches = load_matches(replays, Some(dissect), cache)?;
+    print_table(&matches);
+    if let Some(path) = out {
+        std::fs::write(path, serde_json::to_string_pretty(&matches)?)?;
+        log::info!("wrote {}", path.display());
+    }
+    Ok(())
+}
+
+fn advise_cmd(
+    last: bool,
+    match_id: Option<&str>,
+    replays: &Path,
+    dissect: Option<&Path>,
+    cache: &Path,
+) -> Result<()> {
+    let named = load_named(replays, dissect, cache)?;
+    let matches: Vec<Match> = named.iter().map(|(_, m)| m.clone()).collect();
+    let target = match (last, match_id) {
+        (_, Some(id)) => named
+            .iter()
+            .find(|(folder, m)| m.match_id == id || folder == id)
+            .map(|(_, m)| m)
+            .with_context(|| format!("no match with id or folder name {id}"))?,
+        _ => matches.last().context("no matches")?,
+    };
+    let baseline = Baseline::embedded().context("embedded baseline is invalid")?;
+    println!(
+        "{} | {} | {} | {}",
+        target.match_id,
+        target.timestamp.replace('T', " ").chars().take(16).collect::<String>(),
+        target.match_type,
+        names::map_name(target.map_id)
+    );
+    for a in advise(target, &matches, &baseline) {
+        let tag = match a.kind {
+            AdviceKind::Praise => "[praise]",
+            AdviceKind::Improve => "[improve]",
+            AdviceKind::Info => "[info]",
+        };
+        println!("\n{tag} {}\n    ({})", a.text, a.evidence);
+    }
+    Ok(())
+}
+
+/// Parses (or reads from cache) every match folder; sorted by timestamp.
+fn load_matches(replays: &Path, dissect: Option<&Path>, cache: &Path) -> Result<Vec<Match>> {
+    Ok(load_named(replays, dissect, cache)?.into_iter().map(|(_, m)| m).collect())
+}
+
+/// Like [`load_matches`] but keeps each match's folder name.
+fn load_named(
+    replays: &Path,
+    dissect: Option<&Path>,
+    cache: &Path,
+) -> Result<Vec<(String, Match)>> {
     std::fs::create_dir_all(cache)
         .with_context(|| format!("creating cache {}", cache.display()))?;
     let mut dirs: Vec<PathBuf> = std::fs::read_dir(replays)
@@ -91,7 +172,7 @@ fn ingest(replays: &Path, dissect: &Path, cache: &Path, out: Option<&Path>) -> R
     dirs.sort();
     log::info!("{} match folders in {}", dirs.len(), replays.display());
 
-    let mut matches: Vec<Match> = Vec::new();
+    let mut matches: Vec<(String, Match)> = Vec::new();
     for dir in &dirs {
         let name = dir.file_name().unwrap().to_string_lossy().to_string();
         let json = cache.join(format!("{name}.json"));
@@ -102,6 +183,10 @@ fn ingest(replays: &Path, dissect: &Path, cache: &Path, out: Option<&Path>) -> R
             log::debug!("{name}: using cache");
         } else {
             log::info!("{name}: running dissect");
+            let Some(dissect) = dissect else {
+                log::error!("{name}: not cached and no --dissect given; skipped");
+                continue;
+            };
             let status = Command::new(dissect)
                 .arg(dir)
                 .arg("-o")
@@ -118,20 +203,15 @@ fn ingest(replays: &Path, dissect: &Path, cache: &Path, out: Option<&Path>) -> R
             }
         }
         match r6k_core::read_match_file(&json) {
-            Ok(m) => matches.push(m),
+            Ok(m) => matches.push((name.clone(), m)),
             Err(e) => log::error!("{name}: {e}"),
         }
     }
     if matches.is_empty() {
         bail!("no matches could be read");
     }
-    matches.sort_by(|a, b| a.timestamp.cmp(&b.timestamp));
-    print_table(&matches);
-    if let Some(path) = out {
-        std::fs::write(path, serde_json::to_string_pretty(&matches)?)?;
-        log::info!("wrote {}", path.display());
-    }
-    Ok(())
+    matches.sort_by(|a, b| a.1.timestamp.cmp(&b.1.timestamp));
+    Ok(matches)
 }
 
 fn print_table(matches: &[Match]) {
