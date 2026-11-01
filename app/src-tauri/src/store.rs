@@ -6,7 +6,7 @@ use serde::Serialize;
 use std::path::Path;
 use std::sync::Mutex;
 
-pub const SCHEMA_VERSION: i64 = 1;
+pub const SCHEMA_VERSION: i64 = 2;
 pub const KEY_REPLAY_DIR: &str = "replay_dir";
 
 /// Shared connection; locked only for short database steps, never while parsing.
@@ -77,7 +77,12 @@ pub fn migrate(conn: &Connection) -> rusqlite::Result<()> {
             CREATE TABLE IF NOT EXISTS settings (key TEXT PRIMARY KEY, value TEXT NOT NULL);",
         )?;
     }
-    // Future steps: `if current < 2 { ... }`
+    if current == 1 {
+        // v2: stored timestamps were the recording PC's local time mislabelled as UTC. Drop the
+        // derived data; the next Update re-parses the replays with correct UTC timestamps.
+        conn.execute_batch("DELETE FROM rounds; DELETE FROM matches;")?;
+    }
+    // Future steps: `if current < 3 { ... }`
     conn.execute("UPDATE meta SET schema_version = ?1", [SCHEMA_VERSION])?;
     Ok(())
 }
@@ -285,6 +290,26 @@ mod tests {
             won: true,
             rounds: vec![round(1), round(2)],
         }
+    }
+
+    #[test]
+    fn v1_to_v2_clears_matches_keeps_settings() {
+        let mut conn = open_in_memory().unwrap();
+        assert!(insert_match(&mut conn, &mat("a"), "Match-a").unwrap());
+        set_setting(&conn, KEY_REPLAY_DIR, "C:\\replays").unwrap();
+        // Pretend this is an old v1 database.
+        conn.execute("UPDATE meta SET schema_version = 1", []).unwrap();
+        migrate(&conn).unwrap();
+        assert!(load_matches(&conn).unwrap().is_empty());
+        let rounds: i64 = conn.query_row("SELECT COUNT(*) FROM rounds", [], |r| r.get(0)).unwrap();
+        assert_eq!(rounds, 0);
+        assert_eq!(get_setting(&conn, KEY_REPLAY_DIR).unwrap().as_deref(), Some("C:\\replays"));
+        let v: i64 = conn.query_row("SELECT schema_version FROM meta", [], |r| r.get(0)).unwrap();
+        assert_eq!(v, 2);
+        // A second run must not wipe freshly stored data.
+        assert!(insert_match(&mut conn, &mat("b"), "Match-b").unwrap());
+        migrate(&conn).unwrap();
+        assert_eq!(load_matches(&conn).unwrap().len(), 1);
     }
 
     #[test]

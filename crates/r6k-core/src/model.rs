@@ -30,8 +30,9 @@ pub struct Round {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Match {
     pub match_id: String,
-    /// Timestamp of the first round as written by dissect. It ends in "Z" but is the
-    /// recording PC's local time (it matches the folder name), not real UTC.
+    /// Start of the first round, real UTC (`YYYY-MM-DDTHH:MM:SSZ`). All model timestamps are
+    /// true UTC. Dissect writes the recording PC's local time with a misleading "Z";
+    /// `convert` fixes that (see `dissect_local_to_utc`). Show it in local time to humans.
     pub timestamp: String,
     pub match_type: String,
     pub gamemode: String,

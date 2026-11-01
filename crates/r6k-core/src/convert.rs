@@ -2,6 +2,7 @@
 
 use crate::model::{Match, Round, Side};
 use crate::raw::{RawFeedback, RawMatch, RawPlayer, RawRound};
+use chrono::{LocalResult, NaiveDateTime, TimeZone, Utc};
 use std::path::Path;
 
 #[derive(Debug, thiserror::Error)]
@@ -47,13 +48,56 @@ pub fn match_from_raw(raw: &RawMatch) -> Result<Match, ConvertError> {
 
     Ok(Match {
         match_id: first.match_id.clone(),
-        timestamp: first.timestamp.clone(),
+        timestamp: dissect_local_to_utc(&first.timestamp),
         match_type: first.match_type.name.clone(),
         gamemode: first.gamemode.name.clone(),
         map_id: first.map.id,
         won,
         rounds,
     })
+}
+
+const TS_PARSE: &str = "%Y-%m-%dT%H:%M:%S";
+const TS_FORMAT: &str = "%Y-%m-%dT%H:%M:%SZ";
+
+/// Converts a dissect timestamp to real UTC. Dissect writes the recording PC's local wall
+/// clock but appends a misleading `Z`; this reads it in the system time zone (the app runs on
+/// the recording PC). Unparseable input is returned unchanged.
+pub fn dissect_local_to_utc(ts: &str) -> String {
+    dissect_local_to_utc_in(ts, &chrono::Local)
+}
+
+/// Same as [`dissect_local_to_utc`] with an explicit time zone (injectable for tests).
+pub fn dissect_local_to_utc_in<Tz: TimeZone>(ts: &str, tz: &Tz) -> String {
+    let Ok(naive) = NaiveDateTime::parse_from_str(ts.trim_end_matches('Z'), TS_PARSE) else {
+        log::warn!("unparseable replay timestamp {ts:?}; kept as is");
+        return ts.to_string();
+    };
+    match tz.from_local_datetime(&naive) {
+        LocalResult::Single(t) | LocalResult::Ambiguous(t, _) => {
+            t.with_timezone(&Utc).format(TS_FORMAT).to_string()
+        }
+        LocalResult::None => {
+            log::warn!("replay timestamp {ts:?} does not exist locally (DST gap); kept as is");
+            ts.to_string()
+        }
+    }
+}
+
+/// Formats a model (UTC) timestamp as `YYYY-MM-DD HH:MM` in the system time zone, for humans.
+pub fn utc_to_local_display(ts: &str) -> String {
+    utc_to_display_in(ts, &chrono::Local)
+}
+
+/// Same as [`utc_to_local_display`] with an explicit time zone.
+pub fn utc_to_display_in<Tz: TimeZone>(ts: &str, tz: &Tz) -> String
+where
+    Tz::Offset: std::fmt::Display,
+{
+    match NaiveDateTime::parse_from_str(ts.trim_end_matches('Z'), TS_PARSE) {
+        Ok(n) => Utc.from_utc_datetime(&n).with_timezone(tz).format("%Y-%m-%d %H:%M").to_string(),
+        Err(_) => ts.replace('T', " ").chars().take(16).collect(),
+    }
 }
 
 fn tracked(r: &RawRound) -> Option<&RawPlayer> {
@@ -139,6 +183,29 @@ mod tests {
 "stats":[{{"username":"Me","kills":2,"died":true,"assists":1,"headshots":1}}]}}]}}"#,
             feedback.join(",")
         )
+    }
+
+    #[test]
+    fn dissect_local_time_becomes_utc() {
+        use chrono::FixedOffset;
+        let plus3 = FixedOffset::east_opt(3 * 3600).unwrap();
+        assert_eq!(
+            dissect_local_to_utc_in("2026-10-31T00:56:11Z", &plus3),
+            "2026-10-30T21:56:11Z"
+        );
+        let minus5 = FixedOffset::west_opt(5 * 3600).unwrap();
+        assert_eq!(
+            dissect_local_to_utc_in("2026-10-31T22:30:00Z", &minus5),
+            "2026-11-01T03:30:00Z"
+        );
+        assert_eq!(dissect_local_to_utc_in("garbage", &plus3), "garbage");
+    }
+
+    #[test]
+    fn utc_displays_in_local_zone() {
+        use chrono::FixedOffset;
+        let plus3 = FixedOffset::east_opt(3 * 3600).unwrap();
+        assert_eq!(utc_to_display_in("2026-10-30T21:56:11Z", &plus3), "2026-10-31 00:56");
     }
 
     #[test]

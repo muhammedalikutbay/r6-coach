@@ -12,6 +12,9 @@ pub mod stats;
 
 pub use advice::{advise, Advice, AdviceKind, TOPIC_HEADSHOT};
 pub use baseline::{Baseline, CounterSet, MapStats};
-pub use convert::{match_from_json, match_from_raw, read_match_file, ConvertError};
+pub use convert::{
+    dissect_local_to_utc, match_from_json, match_from_raw, read_match_file, utc_to_local_display,
+    ConvertError,
+};
 pub use model::{Match, Round, Side};
 pub use session::{advise_session, last_session, session_ending_at, summarize, SessionSummary};

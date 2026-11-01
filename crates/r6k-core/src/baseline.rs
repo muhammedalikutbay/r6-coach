@@ -10,9 +10,8 @@
 //! * matches from before `captured_at` are used only for the "last match" view and the history
 //!   list, never added to the baseline again.
 //!
-//! Match timestamps are compared as `YYYY-MM-DDTHH:MM:SS` strings. Note that replay timestamps are
-//! the recording PC's local time with a misleading `Z` (see [`Match::timestamp`]), while
-//! `capturedAt` is real UTC, so around the boundary the comparison can be off by the UTC offset.
+//! Match timestamps are compared as `YYYY-MM-DDTHH:MM:SS` strings. Both match timestamps
+//! (converted from dissect's local time, see [`Match::timestamp`]) and `capturedAt` are real UTC.
 
 use crate::model::{Match, Round, Side};
 use crate::names;

@@ -148,7 +148,7 @@ fn advise_cmd(
     println!(
         "{} | {} | {} | {}",
         target.match_id,
-        target.timestamp.replace('T', " ").chars().take(16).collect::<String>(),
+        r6k_core::utc_to_local_display(&target.timestamp),
         target.match_type,
         names::map_name(target.map_id)
     );
@@ -255,7 +255,7 @@ fn load_named(
 fn print_table(matches: &[Match]) {
     println!(
         "{:<16} {:<18} {:<4} {:>3} {:>3} {:>3} {:>5}  Operators (rounds)",
-        "Date (UTC)", "Map", "Res", "K", "D", "A", "HS%"
+        "Date (local)", "Map", "Res", "K", "D", "A", "HS%"
     );
     for m in matches {
         let mut ops: BTreeMap<u64, u32> = BTreeMap::new();
@@ -271,11 +271,7 @@ fn print_table(matches: &[Match]) {
             .join(", ");
         println!(
             "{:<16} {:<18} {:<4} {:>3} {:>3} {:>3} {:>4.0}%  {}",
-            m.timestamp
-                .replace('T', " ")
-                .chars()
-                .take(16)
-                .collect::<String>(),
+            r6k_core::utc_to_local_display(&m.timestamp),
             names::map_name(m.map_id),
             if m.won { "Win" } else { "Loss" },
             m.kills(),
