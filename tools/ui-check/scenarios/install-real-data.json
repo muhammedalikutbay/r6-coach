@@ -16,6 +16,15 @@
     { "type": "eval", "expr": "document.body.innerText.includes('30 new matches added')", "expect": true },
     { "type": "eval", "expr": "!/sidecar not found/i.test(document.body.innerText)", "expect": true },
     { "type": "eval", "expr": "document.querySelectorAll('ul.advice li').length > 2", "expect": true },
+    { "type": "eval", "expr": "/31 Oct,? 00:5\\d/.test(document.body.innerText)", "expect": true },
+    { "type": "click", "text": "Operators" },
+    { "type": "wait", "text": "Rook", "timeout": 15000 },
+    { "type": "screenshot", "path": "install-operators.png" },
+    { "type": "click", "text": "Maps" },
+    { "type": "wait", "text": "Bank", "timeout": 15000 },
+    { "type": "screenshot", "path": "install-maps.png" },
+    { "type": "click", "text": "Home" },
+    { "type": "wait", "text": "This session", "timeout": 15000 },
     { "type": "screenshot", "path": "install-home.png" }
   ]
 }
