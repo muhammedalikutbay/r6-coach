@@ -21,6 +21,9 @@ pub struct RawRound {
     pub map: Named,
     #[serde(default)]
     pub gamemode: Named,
+    /// Bomb site / spawn description, e.g. "2F Master Bedroom, 2F Office".
+    #[serde(default)]
+    pub site: String,
     #[serde(default, rename = "recordingProfileID")]
     pub recording_profile_id: String,
     #[serde(default, rename = "matchID")]
@@ -46,6 +49,7 @@ pub struct Named {
 }
 
 #[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct RawTeam {
     #[serde(default)]
     pub score: u32,
@@ -54,6 +58,9 @@ pub struct RawTeam {
     /// "Attack" or "Defense".
     #[serde(default)]
     pub role: String,
+    /// Only set by dissect for some endings ("DefusedBomb", "DisabledDefuser").
+    #[serde(default)]
+    pub win_condition: String,
 }
 
 #[derive(Debug, Deserialize)]
@@ -78,6 +85,8 @@ pub struct RawFeedback {
     pub username: String,
     #[serde(default)]
     pub target: String,
+    #[serde(default)]
+    pub headshot: bool,
     #[serde(default)]
     pub time_in_seconds: i64,
 }
