@@ -11,6 +11,7 @@
   import CompareBars from '$lib/v2/components/charts/CompareBars.svelte';
   import { filterStore } from '$lib/v2/filter.svelte';
   import { coach } from '$lib/v2/api';
+  import { refreshTick } from '$lib/v2/refresh.svelte';
   import type { CoachReport, InsightKind, Range } from '$lib/v2/types';
 
   // The coach compares a focus set against a reference set; the focus is chosen here, the other
@@ -22,6 +23,7 @@
 
   $effect(() => {
     const filter = { ...filterStore.value, range: focus };
+    void refreshTick.value; // re-query after Update
     let stale = false;
     loading = true;
     error = '';

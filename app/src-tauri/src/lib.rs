@@ -183,7 +183,8 @@ pub fn run() {
             report::match_report,
             v2::query,
             v2::list_matches,
-            v2::match_detail
+            v2::match_detail,
+            v2::coach
         ])
         .run(tauri::generate_context!())
     {

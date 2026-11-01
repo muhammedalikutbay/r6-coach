@@ -1,6 +1,7 @@
 //! v2 commands: the global-filter query engine, the paged match list and the match detail.
 //! The DTOs are the serde types of `r6k_core::query` (camelCase, same shapes as `app/src/lib/v2/types.ts`).
 
+use r6k_core::coach::CoachReport;
 use r6k_core::query::{self, Filter, MatchDetail, MatchRow, QueryResult};
 
 use crate::{baseline, lock, store, Cmd};
@@ -22,6 +23,18 @@ fn run_detail(conn: &rusqlite::Connection, match_id: &str) -> Cmd<MatchDetail> {
         .map_err(|e| e.to_string())?
         .ok_or_else(|| format!("match not found: {match_id}"))?;
     Ok(query::match_detail(&m))
+}
+
+fn run_coach(conn: &rusqlite::Connection, filter: &Filter) -> Cmd<CoachReport> {
+    let matches = store::load_full_matches(conn).map_err(|e| e.to_string())?;
+    let report = r6k_core::coach::coach(filter, &matches, &baseline()?);
+    log::info!("coach {:?}: {} match(es) loaded", filter, matches.len());
+    Ok(report)
+}
+
+#[tauri::command]
+pub fn coach(db: tauri::State<store::Db>, filter: Filter) -> Cmd<CoachReport> {
+    run_coach(&*lock(&db)?, &filter)
 }
 
 #[tauri::command]
@@ -54,6 +67,7 @@ mod tests {
         assert_eq!(r.match_count, 0);
         assert!(run_list(&conn, &Filter::default(), 0, 10).unwrap().is_empty());
         assert!(run_detail(&conn, "nope").is_err());
+        run_coach(&conn, &Filter::default()).unwrap();
     }
 
     #[test]
@@ -82,6 +96,9 @@ mod tests {
         println!("all rounds {}, zofia rounds {} kd {}", all.kpis.rounds, zofia.kpis.rounds, zofia.kpis.kd);
         assert!(zofia.kpis.rounds > 0 && zofia.kpis.rounds < all.kpis.rounds);
         assert!(zofia.operators.iter().all(|o| o.key == "zofia"));
+
+        let report = run_coach(&conn, &Filter { range: query::Range::Last5, ..Default::default() }).unwrap();
+        println!("coach last5: {}", serde_json::to_string(&report).unwrap().len());
 
         let list = run_list(&conn, &Filter::default(), 0, 10).unwrap();
         assert_eq!(list.len(), 10);
