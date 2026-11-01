@@ -5,3 +5,6 @@
 .beads-credential-key
 .beads/proxieddb/
 *.gate.lock*
+
+# Sidecar binaries built by tools/r6-dissect/build.ps1
+app/src-tauri/binaries/
