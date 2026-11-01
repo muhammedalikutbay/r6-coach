@@ -2,6 +2,7 @@ mod report;
 mod store;
 mod summary;
 mod tables;
+mod v2;
 
 use std::path::{Path, PathBuf};
 use tauri::Manager;
@@ -179,7 +180,10 @@ pub fn run() {
             inspect_replay_dir,
             reset_database,
             report::last_match_report,
-            report::match_report
+            report::match_report,
+            v2::query,
+            v2::list_matches,
+            v2::match_detail
         ])
         .run(tauri::generate_context!())
     {
