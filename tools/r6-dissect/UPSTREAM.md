@@ -22,6 +22,18 @@ Principle: unknown operator, map or role IDs must never panic; the raw ID stays 
 3. **Round end with unknown players** (`dissect/time.go`, `dissect/utils.go`): kill/death/defuser feedback that
    names a player missing from the header used to index `Players[-1]` (index out of range panic).
    New helper `teamIndexByUsername` returns -1 and those entries are skipped.
+
+4. **Operator swaps in Y11 replays** (`dissect/player.go` `readAtkOpSwap`, `dissect/reader.go` `pawnOwner`).
+   Root cause: the header lists the operator picked at the start; operators changed during the prep phase arrive as
+   `22 A9 26 0B E4` records (`MatchUpdateType` `OperatorSwap`). Upstream identified the swapping player by a "ui id"
+   at a fixed +402 byte offset. In Y11 (code 9966156) that id no longer matches the header, so every swap was silently
+   dropped and the pre-selected operator stayed (about 11-16% of rounds were wrong; e.g. Tracker `capitao`, replay `fuze`).
+   Fix: the same marker also appears in 10 "header" records (one per player, holding the player's own id and, at
+   +85, the id of the in-world pawn entity). We remember pawn id -> player id from those, then in a swap record find the
+   first known pawn id and apply the operator to that player. Unknown records are logged at debug level and ignored.
+   Validated against Tracker: operator match for H.A.N-01 went from 40/45 (88.9%) to 55/55 on the 10 overlapping matches
+   (before: 5202ed0b not counted in the 45). Only offsets for the marker layout are hard-coded; a new game version can
+   break them again, so re-check with the Tracker comparison after each Siege update.
 
 Other callers of `Role()` (`player.go`, `site.go`) compare against `Defense`, so `Unknown` is safe there.
 

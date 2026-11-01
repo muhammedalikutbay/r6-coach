@@ -27,3 +27,6 @@ The app itself must never send requests to Tracker Network or Ubisoft.
 - Log where it helps (the `log` crate in Rust, `console` in the frontend).
 - Verify with `cargo test`, the CLI against the real data folder, and the running app (`npm run tauri dev`).
 - Unknown operator or map IDs must never crash anything: keep the raw ID and show a readable fallback.
+
+## Lessons
+- r6-dissect binary offsets break on every Siege season. Operator swaps were lost in Y11 (about 11-16% wrong operators, found by comparing with Tracker). After a game update, re-compare replay operators with the Tracker JSON before trusting new data (see `tools/r6-dissect/UPSTREAM.md`, patch 4).

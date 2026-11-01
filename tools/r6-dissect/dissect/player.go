@@ -170,7 +170,22 @@ func readPlayer(r *Reader) error {
 	return err
 }
 
+// Layout of the 22 A9 26 0B E4 records, byte offsets from the start of the marker (Y11, code 9966156).
+var (
+	atkOpSwapMarker   = []byte{0x22, 0xA9, 0x26, 0x0B, 0xE4}
+	headerIDIndicator = []byte{0x33, 0xD8, 0x3D, 0x4F, 0x23} // follows the own id in header records
+)
+
+const (
+	headerOwnIDAt     = 29 // own id (DissectID) in a header record
+	headerIndicatorAt = 37 // headerIDIndicator
+	headerPawnIDAt    = 85 // entity id of the player's pawn in a header record
+	swapHeaderSpan    = 100
+	swapSearchWindow  = 700 // a swap record is ~520 bytes; the pawn id sits ~234 bytes in
+)
+
 func readAtkOpSwap(r *Reader) error {
+	start := r.offset
 	op, err := r.Uint64()
 	if err != nil {
 		return err
@@ -201,29 +216,59 @@ func readAtkOpSwap(r *Reader) error {
 		}
 		return nil
 	}
-	// after Y9S3 caster view overhaul
-	if err = r.Skip(402); err != nil {
-		return err
+	// after Y9S3 caster view overhaul (R6Koc patch, see UPSTREAM.md patch 4)
+	//
+	// Both record kinds start with the same 22 A9 26 0B E4 marker and are told apart by content:
+	//  - header kind (10 records at the start): holds the player's own id (DissectID) and, 56 bytes
+	//    later, the id of the player's in-world entity (the "pawn"). We remember pawn -> own id.
+	//  - swap kind (late in the stream): holds only the pawn id of the player who switched.
+	// The old code identified the player by a "ui id" at a fixed 402-byte offset; from Y11 that
+	// offset is wrong and the ui id no longer matches the header, so swaps were lost.
+	ps := start - len(atkOpSwapMarker)
+	if ps < 0 || ps+swapHeaderSpan > len(r.b) {
+		return nil
 	}
-	// id shows up in player data and in op swaps afaik
-	id, err := r.Uint64()
-	if err != nil {
-		return err
-	}
-	for i, p := range r.Header.Players {
-		if p.uiID == id {
-			r.Header.Players[i].Operator = o
-			u := MatchUpdate{
-				Type:          OperatorSwap,
-				Username:      p.Username,
-				Time:          r.timeRaw,
-				TimeInSeconds: r.time,
-				Operator:      o,
+	rec := r.b[ps:]
+	if bytes.Equal(rec[headerIndicatorAt:headerIndicatorAt+len(headerIDIndicator)], headerIDIndicator) {
+		own, pawn := rec[headerOwnIDAt:headerOwnIDAt+4], rec[headerPawnIDAt:headerPawnIDAt+4]
+		if isEntityID(rec, headerOwnIDAt) && isEntityID(rec, headerPawnIDAt) {
+			if r.pawnOwner == nil {
+				r.pawnOwner = make(map[string][]byte)
 			}
-			r.MatchFeedback = append(r.MatchFeedback, u)
-			log.Debug().Interface("match_update", u).Send()
-			break
+			r.pawnOwner[string(pawn)] = append([]byte(nil), own...)
 		}
+		return nil
 	}
+	window := rec
+	if len(window) > swapSearchWindow {
+		window = window[:swapSearchWindow]
+	}
+	for off := len(atkOpSwapMarker) + 9; off+8 <= len(window); off++ {
+		own, ok := r.pawnOwner[string(window[off:off+4])]
+		if !ok || !isEntityID(window, off) {
+			continue
+		}
+		i := r.PlayerIndexByID(own)
+		if i < 0 {
+			return nil
+		}
+		r.Header.Players[i].Operator = o
+		u := MatchUpdate{
+			Type:          OperatorSwap,
+			Username:      r.Header.Players[i].Username,
+			Time:          r.timeRaw,
+			TimeInSeconds: r.time,
+			Operator:      o,
+		}
+		r.MatchFeedback = append(r.MatchFeedback, u)
+		log.Debug().Interface("match_update", u).Send()
+		return nil
+	}
+	log.Debug().Interface("op", o).Msg("atk_op_swap: no known player entity in record")
 	return nil
+}
+
+// isEntityID reports whether b[at:at+8] looks like a 4-byte entity id followed by four zero bytes.
+func isEntityID(b []byte, at int) bool {
+	return at+8 <= len(b) && bytes.Equal(b[at+4:at+8], []byte{0, 0, 0, 0})
 }

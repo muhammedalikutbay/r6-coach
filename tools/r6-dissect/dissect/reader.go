@@ -32,6 +32,7 @@ type Reader struct {
 	Header                   Header        `json:"header"`
 	MatchFeedback            []MatchUpdate `json:"matchFeedback"`
 	Scoreboard               Scoreboard
+	pawnOwner                map[string][]byte // pawn entity id -> player DissectID (Y9S3+ operator swaps)
 }
 
 // NewReader decompresses in using zstd and
