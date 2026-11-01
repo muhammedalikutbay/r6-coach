@@ -1,0 +1,113 @@
+{
+  "name": "v2-smoke",
+  "description": "Quick v2 check against a built exe (--exe): reset DB, set the replay folder, Update, then look at Overview, Matches (detail) and Coach. Resets the app database.",
+  "steps": [
+    {
+      "type": "localStorage.clear"
+    },
+    {
+      "type": "reload"
+    },
+    {
+      "type": "wait",
+      "text": "Let's go",
+      "timeout": 30000
+    },
+    {
+      "type": "click",
+      "text": "Let's go"
+    },
+    {
+      "type": "eval",
+      "expr": "Promise.resolve(window.__TAURI_INTERNALS__.invoke('reset_database')).then(() => 'reset')",
+      "expect": "reset"
+    },
+    {
+      "type": "eval",
+      "expr": "Promise.resolve(window.__TAURI_INTERNALS__.invoke('set_replay_dir', { path: 'C:/Users/Kutbay/Desktop/R6Koc-veri/MatchReplay' })).then(() => 'saved')",
+      "expect": "saved"
+    },
+    {
+      "type": "reload"
+    },
+    {
+      "type": "wait",
+      "text": "Overview",
+      "timeout": 15000
+    },
+    {
+      "type": "click",
+      "text": "Update"
+    },
+    {
+      "type": "wait",
+      "text": "30 new",
+      "timeout": 300000
+    },
+    {
+      "type": "click",
+      "text": "Last 5"
+    },
+    {
+      "type": "wait",
+      "text": "Based on 5 matches",
+      "timeout": 20000
+    },
+    {
+      "type": "screenshot",
+      "path": "v2-overview-last5.png"
+    },
+    {
+      "type": "click",
+      "text": "All time"
+    },
+    {
+      "type": "wait",
+      "text": "Career",
+      "timeout": 20000
+    },
+    {
+      "type": "click",
+      "selector": "a[href='/matches']"
+    },
+    {
+      "type": "wait",
+      "text": "Saturday",
+      "timeout": 30000
+    },
+    {
+      "type": "screenshot",
+      "path": "v2-matches.png"
+    },
+    {
+      "type": "click",
+      "text": "Outback"
+    },
+    {
+      "type": "wait",
+      "text": "Scoreboard",
+      "timeout": 15000
+    },
+    {
+      "type": "screenshot",
+      "path": "v2-detail.png"
+    },
+    {
+      "type": "eval",
+      "expr": "(document.dispatchEvent(new KeyboardEvent('keydown', {key: 'Escape'})), 'esc')"
+    },
+    {
+      "type": "click",
+      "selector": "a[href='/coach']"
+    },
+    {
+      "type": "wait",
+      "text": "Strengths",
+      "timeout": 30000
+    },
+    {
+      "type": "screenshot",
+      "path": "v2-coach.png"
+    }
+  ]
+}
