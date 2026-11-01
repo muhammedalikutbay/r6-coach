@@ -6,7 +6,7 @@
 
 use anyhow::{bail, Context, Result};
 use clap::{Parser, Subcommand};
-use r6k_core::{advise, names, AdviceKind, Baseline, Match};
+use r6k_core::{advise, advise_session, names, session_ending_at, summarize, AdviceKind, Baseline, Match};
 use std::collections::BTreeMap;
 use std::path::{Path, PathBuf};
 use std::process::Command;
@@ -147,6 +147,32 @@ fn advise_cmd(
             AdviceKind::Info => "[info]",
         };
         println!("\n{tag} {}\n    ({})", a.text, a.evidence);
+    }
+    if last {
+        let session = session_ending_at(&matches, target);
+        if !session.is_empty() {
+            let s = summarize(&session);
+            println!(
+                "\n== Session ({} {}): {} wins, {} losses, {} rounds, K {} / D {}, {} first kills, {} first deaths ==",
+                s.matches,
+                if s.matches == 1 { "match" } else { "matches" },
+                s.wins,
+                s.losses,
+                s.rounds,
+                s.kills,
+                s.deaths,
+                s.first_bloods,
+                s.first_deaths
+            );
+            for a in advise_session(&session, &matches, &baseline) {
+                let tag = match a.kind {
+                    AdviceKind::Praise => "[praise]",
+                    AdviceKind::Improve => "[improve]",
+                    AdviceKind::Info => "[info]",
+                };
+                println!("\n{tag} {}\n    ({})", a.text, a.evidence);
+            }
+        }
     }
     Ok(())
 }
