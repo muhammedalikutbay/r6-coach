@@ -8,3 +8,6 @@
 
 # Sidecar binaries built by tools/r6-dissect/build.ps1
 app/src-tauri/binaries/
+
+# Cargo build output
+target/
