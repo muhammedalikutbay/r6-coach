@@ -1,0 +1,22 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024">
+  <!-- R6 Coach app icon: original design, no third-party logos. -->
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#1b2330"/>
+      <stop offset="1" stop-color="#0b0e14"/>
+    </linearGradient>
+  </defs>
+  <rect x="32" y="32" width="960" height="960" rx="200" fill="url(#bg)"/>
+  <rect x="32" y="32" width="960" height="960" rx="200" fill="none" stroke="#2f3b4d" stroke-width="12"/>
+  <!-- Reticle -->
+  <g fill="none" stroke="#f5a623" stroke-width="28" stroke-linecap="round">
+    <circle cx="512" cy="430" r="250"/>
+    <line x1="512" y1="110" x2="512" y2="200"/>
+    <line x1="512" y1="660" x2="512" y2="750"/>
+    <line x1="192" y1="430" x2="282" y2="430"/>
+    <line x1="742" y1="430" x2="832" y2="430"/>
+  </g>
+  <circle cx="512" cy="430" r="26" fill="#f5a623"/>
+  <!-- Wordmark -->
+  <text x="512" y="880" text-anchor="middle" font-family="Arial, Helvetica, sans-serif" font-weight="700" font-size="200" fill="#e8edf5" letter-spacing="10">R6</text>
+</svg>
