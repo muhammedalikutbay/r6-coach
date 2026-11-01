@@ -1,3 +1,5 @@
+mod summary;
+
 use std::path::PathBuf;
 use std::process::{Command, Stdio};
 
@@ -18,8 +20,8 @@ fn sidecar_path() -> Result<PathBuf, String> {
     }
 }
 
-/// Runs r6-dissect on a match folder and returns its JSON output.
-fn run_parse(path: &str) -> Result<serde_json::Value, String> {
+/// Runs r6-dissect on a match folder and converts the output to the frontend summary.
+fn run_parse(path: &str) -> Result<summary::MatchSummary, String> {
     let sidecar = sidecar_path()?;
     log::info!("parse_match: {} {}", sidecar.display(), path);
     let mut cmd = Command::new(sidecar);
@@ -37,11 +39,13 @@ fn run_parse(path: &str) -> Result<serde_json::Value, String> {
         let err = String::from_utf8_lossy(&out.stderr);
         return Err(format!("r6-dissect failed ({}): {}", out.status, err.trim()));
     }
-    serde_json::from_slice(&out.stdout).map_err(|e| format!("invalid JSON from r6-dissect: {e}"))
+    let json = String::from_utf8_lossy(&out.stdout);
+    let m = r6k_core::match_from_json(&json).map_err(|e| format!("cannot convert match: {e}"))?;
+    Ok(summary::MatchSummary::from(&m))
 }
 
 #[tauri::command]
-async fn parse_match(path: String) -> Result<serde_json::Value, String> {
+async fn parse_match(path: String) -> Result<summary::MatchSummary, String> {
     // Parsing is CPU/IO heavy; keep it off the main thread.
     tauri::async_runtime::spawn_blocking(move || run_parse(&path))
         .await

@@ -1,5 +1,5 @@
 // Front-end API. Flip USE_MOCK to false when the Rust commands exist.
-import type { LastMatchReport, MapRow, OperatorRow, RefreshResult } from './types';
+import type { LastMatchReport, MatchSummary, MapRow, OperatorRow, RefreshResult } from './types';
 import { mockMaps, mockOperators, mockRefresh, mockReplayDir, mockReport } from './mock';
 
 export const USE_MOCK = true;
@@ -61,3 +61,9 @@ export const setReplayDir = (path: string) =>
 
 export const resetDatabase = () =>
   call<void>('reset_database', undefined, () => delay(undefined, 600));
+
+// TEMPORARY (r6k-rxr.11): always calls the real backend, even while USE_MOCK is on.
+export const parseMatch = async (path: string) => {
+  const { invoke } = await import('@tauri-apps/api/core');
+  return invoke<MatchSummary>('parse_match', { path });
+};

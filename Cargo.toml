@@ -1,8 +1,16 @@
 [workspace]
 resolver = "2"
-members = ["crates/r6k-core", "crates/r6k-cli"]
+members = ["crates/r6k-core", "crates/r6k-cli", "crates/r6k-paths", "app/src-tauri"]
 
 [workspace.package]
 version = "0.1.0"
 edition = "2021"
 license = "MIT"
+
+# Tauri release settings (profiles only apply from the workspace root).
+[profile.release]
+codegen-units = 1
+lto = true
+opt-level = 3
+panic = "abort"
+strip = true

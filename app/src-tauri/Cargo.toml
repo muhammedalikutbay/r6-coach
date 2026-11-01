@@ -7,8 +7,6 @@ edition = "2024"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
-# Standalone for now: the empty table stops a root workspace from claiming this crate.
-[workspace]
 
 [lib]
 # The `_lib` suffix may seem redundant but it is necessary
@@ -25,12 +23,7 @@ tauri = { version = "2", features = [] }
 log = "0.4"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
+r6k-core = { path = "../../crates/r6k-core" }
+r6k-paths = { path = "../../crates/r6k-paths" }
 
 
-# Read the optimization guideline for more details: https://tauri.app/concept/size/#cargo-configuration
-[profile.release]
-codegen-units = 1
-lto = true
-opt-level = 3
-panic = "abort"
-strip = true
