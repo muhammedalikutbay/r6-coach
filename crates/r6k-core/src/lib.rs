@@ -13,6 +13,7 @@ pub mod query;
 pub mod raw;
 pub mod session;
 pub mod stats;
+pub mod weapons;
 
 pub use advice::{advise, Advice, AdviceKind, TOPIC_HEADSHOT};
 pub use baseline::{Baseline, CounterSet, MapStats};

@@ -232,6 +232,10 @@ pub struct KillEventView {
     pub headshot: bool,
     /// 0 = my team, 1 = other team.
     pub killer_team: u8,
+    /// Weapon display name, e.g. `R4-C`; `None` when unknown.
+    pub weapon: Option<String>,
+    /// `primary` | `secondary` | `gadget` | `ability`; `None` when unknown.
+    pub weapon_slot: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -840,6 +844,8 @@ pub fn match_detail(m: &FullMatch) -> MatchDetail {
                         victim_operator: victim.map_or_else(|| "unknown".into(), |p| op_key(p.operator_id)),
                         headshot: k.headshot,
                         killer_team: rel(killer_team),
+                        weapon: k.weapon.clone(),
+                        weapon_slot: k.weapon_slot.clone(),
                     }
                 })
                 .collect();

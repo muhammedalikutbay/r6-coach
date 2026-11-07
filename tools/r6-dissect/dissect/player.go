@@ -15,6 +15,7 @@ func readPlayer(r *Reader) error {
 	spawnIndicator := []byte{0xAF, 0x98, 0x99, 0xCA}
 	profileIDIndicator := []byte{0x8A, 0x50, 0x9B, 0xD0}
 	//unknownIndicator := []byte{0x22, 0xEE, 0xD4, 0x45, 0xC8, 0x08} // maybe player appearance?
+	playerObject := r.playerObjectBefore(r.offset - 5) // for kill weapon slots (loadout.go)
 	r.playersRead++
 	defer func() {
 		if r.playersRead == 10 {
@@ -160,12 +161,14 @@ func readPlayer(r *Reader) error {
 			r.Header.Players[i].Spawn = p.Spawn
 			r.Header.Players[i].DissectID = p.DissectID
 			r.Header.Players[i].uiID = p.uiID
+			r.trackPlayerObject(playerObject, r.Header.Players[i])
 			found = true
 			break
 		}
 	}
 	if !found && len(username) > 0 {
 		r.Header.Players = append(r.Header.Players, p)
+		r.trackPlayerObject(playerObject, p)
 	}
 	return err
 }

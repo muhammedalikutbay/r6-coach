@@ -15,7 +15,7 @@ pub const SCHEMA_VERSION: i64 = 4;
 /// Version of the raw -> `FullMatch` conversion. Bump it whenever `r6k_core::full_match_from_json`
 /// changes what it produces: on the next start every stored match is rebuilt from its raw JSON
 /// (no `.rec` files needed).
-pub const PARSER_VERSION: i64 = 1;
+pub const PARSER_VERSION: i64 = 2; // 2: weapon per kill (r6k-v45.1)
 pub const KEY_REPLAY_DIR: &str = "replay_dir";
 /// A folder is imported only when none of its files changed for this long.
 pub const SETTLE: Duration = Duration::from_secs(60);

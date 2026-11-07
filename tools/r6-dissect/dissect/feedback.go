@@ -2,6 +2,7 @@ package dissect
 
 import (
 	"bytes"
+	"encoding/binary"
 	"encoding/json"
 	"errors"
 	"strings"
@@ -27,15 +28,22 @@ const (
 )
 
 type MatchUpdate struct {
-	Type                   MatchUpdateType `json:"type"`
-	Username               string          `json:"username,omitempty"`
-	Target                 string          `json:"target,omitempty"`
-	Headshot               *bool           `json:"headshot,omitempty"`
-	Time                   string          `json:"time"`
-	TimeInSeconds          float64         `json:"timeInSeconds"`
-	Message                string          `json:"message,omitempty"`
-	Operator               Operator        `json:"operator,omitempty"`
+	Type          MatchUpdateType `json:"type"`
+	Username      string          `json:"username,omitempty"`
+	Target        string          `json:"target,omitempty"`
+	Headshot      *bool           `json:"headshot,omitempty"`
+	Time          string          `json:"time"`
+	TimeInSeconds float64         `json:"timeInSeconds"`
+	Message       string          `json:"message,omitempty"`
+	Operator      Operator        `json:"operator,omitempty"`
+	// Kill: asset ID of the item that made the kill (0 = not found).
+	WeaponID uint64 `json:"weaponId,omitempty"`
+	// Kill: slot holding WeaponID in the inventory of the player the kill packet names.
+	WeaponSlot WeaponSlot `json:"weaponSlot,omitempty"`
+	// Kill: game item ID of that slot in the killer operator's loadout (names in data tables).
+	WeaponItemID           uint64 `json:"weaponItemId,omitempty"`
 	usernameFromScoreboard string
+	feedKiller             string // killer named by the kill packet, before any correction
 }
 
 func (i MatchUpdateType) MarshalJSON() (text []byte, err error) {
@@ -56,6 +64,40 @@ func (i *MatchUpdateType) UnmarshalJSON(data []byte) (err error) {
 
 var activity2 = []byte{0x00, 0x00, 0x00, 0x22, 0xe3, 0x09, 0x00, 0x79}
 var killIndicator = []byte{0x22, 0xd9, 0x13, 0x3c, 0xba}
+
+// killWeaponTag is the tag and size byte of the kill packet field that holds the weapon's asset ID
+// as a little-endian uint64. It follows the headshot byte (R6Koc patch 5; field found by
+// lumina-r6, layout from prestonwillis10/r6-dissect issue #28, verified there on Y8S1-Y11S3).
+var killWeaponTag = []byte{0x22, 0xF8, 0x6C, 0xDD, 0x65, 0x08}
+
+// killWeaponWindow is how far after the headshot byte the tag may start.
+const killWeaponWindow = 256
+
+// peekKillWeapon returns the weapon asset ID of the kill packet whose headshot byte ends at
+// r.offset, or 0 when the field is missing or cut off. It only reads r.b: it never moves r.offset
+// and never fails, so an unknown layout or the end of the buffer cannot abort the round.
+func peekKillWeapon(r *Reader) uint64 {
+	from := r.offset
+	if from < 0 || from >= len(r.b) {
+		return 0
+	}
+	end := from + killWeaponWindow + len(killWeaponTag)
+	if end > len(r.b) {
+		end = len(r.b)
+	}
+	i := bytes.Index(r.b[from:end], killWeaponTag)
+	if i < 0 {
+		return 0
+	}
+	value := from + i + len(killWeaponTag)
+	if value+8 > len(r.b) {
+		return 0
+	}
+	if i > 0 {
+		log.Debug().Int("distance", i).Msg("kill weapon tag not right after headshot byte")
+	}
+	return binary.LittleEndian.Uint64(r.b[value : value+8])
+}
 
 func readMatchFeedback(r *Reader) error {
 	if r.Header.CodeVersion >= Y9S1Update3 {
@@ -146,6 +188,11 @@ func readMatchFeedback(r *Reader) error {
 			*headshotPtr = true
 		}
 		u.Headshot = headshotPtr
+		u.WeaponID = peekKillWeapon(r)
+		u.feedKiller = username
+		if u.WeaponID == 0 {
+			log.Debug().Str("killer", username).Msg("kill weapon field not found")
+		}
 		// Ignore duplicates
 		for _, val := range r.MatchFeedback {
 			if val.Type == Kill && val.Username == u.Username && val.Target == u.Target {

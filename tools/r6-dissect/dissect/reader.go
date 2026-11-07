@@ -33,6 +33,7 @@ type Reader struct {
 	MatchFeedback            []MatchUpdate `json:"matchFeedback"`
 	Scoreboard               Scoreboard
 	pawnOwner                map[string][]byte // pawn entity id -> player DissectID (Y9S3+ operator swaps)
+	inventory                *inventoryState   // player inventories (Y8S1+), for kill weapon slots
 }
 
 // NewReader decompresses in using zstd and
@@ -71,6 +72,7 @@ func NewReader(in io.Reader) (r *Reader, err error) {
 	r.Listen([]byte{0xEC, 0xDA, 0x4F, 0x80}, readScoreboardScore)
 	r.Listen([]byte{0x4D, 0x73, 0x7F, 0x9E}, readScoreboardAssists)
 	r.Listen([]byte{0x1C, 0xD2, 0xB1, 0x9D}, readScoreboardKills)
+	r.listenLoadouts()
 	return r, err
 }
 
@@ -228,6 +230,7 @@ func (r *Reader) Read() (err error) {
 	}
 	if !r.readPartial {
 		r.roundEnd()
+		r.classifyKillWeapons()
 	}
 	r.b = nil
 	return err

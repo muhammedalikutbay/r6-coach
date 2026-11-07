@@ -48,7 +48,7 @@ pub struct RoundPlayer {
     pub survived: bool,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub struct KillEvent {
     /// Seconds left on the round clock (counts down, so larger = earlier).
     pub time_s: i64,
@@ -56,6 +56,15 @@ pub struct KillEvent {
     pub killer: String,
     pub victim: String,
     pub headshot: bool,
+    /// Raw asset ID from the kill packet. `None` when unknown.
+    #[serde(default)]
+    pub weapon_id: Option<u64>,
+    /// Display name, e.g. `R4-C`. `None` when the item has no known name.
+    #[serde(default)]
+    pub weapon: Option<String>,
+    /// `primary` | `secondary` | `gadget` | `ability`. `None` when unknown.
+    #[serde(default)]
+    pub weapon_slot: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -231,6 +240,12 @@ fn convert_round(r: &RawRound, me_profile_id: &str) -> FullRound {
             killer: id_of(&e.username),
             victim: id_of(&e.target),
             headshot: e.headshot,
+            weapon_id: e.weapon_id.filter(|&id| id != 0),
+            weapon: e
+                .weapon_item_id
+                .and_then(crate::weapons::weapon_name)
+                .map(String::from),
+            weapon_slot: e.weapon_slot.as_deref().and_then(known_slot).map(String::from),
         })
         .collect();
     // Stable: ties keep the listed order. Larger time_s = earlier in the round.
@@ -275,6 +290,20 @@ fn convert_round(r: &RawRound, me_profile_id: &str) -> FullRound {
         my_side,
         players: round_players,
         kills,
+    }
+}
+
+fn known_slot(s: &str) -> Option<&'static str> {
+    match s {
+        "primary" => Some("primary"),
+        "secondary" => Some("secondary"),
+        "gadget" => Some("gadget"),
+        "ability" => Some("ability"),
+        "" => None,
+        other => {
+            log::debug!("unknown dissect weapon slot {other:?}");
+            None
+        }
     }
 }
 
@@ -334,8 +363,10 @@ mod tests {
  {"profileID":"b1","username":"B1","teamIndex":1,"operator":{"id":21}},
  {"profileID":"b2","username":"B2","teamIndex":1,"operator":{"id":22}}],
 "matchFeedback":[
- {"type":{"name":"Kill"},"username":"A1","target":"B1","headshot":true,"timeInSeconds":150},
- {"type":{"name":"Kill"},"username":"B2","target":"A2","timeInSeconds":120},
+ {"type":{"name":"Kill"},"username":"A1","target":"B1","headshot":true,"timeInSeconds":150,
+  "weaponId":1366019316,"weaponSlot":"primary","weaponItemId":238373640062},
+ {"type":{"name":"Kill"},"username":"B2","target":"A2","timeInSeconds":120,
+  "weaponId":70077334926,"weaponSlot":"pocket","weaponItemId":1},
  {"type":{"name":"Kill"},"username":"A1","target":"B2","timeInSeconds":100}],
 "stats":[{"username":"A1","kills":2,"died":false,"headshots":1},{"username":"A2","kills":0,"died":true},
  {"username":"B1","kills":0,"died":true},{"username":"B2","kills":1,"died":true}]}]}"#;
@@ -376,5 +407,31 @@ mod tests {
         assert!(a1.first_kill && a1.survived && a1.kills == 2);
         let b1 = r.players.iter().find(|p| p.profile_id == "b1").unwrap();
         assert!(b1.first_death && b1.deaths == 1);
+    }
+
+    #[test]
+    fn kill_weapons() {
+        let m = full_match_from_json(JSON).unwrap();
+        let k = &m.rounds[0].kills;
+        assert_eq!(k[0].weapon_id, Some(1366019316));
+        assert_eq!(k[0].weapon.as_deref(), Some("R4-C"));
+        assert_eq!(k[0].weapon_slot.as_deref(), Some("primary"));
+        // unknown item and slot: raw id kept, nothing guessed
+        assert_eq!(k[1].weapon_id, Some(70077334926));
+        assert_eq!((k[1].weapon.as_deref(), k[1].weapon_slot.as_deref()), (None, None));
+        // no weapon fields at all
+        assert_eq!((k[2].weapon_id, k[2].weapon.as_deref(), k[2].weapon_slot.as_deref()), (None, None, None));
+    }
+
+    #[test]
+    fn old_kill_json_still_reads() {
+        let k: KillEvent =
+            serde_json::from_str(r#"{"time_s":90,"killer":"a","victim":"b","headshot":false}"#).unwrap();
+        assert_eq!(
+            (k.time_s, k.weapon_id, k.weapon.as_deref(), k.weapon_slot.as_deref()),
+            (90, None, None, None)
+        );
+        let back = serde_json::to_string(&KillEvent { weapon: Some("R4-C".into()), ..k }).unwrap();
+        assert!(back.contains(r#""weapon":"R4-C""#));
     }
 }

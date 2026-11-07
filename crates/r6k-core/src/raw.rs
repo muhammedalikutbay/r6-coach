@@ -92,6 +92,16 @@ pub struct RawFeedback {
     pub headshot: bool,
     #[serde(default)]
     pub time_in_seconds: i64,
+    /// Kill: raw asset ID of the item that made the kill (`weaponId`).
+    #[serde(default)]
+    pub weapon_id: Option<u64>,
+    /// Kill: `primary` | `secondary` | `gadget` | `ability` (`weaponSlot`).
+    #[serde(default)]
+    pub weapon_slot: Option<String>,
+    /// Kill: game item ID of that slot in the killer's operator loadout (`weaponItemId`);
+    /// the key of `data/weapons.json`.
+    #[serde(default)]
+    pub weapon_item_id: Option<u64>,
 }
 
 #[derive(Debug, Deserialize)]

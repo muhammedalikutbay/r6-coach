@@ -289,6 +289,7 @@ mod tests {
                     killer: k.0.into(),
                     victim: k.1.into(),
                     headshot: false,
+                    ..Default::default()
                 })
                 .collect(),
         }
