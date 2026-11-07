@@ -2,6 +2,7 @@
 // real stats, but all opponent names are made up.
 import type {
   CoachReport,
+  DeepStats,
   Filter,
   Kpis,
   KillEventView,
@@ -185,6 +186,48 @@ function mockOfficial(scope: 'season' | 'all'): OfficialTotals {
   };
 }
 
+const rate = (x: number, n: number) => ({ x, n, pct: n ? Math.round((1000 * x) / n) / 10 : 0 });
+
+function mockDeep(matches: number): DeepStats {
+  const k = Math.max(1, matches);
+  const rounds = 20 * k;
+  return {
+    rounds,
+    entry: rate(7 * k, 15 * k),
+    entryAttack: rate(3 * k, 8 * k),
+    entryDefense: rate(4 * k, 7 * k),
+    traded: rate(4 * k, 12 * k),
+    tradesGiven: rate(5 * k, 25 * k),
+    kost: rate(13 * k, rounds),
+    noImpact: rate(7 * k, rounds),
+    afterDeathWin: rate(3 * k, 12 * k),
+    afterSurviveWin: rate(6 * k, 8 * k),
+    lostAttack: { lost: 5 * k, elimination: 2 * k, time: 2 * k, planted: 0, defused: k },
+    lostDefense: { lost: 4 * k, elimination: 2 * k, time: 0, planted: 2 * k, defused: 0 },
+    slotKills: { primary: 11 * k, secondary: 2 * k, gadget: 0, ability: 0, unknown: k },
+    weapons: [
+      { name: 'R4-C', slot: 'primary', kills: 8 * k, hsPct: 50 },
+      { name: 'MP5', slot: 'primary', kills: 3 * k, hsPct: 33.3 },
+      { name: 'P9', slot: 'secondary', kills: 2 * k, hsPct: 50 }
+    ],
+    earlyDeath: rate(2 * k, 12 * k),
+    lateDeath: rate(3 * k, 12 * k),
+    earlyKill: rate(3 * k, 14 * k),
+    lateKill: rate(4 * k, 14 * k),
+    rivals: [
+      { operatorKey: 'jager', name: 'Jäger', deaths: 3 * k, faced: 14 * k, pct: 21.4 },
+      { operatorKey: 'ash', name: 'Ash', deaths: 2 * k, faced: 11 * k, pct: 18.2 }
+    ],
+    clutchByOpponents: [
+      { vs: 1, won: k, total: 2 * k, pct: 50 },
+      { vs: 2, won: 0, total: 2 * k, pct: 0 },
+      { vs: 3, won: 0, total: k, pct: 0 },
+      { vs: 4, won: 0, total: 0, pct: 0 },
+      { vs: 5, won: 0, total: 0, pct: 0 }
+    ]
+  };
+}
+
 export function mockQuery(f: Filter): QueryResult {
   const rows = applyFilter(f);
   const kpis = kpisFor(rows);
@@ -197,7 +240,8 @@ export function mockQuery(f: Filter): QueryResult {
     trend: trendFor(rows),
     operators: operatorsFor(f, kpis.kd),
     maps: f.maps.length ? MAP_STATS.filter((m) => f.maps.includes(m.key)) : MAP_STATS,
-    recentMatches: rows.slice(0, 8)
+    recentMatches: rows.slice(0, 8),
+    deep: mockDeep(rows.length)
   };
 }
 
@@ -339,31 +383,37 @@ export function mockCoach(f: Filter): CoachReport {
         title: 'Rook is paying off',
         text: 'Your K/D on Rook is clearly above your overall K/D.',
         evidence: 'Rook K/D 1.12 vs overall 1.01 over 142 rounds',
-        operatorKey: 'rook'
+        operatorKey: 'rook',
+        score: 0.62,
+        family: 'operator'
       },
       {
         kind: 'improve',
         title: 'Oregon needs work',
         text: 'You win fewer than half your Oregon matches, mostly on attack.',
         evidence: 'Oregon attack win 40.0% over 7 matches',
-        mapKey: 'oregon'
+        mapKey: 'oregon',
+        score: 0.55,
+        family: 'map'
       },
       {
         kind: 'info',
         title: 'Headshots are steady',
         text: 'Your headshot rate matches your usual level.',
-        evidence: 'HS 36.4% vs 36.1%'
+        evidence: 'HS 36.4% vs 36.1%',
+        score: 0,
+        family: 'info'
       }
     ],
     strengths: ['Defense on Bank (66.7% win)', 'Buck K/D 1.21', 'Clutch conversion'],
     workOn: ['Attack on Oregon', 'First deaths on attack', 'Jäger K/D 0.94'],
     comparisons: [
-      { metric: 'K/D', focus: 1.18, reference: 1.01, delta: 0.17, better: true },
-      { metric: 'Kills / round', focus: 0.71, reference: 0.64, delta: 0.07, better: true },
-      { metric: 'HS %', focus: 36.4, reference: 36.1, delta: 0.3, better: true },
-      { metric: 'Win %', focus: 60.0, reference: 50.0, delta: 10.0, better: true },
-      { metric: 'FK/FD', focus: 0.85, reference: 0.92, delta: -0.07, better: false },
-      { metric: 'Survival %', focus: 36.0, reference: 38.6, delta: -2.6, better: false }
+      { metric: 'K/D', focus: 1.18, reference: 1.01, delta: 0.17, better: true, score: 0.4, n: 40, unit: 'ratio' },
+      { metric: 'Kills / round', focus: 0.71, reference: 0.64, delta: 0.07, better: true, score: 0.4, n: 40, unit: 'ratio' },
+      { metric: 'HS %', focus: 36.4, reference: 36.1, delta: 0.3, better: true, score: 0.4, n: 40, unit: 'pct' },
+      { metric: 'Win %', focus: 60.0, reference: 50.0, delta: 10.0, better: true, score: 0.4, n: 40, unit: 'pct' },
+      { metric: 'FK/FD', focus: 0.85, reference: 0.92, delta: -0.07, better: false, score: 0.4, n: 40, unit: 'ratio' },
+      { metric: 'Survival %', focus: 36.0, reference: 38.6, delta: -2.6, better: false, score: 0.4, n: 40, unit: 'pct' }
     ],
     focusLabel: last5 ? 'Last match' : 'Last 5 matches',
     referenceLabel: last5 ? 'Your average' : 'Previous 20 matches'

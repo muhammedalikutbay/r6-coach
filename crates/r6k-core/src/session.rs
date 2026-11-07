@@ -2,8 +2,8 @@
 //! player's own history.
 //!
 //! Ranked matches last about five rounds, so a single match rarely gives an operator or map
-//! enough rounds to judge. A session pools them. Same hard limits as `advice`: no weapon
-//! advice, no assists, and only numbers that were actually computed go into the text.
+//! enough rounds to judge. A session pools them. Same limits as `advice`: no weapon advice, no
+//! assists, and only numbers that were actually computed go into the text.
 
 use crate::advice::{Advice, AdviceKind};
 use crate::baseline::{Baseline, CounterSet};

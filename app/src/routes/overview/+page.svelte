@@ -5,6 +5,7 @@
   import Section from '$lib/components/Section.svelte';
   import CollapsibleSection from '$lib/v2/components/CollapsibleSection.svelte';
   import RankHeader from '$lib/v2/components/RankHeader.svelte';
+  import DeepSections from '$lib/v2/components/DeepSections.svelte';
   import StatCard from '$lib/components/StatCard.svelte';
   import Skeleton from '$lib/components/Skeleton.svelte';
   import Card from '$lib/components/ui/Card.svelte';
@@ -232,6 +233,8 @@
         </div>
       {/if}
     </CollapsibleSection>
+
+    <DeepSections deep={data.deep} />
 
     <CollapsibleSection id="recent" title="Recent matches" summary="{data.recentMatches.length} {data.recentMatches.length === 1 ? 'match' : 'matches'}">
       <div class="flex flex-col gap-2">

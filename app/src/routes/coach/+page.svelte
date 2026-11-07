@@ -20,6 +20,12 @@
   let report = $state<CoachReport | null>(null);
   let loading = $state(true);
   let error = $state('');
+  let showAll = $state(false);
+
+  /** Cards shown before "Show all"; the list arrives ranked by importance. */
+  const TOP_CARDS = 8;
+  /** Rows in the comparison bars; the table lists every metric. */
+  const TOP_BARS = 8;
 
   $effect(() => {
     const filter = { ...filterStore.value, range: focus };
@@ -49,8 +55,11 @@
     info: { icon: Info, cls: 'text-muted bg-surface-3' }
   };
 
+  const visible = $derived(report ? (showAll ? report.insights : report.insights.slice(0, TOP_CARDS)) : []);
+  const hidden = $derived(report ? Math.max(0, report.insights.length - TOP_CARDS) : 0);
+  const fmtUnit = (n: number, unit: 'pct' | 'ratio') => (unit === 'pct' ? `${n.toFixed(1)}%` : n.toFixed(2));
+
   const fmtDelta = (d: number) => `${d > 0 ? '+' : ''}${Math.abs(d) >= 10 ? d.toFixed(1) : d.toFixed(2)}`;
-  const fmtVal = (n: number) => (Math.abs(n) >= 10 ? n.toFixed(1) : n.toFixed(2));
 </script>
 
 <PageHeader title="Coach" sub="Your recent play compared with your own history.">
@@ -92,7 +101,7 @@
     {#if report.insights.length}
       <Section title="Insights">
         <div class="grid grid-cols-1 gap-3 lg:grid-cols-2 xl:grid-cols-3">
-          {#each report.insights as ins (ins.title)}
+          {#each visible as ins (ins.family + ins.title)}
             {@const k = kindStyle[ins.kind]}
             <Card class="flex gap-3">
               {#if ins.operatorKey}
@@ -108,6 +117,7 @@
                 <div class="flex items-center gap-1.5">
                   <span class="inline-flex size-4 items-center justify-center rounded-full {k.cls}"><k.icon class="size-3" /></span>
                   <h3 class="font-semibold">{ins.title}</h3>
+                  {#if ins.kind !== 'info'}<span class="ml-auto shrink-0 rounded-full bg-surface-3 px-1.5 text-[10px] text-muted tabular-nums" title="Importance: effect x confidence x weight">{ins.score.toFixed(2)}</span>{/if}
                 </div>
                 <p class="mt-1 text-muted">{ins.text}</p>
                 {#if ins.evidence}<p class="mt-1.5 text-xs text-muted/80 tabular-nums">{ins.evidence}</p>{/if}
@@ -115,6 +125,14 @@
             </Card>
           {/each}
         </div>
+        {#if hidden > 0}
+          <button
+            type="button"
+            class="mt-3 rounded-lg border border-border bg-surface-1 px-3 py-1.5 text-xs font-medium text-muted transition-colors hover:text-foreground"
+            aria-expanded={showAll}
+            onclick={() => (showAll = !showAll)}>{showAll ? 'Show fewer' : `Show all ${report.insights.length}`}</button
+          >
+        {/if}
       </Section>
     {/if}
 
@@ -142,7 +160,7 @@
     </div>
 
     {#if report.comparisons.length}
-      <Section title="Comparison" hint="{report.focusLabel} vs {report.referenceLabel}">
+      <Section title="Comparison" hint="Every metric, most important first · {report.focusLabel} vs {report.referenceLabel}">
         <div class="grid grid-cols-1 gap-3 xl:grid-cols-2">
           <Card class="overflow-x-auto p-0">
             <table class="w-full text-left">
@@ -152,24 +170,28 @@
                   <th class="px-4 py-2 text-right font-medium">Focus</th>
                   <th class="px-4 py-2 text-right font-medium">Reference</th>
                   <th class="px-4 py-2 text-right font-medium">Change</th>
+                  <th class="px-4 py-2 text-right font-medium" title="Sample size behind the focus value">n</th>
+                  <th class="px-4 py-2 text-right font-medium" title="Importance: effect x confidence x weight">Score</th>
                 </tr>
               </thead>
               <tbody>
-                {#each report.comparisons as c (c.metric)}
+                {#each report.comparisons as c, i (c.metric + i)}
                   <tr class="border-b border-border last:border-0">
                     <td class="px-4 py-2">{c.metric}</td>
-                    <td class="px-4 py-2 text-right font-medium tabular-nums">{fmtVal(c.focus)}</td>
-                    <td class="px-4 py-2 text-right text-muted tabular-nums">{fmtVal(c.reference)}</td>
+                    <td class="px-4 py-2 text-right font-medium tabular-nums">{fmtUnit(c.focus, c.unit)}</td>
+                    <td class="px-4 py-2 text-right text-muted tabular-nums">{fmtUnit(c.reference, c.unit)}</td>
                     <td class="px-4 py-2 text-right">
                       <DeltaPill value={c.delta} text={fmtDelta(c.delta)} lowerIsBetter={c.better === c.delta < 0} />
                     </td>
+                    <td class="px-4 py-2 text-right text-muted tabular-nums">{c.n}</td>
+                    <td class="px-4 py-2 text-right text-muted tabular-nums">{c.score > 0 ? c.score.toFixed(2) : '–'}</td>
                   </tr>
                 {/each}
               </tbody>
             </table>
           </Card>
           <Card>
-            <CompareBars rows={report.comparisons} focusLabel={report.focusLabel} referenceLabel={report.referenceLabel} />
+            <CompareBars rows={report.comparisons.slice(0, TOP_BARS)} focusLabel={report.focusLabel} referenceLabel={report.referenceLabel} />
           </Card>
         </div>
       </Section>

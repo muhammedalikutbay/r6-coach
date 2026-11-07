@@ -17,6 +17,7 @@
 
 use crate::derive::{is_traded, player_match_stats, round_clutches, PlayerMatchStats};
 use crate::full::{FullMatch, FullRound, RoundPlayer, WinCondition};
+use crate::metrics::{Deep, DeepStats};
 use crate::model::Side;
 use crate::names;
 use serde::{Deserialize, Serialize};
@@ -200,6 +201,8 @@ pub struct QueryResult {
     pub operators: Vec<OperatorCard>,
     pub maps: Vec<MapCard>,
     pub recent_matches: Vec<MatchRow>,
+    /// Deeper per-round numbers (opening duels, trades, weapons, timing, rivals).
+    pub deep: DeepStats,
     /// Always `None` from the core; the app shell fills it when signed in.
     pub official: Option<OfficialTotals>,
 }
@@ -359,7 +362,7 @@ fn team_side(s: Side) -> Option<TeamSide> {
 // ---------------------------------------------------------------- round-level selection
 
 /// The tracked player's entry in `round` if the round passes the side and operator filters.
-fn selected<'a>(f: &Filter, round: &'a FullRound, me: &str) -> Option<&'a RoundPlayer> {
+pub(crate) fn selected<'a>(f: &Filter, round: &'a FullRound, me: &str) -> Option<&'a RoundPlayer> {
     let p = round.players.iter().find(|p| p.profile_id == me)?;
     match f.side {
         SideFilter::Both => {}
@@ -637,6 +640,7 @@ pub fn query(filter: &Filter, matches: &[FullMatch]) -> QueryResult {
         operators,
         maps,
         recent_matches,
+        deep: Deep::build(filter, &set).view(),
         official: None,
     }
 }

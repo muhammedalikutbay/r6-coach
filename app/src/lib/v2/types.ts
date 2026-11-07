@@ -184,6 +184,7 @@ export interface QueryResult {
   operators: OperatorCard[];
   maps: MapCard[];
   recentMatches: MatchRow[];
+  deep: DeepStats;
 }
 
 export interface ScoreboardRow {
@@ -246,6 +247,10 @@ export interface Insight {
   evidence: string;
   operatorKey?: string;
   mapKey?: string;
+  /** Importance, 0 to 1.5 (info cards: 0). */
+  score: number;
+  /** Card family; one card per family is shown. */
+  family: string;
 }
 
 export interface Comparison {
@@ -255,6 +260,11 @@ export interface Comparison {
   delta: number;
   /** True when the focus value is better than the reference (accounts for metrics where lower is better). */
   better: boolean;
+  /** Importance of the difference; 0 below the noise gate. */
+  score: number;
+  /** Sample size behind the focus value. */
+  n: number;
+  unit: 'pct' | 'ratio';
 }
 
 export interface CoachReport {
@@ -337,4 +347,83 @@ export interface ClipsUpdated {
 export interface ClipsWarning {
   kind: 'blackFrames';
   message: string;
+
+/** A count out of a total plus the percentage (0 when the total is 0). */
+export interface RateView {
+  x: number;
+  n: number;
+  pct: number;
+}
+
+/** How lost rounds ended on one side. `defused` also holds rounds with an unknown end. */
+export interface EndsView {
+  lost: number;
+  elimination: number;
+  time: number;
+  planted: number;
+  defused: number;
+}
+
+export interface WeaponView {
+  name: string;
+  /** 'primary' | 'secondary' | 'gadget' | 'ability', or null when unknown. */
+  slot: string | null;
+  kills: number;
+  hsPct: number;
+}
+
+export interface RivalView {
+  operatorKey: string;
+  name: string;
+  /** Times this enemy operator killed you. */
+  deaths: number;
+  /** Rounds this operator was on the enemy team. */
+  faced: number;
+  pct: number;
+}
+
+export interface ClutchView {
+  /** Opponents alive (5 = five or more). */
+  vs: number;
+  won: number;
+  total: number;
+  pct: number;
+}
+
+export interface SlotView {
+  primary: number;
+  secondary: number;
+  gadget: number;
+  ability: number;
+  unknown: number;
+}
+
+/** Deeper numbers for the Overview sections "Round impact", "Weapons", "Timing" and "Rivals". */
+export interface DeepStats {
+  rounds: number;
+  /** Opening duels won (x) out of all opening duels (n). */
+  entry: RateView;
+  entryAttack: RateView;
+  entryDefense: RateView;
+  /** Your deaths that a teammate traded. */
+  traded: RateView;
+  /** Teammate deaths you traded. */
+  tradesGiven: RateView;
+  kost: RateView;
+  /** Rounds you died with no kill and no trade. */
+  noImpact: RateView;
+  afterDeathWin: RateView;
+  afterSurviveWin: RateView;
+  lostAttack: EndsView;
+  lostDefense: EndsView;
+  slotKills: SlotView;
+  weapons: WeaponView[];
+  /** Deaths in the first 30 s of the round clock. */
+  earlyDeath: RateView;
+  /** Deaths in the last 30 s. */
+  lateDeath: RateView;
+  earlyKill: RateView;
+  lateKill: RateView;
+  rivals: RivalView[];
+  clutchByOpponents: ClutchView[];
 }

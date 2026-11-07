@@ -1,8 +1,10 @@
 //! Advice engine v1: short, friendly English advice for the last match, compared with the
 //! player's own history. Rules and thresholds follow the vault note `02-oneri-mantigi.md`.
 //!
-//! Hard limits: no weapon advice (there is no weapon data), no assists (the parser always
-//! reports 0), and only numbers that were actually computed go into the text.
+//! Limits: this engine works on the tracked-player `Match` model, which carries no kill weapons,
+//! so it gives no weapon advice (the coach in `coach.rs` reads weapons from the full model). Assists
+//! are not claimed until the parser delivers them. Only numbers that were actually computed go
+//! into the text.
 
 use crate::baseline::{Baseline, MapStats};
 use crate::model::{Match, Side};
