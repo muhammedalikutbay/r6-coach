@@ -2,7 +2,9 @@ Task tracking: Beads (`bd`). Follow the `beads-workflow` skill.
 
 # R6Koc
 
-A desktop gift app for one Rainbow Six Siege (Siege X) player (Ubisoft name `H.A.N-01`). After each match he presses "Güncelle"; the app reads new local match replays, compares the last match with his own history and shows short Turkish advice.
+A desktop Rainbow Six Siege (Siege X) stats and coaching app for any PC player. It started as a gift for one player (`H.A.N-01`); from v3 (user decision, 2026-11-07) it works for everyone: the tracked player is the replay's recording player. New local match replays are imported automatically; the app shows Tracker-like stats and compares recent matches with the player's own history.
+
+v3 spec and shared contract: `docs/v3-spec.md`.
 
 Design notes (Turkish) live in the Obsidian vault: `C:\Users\Kutbay\Desktop\ObsidianVault\Projeler\R6Koc\AI\` (`03-mimari-ve-plan.md` is the main one).
 
@@ -18,7 +20,7 @@ Design notes (Turkish) live in the Obsidian vault: `C:\Users\Kutbay\Desktop\Obsi
 - `tracker\` — one-time Tracker Network JSON captured by the user in his browser (see `_manifest.json`).
 - `tools\r6-dissect\` — upstream r6-dissect v0.24.0 Windows build (reference only).
 Only derived, player-only data (e.g. `data/baseline.json`) and anonymized test fixtures may go into the repo.
-The app itself must never send requests to Tracker Network or Ubisoft.
+The app never sends requests to Tracker Network. Since v3 (user decision, 2026-11-07) it may call Ubisoft only for the signed-in user's own rank and stats, after the user signs in. Passwords are never stored; tickets, emails and passwords are never logged.
 
 ## Rules
 - Everything in English: code, identifiers, comments, UI text, advice text, the birthday welcome. (User decision, 2026-11-01.) Beads issues and vault notes stay Turkish.
@@ -26,7 +28,7 @@ The app itself must never send requests to Tracker Network or Ubisoft.
 - Build environment: Windows 11 SDK + MSVC are installed. Run `cargo` and `npm run tauri ...` from PowerShell (Git Bash's `link.exe` shadows MSVC's). Never kill processes by image name; other workers run in parallel.
 - Log where it helps (the `log` crate in Rust, `console` in the frontend).
 - Keep verification light (user decision, 2026-11-01): `cargo test` for new pure logic, `npm run check`, and a quick run when needed. The user does the detailed testing at the end of each milestone. No installer until the user says the app is done; milestone builds are standalone exes (`npm run tauri build -- --no-bundle`).
-- v2 work follows `docs/v2-spec.md` (Tracker-like UI, one global filter bar, operator/map images, coach v2).
+- v3 work follows `docs/v3-spec.md`; v2 background in `docs/v2-spec.md` (Tracker-like UI, one global filter bar, operator/map images, coach v2).
 - Unknown operator or map IDs must never crash anything: keep the raw ID and show a readable fallback.
 
 ## Lessons
