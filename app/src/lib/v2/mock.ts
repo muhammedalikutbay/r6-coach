@@ -8,6 +8,7 @@ import type {
   MapCard,
   MatchDetail,
   MatchRow,
+  OfficialTotals,
   OperatorCard,
   QueryResult,
   RoundDetail,
@@ -169,12 +170,28 @@ function trendFor(rows: MatchRow[]): TrendPoint[] {
   });
 }
 
+function mockOfficial(scope: 'season' | 'all'): OfficialTotals {
+  const season = scope === 'season';
+  return {
+    scope,
+    kd: season ? 1.12 : 1.05,
+    winPct: season ? 54.2 : 51.8,
+    kills: season ? 1840 : 9120,
+    deaths: season ? 1643 : 8686,
+    wins: season ? 71 : 342,
+    losses: season ? 60 : 318,
+    matches: season ? 131 : 660,
+    fetchedAt: new Date().toISOString()
+  };
+}
+
 export function mockQuery(f: Filter): QueryResult {
   const rows = applyFilter(f);
   const kpis = kpisFor(rows);
-  const needsReplays = f.range !== 'all' || f.maps.length > 0 || f.operators.length > 0;
+  const plain = (f.range === 'all' || f.range === 'season') && f.maps.length === 0 && f.operators.length === 0;
   return {
-    source: needsReplays ? 'replays' : 'career',
+    source: 'replays',
+    official: plain ? mockOfficial(f.range === 'season' ? 'season' : 'all') : null,
     matchCount: rows.length,
     kpis,
     trend: trendFor(rows),

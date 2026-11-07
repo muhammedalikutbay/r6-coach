@@ -3,6 +3,8 @@
   import PageHeader from '$lib/components/PageHeader.svelte';
   import EmptyState from '$lib/components/EmptyState.svelte';
   import Section from '$lib/components/Section.svelte';
+  import CollapsibleSection from '$lib/v2/components/CollapsibleSection.svelte';
+  import RankHeader from '$lib/v2/components/RankHeader.svelte';
   import StatCard from '$lib/components/StatCard.svelte';
   import Skeleton from '$lib/components/Skeleton.svelte';
   import Card from '$lib/components/ui/Card.svelte';
@@ -13,15 +15,43 @@
   import MatchRowItem from '$lib/v2/components/MatchRowItem.svelte';
   import { filterStore } from '$lib/v2/filter.svelte';
   import { query } from '$lib/v2/api';
+  import { ubiStatus, rankedProfile } from '$lib/v2/ubisoft';
   import { refreshTick } from '$lib/v2/refresh.svelte';
   import { formatShortDate } from '$lib/v2/format';
   import { toast } from '$lib/toast.svelte';
-  import type { QueryResult } from '$lib/v2/types';
+  import type { QueryResult, RankedProfile, UbiStatus } from '$lib/v2/types';
 
   let data = $state<QueryResult | null>(null);
   let loading = $state(true);
   let failed = $state(false);
   let seq = 0;
+
+  let ubi = $state<UbiStatus | null>(null);
+  let profile = $state<RankedProfile | null>(null);
+  let rankLoading = $state(true);
+  let rankRefreshing = $state(false);
+
+  async function loadRank(force: boolean) {
+    try {
+      ubi = await ubiStatus();
+      profile = ubi.signedIn ? await rankedProfile(force) : null;
+    } catch (e) {
+      console.error('[overview] rank failed', e);
+      profile = null;
+      if (force) toast('error', 'Could not refresh your rank.');
+    }
+  }
+
+  $effect(() => {
+    void refreshTick.value;
+    loadRank(false).finally(() => (rankLoading = false));
+  });
+
+  async function refreshRank() {
+    rankRefreshing = true;
+    await loadRank(true);
+    rankRefreshing = false;
+  }
 
   $effect(() => {
     const f = $state.snapshot(filterStore.value);
@@ -46,11 +76,7 @@
   });
 
   const sourceHint = $derived(
-    !data
-      ? ''
-      : data.source === 'career'
-        ? 'Career + replays'
-        : `Based on ${data.matchCount} ${data.matchCount === 1 ? 'match' : 'matches'} from replays`
+    data ? `Based on ${data.matchCount} stored ${data.matchCount === 1 ? 'match' : 'matches'}` : ''
   );
   const trend = $derived(
     (data?.trend ?? []).map((t) => ({
@@ -68,6 +94,8 @@
 
 <PageHeader title="Overview" sub={sourceHint} />
 
+<RankHeader {profile} status={ubi} loading={rankLoading} refreshing={rankRefreshing} onrefresh={refreshRank} />
+
 {#if loading && !data}
   <div class="grid grid-cols-2 gap-3 lg:grid-cols-3 xl:grid-cols-6">
     {#each Array(6) as _, i (i)}<Skeleton class="h-24" />{/each}
@@ -84,8 +112,12 @@
 {:else if data}
   <div class="transition-opacity {loading ? 'opacity-60' : ''}">
     <div class="mb-6 grid grid-cols-2 gap-3 lg:grid-cols-3 xl:grid-cols-6">
-      <StatCard label="K/D" value={data.kpis.kd.toFixed(2)} sub="{data.kpis.rounds} rounds" />
-      <StatCard label="Win %" value={pct(data.kpis.winPct)} sub="{data.kpis.matches} matches" />
+      <StatCard label="K/D" value={data.kpis.kd.toFixed(2)} sub="{data.kpis.rounds} rounds">
+        {#if data.official}<div class="text-xs text-muted tabular-nums">Ubisoft: {data.official.kd.toFixed(2)} K/D</div>{/if}
+      </StatCard>
+      <StatCard label="Win %" value={pct(data.kpis.winPct)} sub="{data.kpis.matches} matches">
+        {#if data.official}<div class="text-xs text-muted tabular-nums">Ubisoft: {pct(data.official.winPct)} win</div>{/if}
+      </StatCard>
       <StatCard label="HS %" value={pct(data.kpis.hsPct)} />
       <StatCard label="Kills / round" value={data.kpis.killsPerRound.toFixed(2)} />
       <StatCard label="FK / FD" value={data.kpis.fkFdRatio.toFixed(2)} />
@@ -102,7 +134,7 @@
       </Card>
     </Section>
 
-    <Section title="Operators" hint="Click an operator to filter by it">
+    <CollapsibleSection id="operators" title="Operators" hint="Click an operator to filter by it" summary="{data.operators.length} {data.operators.length === 1 ? 'operator' : 'operators'}">
       {#if data.operators.length === 0}
         <p class="text-muted">No operator data.</p>
       {:else}
@@ -135,9 +167,9 @@
           {/each}
         </div>
       {/if}
-    </Section>
+    </CollapsibleSection>
 
-    <Section title="Maps" hint="Click a map to filter by it">
+    <CollapsibleSection id="maps" title="Maps" hint="Click a map to filter by it" summary="{data.maps.length} {data.maps.length === 1 ? 'map' : 'maps'}">
       {#if data.maps.length === 0}
         <p class="text-muted">No map data.</p>
       {:else}
@@ -173,14 +205,14 @@
           {/each}
         </div>
       {/if}
-    </Section>
+    </CollapsibleSection>
 
-    <Section title="Recent matches">
+    <CollapsibleSection id="recent" title="Recent matches" summary="{data.recentMatches.length} {data.recentMatches.length === 1 ? 'match' : 'matches'}">
       <div class="flex flex-col gap-2">
         {#each data.recentMatches as match (match.matchId)}
           <MatchRowItem {match} />
         {/each}
       </div>
-    </Section>
+    </CollapsibleSection>
   </div>
 {/if}

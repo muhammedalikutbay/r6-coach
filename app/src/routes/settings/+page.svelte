@@ -9,6 +9,7 @@
   import Skeleton from '$lib/components/Skeleton.svelte';
   import Card from '$lib/components/ui/Card.svelte';
   import Button from '$lib/components/ui/Button.svelte';
+  import UbisoftSignIn from '$lib/v2/components/UbisoftSignIn.svelte';
 
   let dir = $state('');
   let loading = $state(true);
@@ -96,6 +97,8 @@
     {/if}
     <Button onclick={change} disabled={busy || loading}>Change folder</Button>
   </Card>
+
+  <UbisoftSignIn />
 
   <Card>
     <h3 class="font-semibold">Welcome</h3>

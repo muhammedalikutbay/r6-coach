@@ -98,9 +98,55 @@ export interface MatchRow {
   badges: string[];
 }
 
+export interface OfficialTotals {
+  scope: 'season' | 'all';
+  kd: number;
+  winPct: number;
+  kills: number;
+  deaths: number;
+  wins: number;
+  losses: number;
+  matches: number;
+  fetchedAt: string;
+}
+
+export interface UbiStatus {
+  signedIn: boolean;
+  username: string | null;
+  profileId: string | null;
+  matchesReplayPlayer: boolean | null;
+}
+
+export interface UbiLoginResult {
+  status: 'ok' | 'needs2fa' | 'error';
+  message: string | null;
+  user: UbiStatus | null;
+}
+
+export interface RankedProfile {
+  season: string;
+  rankName: string;
+  rankPoints: number;
+  maxRankName: string;
+  maxRankPoints: number;
+  topRankPosition: number | null;
+  kills: number;
+  deaths: number;
+  wins: number;
+  losses: number;
+  abandons: number;
+  /** Local asset key under /assets/ranks/<key>.png, or null. */
+  rankIcon: string | null;
+  /** ISO UTC. */
+  fetchedAt: string;
+  official: { season: OfficialTotals | null; all: OfficialTotals | null };
+}
+
 export interface QueryResult {
-  /** `career` = baseline + replays; `replays` = computed from local replays only. */
-  source: 'career' | 'replays';
+  /** Always computed from the stored local replays. */
+  source: 'replays';
+  /** Official Ubisoft totals; set by the app shell when signed in and the filter is plain season/all. */
+  official?: OfficialTotals | null;
   matchCount: number;
   kpis: Kpis;
   trend: TrendPoint[];
