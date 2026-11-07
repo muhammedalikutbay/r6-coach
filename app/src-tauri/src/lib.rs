@@ -3,10 +3,15 @@ mod store;
 mod summary;
 mod tables;
 mod v2;
+mod watcher;
 
 use std::path::{Path, PathBuf};
-use tauri::Manager;
 use std::process::{Command, Stdio};
+use std::sync::Mutex;
+use tauri::{Emitter, Manager};
+
+/// Tauri event sent after every import (manual or automatic), payload `store::RefreshResult`.
+pub const EVENT_REPLAYS_UPDATED: &str = "replays-updated";
 
 #[cfg(windows)]
 const CREATE_NO_WINDOW: u32 = 0x0800_0000;
@@ -49,11 +54,6 @@ fn dissect_json(sidecar: &Path, path: &Path) -> Result<String, String> {
 fn dissect_match(sidecar: &Path, path: &Path) -> Result<r6k_core::Match, String> {
     let json = dissect_json(sidecar, path)?;
     r6k_core::match_from_json(&json).map_err(|e| format!("cannot convert match: {e}"))
-}
-
-fn dissect_full_match(sidecar: &Path, path: &Path) -> Result<r6k_core::FullMatch, String> {
-    let json = dissect_json(sidecar, path)?;
-    r6k_core::full_match_from_json(&json).map_err(|e| format!("cannot convert match: {e}"))
 }
 
 fn run_parse(path: &str) -> Result<summary::MatchSummary, String> {
@@ -113,16 +113,33 @@ fn inspect_replay_dir(path: String) -> ReplayDirInfo {
     }
 }
 
+/// Only one import runs at a time (Update button and the watcher share it).
+static REFRESH_GATE: Mutex<()> = Mutex::new(());
+
+/// Imports the replay folder and emits `replays-updated`. Blocks while another import runs.
+pub(crate) fn run_refresh(app: &tauri::AppHandle) -> Cmd<store::RefreshResult> {
+    let _gate = REFRESH_GATE.lock().unwrap_or_else(|e| e.into_inner());
+    let db = app.state::<store::Db>();
+    let dir = replay_dir_of(&db)?;
+    if dir.is_empty() {
+        return Err("Replay folder is not set.".to_string());
+    }
+    let sidecar = sidecar_path()?;
+    let result = store::refresh(&db, Path::new(&dir), |p| dissect_json(&sidecar, p))?;
+    if let Err(e) = app.emit(EVENT_REPLAYS_UPDATED, &result) {
+        log::warn!("cannot emit {EVENT_REPLAYS_UPDATED}: {e}");
+    }
+    Ok(result)
+}
+
 #[tauri::command]
 async fn refresh(app: tauri::AppHandle) -> Cmd<store::RefreshResult> {
     tauri::async_runtime::spawn_blocking(move || {
-        let db = app.state::<store::Db>();
-        let dir = replay_dir_of(&db)?;
-        if dir.is_empty() {
-            return Err("Replay folder is not set.".to_string());
+        let result = run_refresh(&app)?;
+        if result.pending > 0 || result.in_progress > 0 {
+            app.state::<watcher::Watcher>().retry_later();
         }
-        let sidecar = sidecar_path()?;
-        store::refresh(&db, Path::new(&dir), |p| dissect_full_match(&sidecar, p))
+        Ok(result)
     })
     .await
     .map_err(|e| format!("refresh task failed: {e}"))?
@@ -150,8 +167,14 @@ fn get_replay_dir(db: tauri::State<store::Db>) -> Cmd<String> {
 }
 
 #[tauri::command]
-fn set_replay_dir(db: tauri::State<store::Db>, path: String) -> Cmd<()> {
-    store::set_setting(&*lock(&db)?, store::KEY_REPLAY_DIR, path.trim()).map_err(|e| e.to_string())
+fn set_replay_dir(
+    db: tauri::State<store::Db>,
+    watcher: tauri::State<watcher::Watcher>,
+    path: String,
+) -> Cmd<()> {
+    store::set_setting(&*lock(&db)?, store::KEY_REPLAY_DIR, path.trim()).map_err(|e| e.to_string())?;
+    watcher.rewatch();
+    Ok(())
 }
 
 #[tauri::command]
@@ -167,7 +190,9 @@ pub fn run() {
             let dir = app.path().app_data_dir()?;
             std::fs::create_dir_all(&dir)?;
             let conn = store::open(&dir.join("r6koc.db"))?;
-            app.manage(store::Db(std::sync::Mutex::new(conn)));
+            app.manage(store::Db(Mutex::new(conn)));
+            let w = watcher::start(app.handle());
+            app.manage(w);
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
@@ -204,7 +229,7 @@ mod real_data {
         let dir = Path::new(r"C:\Users\Kutbay\Desktop\R6Koc-veri\MatchReplay");
         let t = tempfile::tempdir().unwrap();
         let db = store::Db(std::sync::Mutex::new(store::open(&t.path().join("r6koc.db")).unwrap()));
-        let parse = |p: &Path| dissect_full_match(&sidecar, p);
+        let parse = |p: &Path| dissect_json(&sidecar, p);
         let first = store::refresh(&db, dir, parse).unwrap();
         println!("first: {} new, failed {:?}", first.new_matches, first.failed);
         assert_eq!(first.new_matches, 30);

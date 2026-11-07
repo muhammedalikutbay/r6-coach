@@ -29,6 +29,8 @@ r6k-paths = { path = "../../crates/r6k-paths" }
 
 
 rusqlite = { version = "0.32", features = ["bundled"] }
+flate2 = "1"
+notify-debouncer-mini = "0.6"
 
 [dev-dependencies]
 tempfile = "3"

@@ -176,7 +176,7 @@ mod tests {
         let dir = Path::new(r"C:\Users\Kutbay\Desktop\R6Koc-veri\MatchReplay");
         let t = tempfile::tempdir().unwrap();
         let db = store::Db(std::sync::Mutex::new(store::open(&t.path().join("r6koc.db")).unwrap()));
-        let first = store::refresh(&db, dir, |p| crate::dissect_full_match(&sidecar, p)).unwrap();
+        let first = store::refresh(&db, dir, |p| crate::dissect_json(&sidecar, p)).unwrap();
         assert_eq!(first.new_matches, 30, "failed: {:?}", first.failed);
 
         let matches = store::load_matches(&db.0.lock().unwrap()).unwrap();

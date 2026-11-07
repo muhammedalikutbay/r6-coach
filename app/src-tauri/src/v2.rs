@@ -84,7 +84,7 @@ mod tests {
         let dir = Path::new(r"C:\Users\Kutbay\Desktop\R6Koc-veri\MatchReplay");
         let t = tempfile::tempdir().unwrap();
         let db = store::Db(std::sync::Mutex::new(store::open(&t.path().join("r6koc.db")).unwrap()));
-        store::refresh(&db, dir, |p| crate::dissect_full_match(&sidecar, p)).unwrap();
+        store::refresh(&db, dir, |p| crate::dissect_json(&sidecar, p)).unwrap();
         let conn = db.0.lock().unwrap();
 
         let last5 = run_query(&conn, &Filter { range: query::Range::Last5, ..Default::default() }).unwrap();

@@ -7,7 +7,7 @@
   import { getReplayDir, refresh } from '$lib/api';
   import { toast, toastError } from '$lib/toast.svelte';
   import { cn } from '$lib/utils';
-  import { refreshTick } from '$lib/v2/refresh.svelte';
+  import { onReplaysUpdated, refreshTick } from '$lib/v2/refresh.svelte';
   import WelcomeScreen from '$lib/WelcomeScreen.svelte';
   import Toaster from '$lib/components/Toaster.svelte';
   import FilterBar from '$lib/v2/components/FilterBar.svelte';
@@ -23,6 +23,23 @@
     } catch (e) {
       console.error('first-run folder check failed', e);
     }
+  });
+
+  // Auto refresh: the backend imports new replays by itself and sends `replays-updated`.
+  // A manual Update bumps the tick itself, so only automatic imports that changed something bump here.
+  onMount(() => {
+    let unlisten: (() => void) | undefined;
+    let closed = false;
+    onReplaysUpdated((r) => {
+      console.info('replays-updated', r);
+      if (!updating && r.newMatches + r.updatedMatches > 0) refreshTick.bump();
+    })
+      .then((u) => (closed ? u() : (unlisten = u)))
+      .catch((e) => console.error('cannot listen for replay updates', e));
+    return () => {
+      closed = true;
+      unlisten?.();
+    };
   });
 
   const tabs = [
