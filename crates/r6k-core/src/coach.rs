@@ -1739,6 +1739,7 @@ mod tests {
         let (killer, victim) = if first_kill { ("me", "foe1") } else { ("foe1", "me") };
         FullRound {
             number: i,
+            start_time_ms: 0,
             winner_team: Some(if won { 0 } else { 1 }),
             win_condition: WinCondition::Elimination,
             site: String::new(),

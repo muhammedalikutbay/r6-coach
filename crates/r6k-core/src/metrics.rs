@@ -588,6 +588,7 @@ mod tests {
         let f2 = pl("f2", 1, 4, Side::Defense, 1, false);
         FullRound {
             number: 1,
+            start_time_ms: 0,
             winner_team: Some(1),
             win_condition: WinCondition::Time,
             site: "Bar".into(),

@@ -347,6 +347,7 @@ export interface ClipsUpdated {
 export interface ClipsWarning {
   kind: 'blackFrames';
   message: string;
+}
 
 /** A count out of a total plus the percentage (0 when the total is 0). */
 export interface RateView {
