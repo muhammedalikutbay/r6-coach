@@ -272,7 +272,7 @@ mod tests {
 
     #[test]
     fn baseline_rounds_shown_and_old_matches_not_double_counted() {
-        let b = Baseline::embedded().unwrap();
+        let b = Baseline::default();
         let rows = operator_table(&b, &[mat("2026-10-30T10:00:00Z", 1, 1)]);
         let rook = rows.iter().find(|r| r.name == "Rook").unwrap();
         assert_eq!(rook.rounds, b.operators["rook"].rounds_played);
@@ -282,7 +282,7 @@ mod tests {
 
     #[test]
     fn trend_follows_recent_kd() {
-        let b = Baseline::embedded().unwrap(); // Rook baseline K/D ~1.52
+        let b = Baseline::default(); // Rook baseline K/D ~1.52
         let hot = operator_table(&b, &[mat("2026-10-30T10:00:00Z", 4, 1)]);
         assert_eq!(hot.iter().find(|r| r.name == "Rook").unwrap().trend, "up");
         let cold = operator_table(&b, &[mat("2026-10-30T10:00:00Z", 0, 1)]);
@@ -293,7 +293,7 @@ mod tests {
 
     #[test]
     fn map_table_adds_post_capture_matches() {
-        let b = Baseline::embedded().unwrap();
+        let b = Baseline::default();
         let before = map_table(&b, &[]);
         let after = map_table(&b, &[mat("2026-11-02T10:00:00Z", 1, 1)]);
         let chalet = |rows: &[MapRow]| rows.iter().find(|r| r.name == "Chalet").unwrap().rounds;

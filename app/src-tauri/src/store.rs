@@ -326,6 +326,7 @@ pub fn load_full_match(conn: &Connection, id: &str) -> rusqlite::Result<Option<F
                     score_them: r.get(6)?,
                     me_profile_id: r.get(7)?,
                     players: Vec::new(),
+                    season: String::new(),
                     rounds: Vec::new(),
                 })
             },
@@ -533,6 +534,7 @@ mod tests {
                 PlayerInfo { profile_id: "foe".into(), username: "Foe".into(), team_index: 1 },
             ],
             rounds: vec![round(1), round(2)],
+            season: String::new(),
         }
     }
 

@@ -1,24 +1,16 @@
-//! The player's lifetime baseline (`data/baseline.json`), typed and embedded in the binary.
+//! Counter accumulator used by the v1 advice and session rules and the operator/map tables.
 //!
-//! # No double counting
+//! Since v3 there is no embedded Tracker snapshot: [`Baseline::default`] is empty and
+//! [`Baseline::merged`] adds the stored matches to it, so every number comes from the player's
+//! own replays. An empty `captured_at` means every match counts.
 //!
-//! The baseline is a snapshot taken at [`Baseline::captured_at`]. Every match played **before**
-//! that moment is already counted inside it. Therefore:
-//!
-//! * personal averages = baseline + only the matches played **after** `captured_at`
-//!   (see [`Baseline::merged`]);
-//! * matches from before `captured_at` are used only for the "last match" view and the history
-//!   list, never added to the baseline again.
-//!
-//! Match timestamps are compared as `YYYY-MM-DDTHH:MM:SS` strings. Both match timestamps
-//! (converted from dissect's local time, see [`Match::timestamp`]) and `capturedAt` are real UTC.
+//! Match timestamps are compared as `YYYY-MM-DDTHH:MM:SS` strings (real UTC, see
+//! [`Match::timestamp`]).
 
 use crate::model::{Match, Round, Side};
 use crate::names;
 use serde::{Deserialize, Serialize};
 use std::collections::{BTreeMap, BTreeSet};
-
-const BASELINE_JSON: &str = include_str!("../../../data/baseline.json");
 
 /// Raw lifetime counters. Missing fields in the JSON read as 0. Rates are never stored; use the
 /// helper methods.
@@ -141,25 +133,14 @@ impl Baseline {
         serde_json::from_str(json)
     }
 
-    /// The baseline compiled into the binary.
-    pub fn embedded() -> Result<Baseline, serde_json::Error> {
-        Self::from_json(BASELINE_JSON)
-    }
-
     /// Operator counters by operator ID, via the slug in `data/operators.json`.
     pub fn operator(&self, operator_id: u64) -> Option<&CounterSet> {
         self.operators.get(&names::operator_key(operator_id)?)
     }
 
-    /// Career headshot percentage: summed operator headshots over summed operator kills.
+    /// Overall headshot percentage: summed operator headshots over summed operator kills.
     ///
-    /// Why not `overall.headshots`: Tracker's overall headshot counter covers a narrower window
-    /// than overall kills (1825 HS against 8004 kills, about 22.8%), so it understates the rate.
-    /// The per-operator segments (Y8S1 and later) are consistent with each other and with the
-    /// replay definition of a headshot (about 49-54%). Tracker's own overall
-    /// `headshotPercentage` (about 50.4%) uses a different formula and is not used either.
-    ///
-    /// Returns 0.0 when the baseline has no operator kills.
+    /// Returns 0.0 when there are no operator kills.
     pub fn career_headshot_pct(&self) -> f64 {
         let (hs, kills) = self
             .operators
@@ -325,22 +306,10 @@ mod tests {
     }
 
     #[test]
-    fn embedded_loads() {
-        let b = Baseline::embedded().unwrap();
-        assert_eq!(b.player, "H.A.N-01");
-        assert_eq!(b.operators.len(), 77);
-        assert_eq!(b.maps.len(), 20);
-        assert_eq!(b.overall.kills, 8004);
-        assert!(b.maps["bank"].sides.contains_key("attacker"));
-    }
-
-    #[test]
     fn rates() {
-        let b = Baseline::embedded().unwrap();
-        let rook = &b.operators["rook"];
-        assert_eq!(rook.rounds_played, 388);
-        assert!((rook.kd() - 1.52).abs() < 0.005);
-        assert!((rook.headshot_pct() - 73.2).abs() < 0.05);
+        let c = CounterSet { kills: 30, deaths: 20, headshots: 15, ..Default::default() };
+        assert!((c.kd() - 1.5).abs() < 1e-9);
+        assert!((c.headshot_pct() - 50.0).abs() < 1e-9);
         let z = CounterSet::default();
         assert_eq!(z.kd(), 0.0);
         assert_eq!(z.win_pct(), 0.0);
@@ -348,63 +317,31 @@ mod tests {
     }
 
     #[test]
-    fn career_headshot_pct_uses_operator_segments() {
-        let b = Baseline::embedded().unwrap();
-        let (hs, kills) = b
-            .operators
-            .values()
-            .fold((0u64, 0u64), |(h, k), c| (h + c.headshots, k + c.kills));
-        assert_eq!((hs, kills), (1976, 3662));
-        let pct = b.career_headshot_pct();
-        assert!((pct - 53.96).abs() < 0.05, "{pct}");
-        // Tracker's overall counter is the wrong source (about 22.8%).
-        assert!(b.overall.headshot_pct() < 25.0);
-        assert_eq!(Baseline::default().career_headshot_pct(), 0.0);
-    }
-
-    #[test]
-    fn every_baseline_operator_slug_is_in_the_table() {
-        let b = Baseline::embedded().unwrap();
-        let json = include_str!("../../../data/operators.json");
-        for slug in b.operators.keys() {
-            assert!(json.contains(&format!("\"key\": \"{slug}\"")), "{slug}");
-        }
-        assert!(b.operator(op("rook")).is_some());
-    }
-
-    #[test]
-    fn merged_adds_only_matches_after_capture() {
-        let b = Baseline::embedded().unwrap();
+    fn empty_baseline_counts_every_match() {
+        let b = Baseline::default();
+        assert_eq!(b.career_headshot_pct(), 0.0);
         let rook = op("rook");
-        let before = mat("2026-10-30T20:00:00Z", rook, true);
-        let after = mat("2026-11-01T13:00:00Z", rook, true);
-        let merged = b.merged(&[before, after]);
-
-        assert_eq!(merged.overall.kills, b.overall.kills + 3);
-        assert_eq!(merged.overall.matches_played, b.overall.matches_played + 1);
-        assert_eq!(merged.overall.matches_won, b.overall.matches_won + 1);
-        let (r0, r1) = (&b.operators["rook"], &merged.operators["rook"]);
-        assert_eq!(r1.rounds_played, r0.rounds_played + 2);
-        assert_eq!(r1.rounds_won, r0.rounds_won + 1);
-        assert_eq!(r1.matches_played, r0.matches_played + 1);
-        assert_eq!(r1.first_bloods, r0.first_bloods + 2);
-        assert_eq!(r1.clutches, r0.clutches);
-        assert_eq!(
-            merged.gamemodes["pvp_ranked"].matches_played,
-            b.gamemodes["pvp_ranked"].matches_played + 1
-        );
-        assert_eq!(
-            merged.maps["chalet"].sides["attacker"].rounds_played,
-            b.maps["chalet"].sides["attacker"].rounds_played + 2
-        );
-        assert_eq!(merged.maps["chalet"].total.kills, b.maps["chalet"].total.kills + 3);
+        let merged = b.merged(&[
+            mat("2026-10-30T20:00:00Z", rook, true),
+            mat("2026-11-01T13:00:00Z", rook, true),
+        ]);
+        assert_eq!(merged.overall.kills, 6);
+        assert_eq!(merged.overall.matches_played, 2);
+        assert_eq!(merged.operators["rook"].rounds_played, 4);
+        assert_eq!(merged.gamemodes["pvp_ranked"].matches_played, 2);
+        assert_eq!(merged.maps["chalet"].sides["attacker"].rounds_played, 4);
+        assert!((merged.career_headshot_pct() - 100.0 * 4.0 / 6.0).abs() < 1e-9);
     }
 
     #[test]
-    fn merged_with_only_old_matches_is_identity() {
-        let b = Baseline::embedded().unwrap();
-        let old = mat("2026-10-31T10:00:00Z", op("rook"), true);
-        assert_eq!(b.merged(&[old]), b);
-        assert_eq!(b.merged(&[]), b);
+    fn captured_at_still_skips_older_matches() {
+        let b = Baseline { captured_at: "2026-11-01T00:00:00Z".into(), ..Default::default() };
+        let rook = op("rook");
+        let merged = b.merged(&[
+            mat("2026-10-30T20:00:00Z", rook, true),
+            mat("2026-11-01T13:00:00Z", rook, true),
+        ]);
+        assert_eq!(merged.overall.matches_played, 1);
+        assert_eq!(b.merged(&[mat("2026-10-31T10:00:00Z", rook, true)]), b);
     }
 }

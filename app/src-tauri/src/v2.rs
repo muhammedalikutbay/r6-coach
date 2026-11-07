@@ -4,11 +4,11 @@
 use r6k_core::coach::CoachReport;
 use r6k_core::query::{self, Filter, MatchDetail, MatchRow, QueryResult};
 
-use crate::{baseline, lock, store, Cmd};
+use crate::{lock, store, Cmd};
 
 fn run_query(conn: &rusqlite::Connection, filter: &Filter) -> Cmd<QueryResult> {
     let matches = store::load_full_matches(conn).map_err(|e| e.to_string())?;
-    let result = query::query(filter, &matches, &baseline()?);
+    let result = query::query(filter, &matches);
     log::info!("query {:?}: {} match(es), source {:?}", filter, result.match_count, result.source);
     Ok(result)
 }
@@ -27,7 +27,7 @@ fn run_detail(conn: &rusqlite::Connection, match_id: &str) -> Cmd<MatchDetail> {
 
 fn run_coach(conn: &rusqlite::Connection, filter: &Filter) -> Cmd<CoachReport> {
     let matches = store::load_full_matches(conn).map_err(|e| e.to_string())?;
-    let report = r6k_core::coach::coach(filter, &matches, &baseline()?);
+    let report = r6k_core::coach::coach(filter, &matches);
     log::info!("coach {:?}: {} match(es) loaded", filter, matches.len());
     Ok(report)
 }
@@ -60,7 +60,7 @@ mod tests {
     #[test]
     fn empty_database_gives_empty_results() {
         let conn = store::open(Path::new(":memory:")).unwrap();
-        // Default filter reads the career baseline, so only the replay-derived lists are empty.
+        // No stored matches: every list is empty.
         let r = run_query(&conn, &Filter::default()).unwrap();
         assert!(r.trend.is_empty() && r.recent_matches.is_empty());
         let r = run_query(&conn, &Filter { range: query::Range::Last5, ..Default::default() }).unwrap();

@@ -1,7 +1,6 @@
 //! Developer CLI for R6Koc.
 //!
 //!   r6k ingest <MatchReplay dir> --dissect <exe> [--cache <dir>] [--out <file>]
-//!   r6k baseline --show
 //!   r6k advise (--last | --match <id>) [--replays <dir>] [--dissect <exe>] [--cache <dir>]
 //!   r6k match <id|folder> [--cache <dir>] [--replays <dir>] [--dissect <exe>]
 //!   r6k coach [--range last5] [--operator zofia] [--map outback]
@@ -46,13 +45,7 @@ enum Cmd {
         #[arg(long)]
         out: Option<PathBuf>,
     },
-    /// Inspect the embedded personal baseline (data/baseline.json).
-    Baseline {
-        /// Print the 10 most played operators (rounds, K/D, HS%).
-        #[arg(long)]
-        show: bool,
-    },
-    /// Print advice for one match, compared with the personal baseline and replay history.
+    /// Print advice for one match, compared with your stored replay history.
     Advise {
         /// Advise on the newest match.
         #[arg(long, conflicts_with = "match_id", required_unless_present = "match_id")]
@@ -139,7 +132,6 @@ fn main() -> Result<()> {
             cache,
             out,
         } => ingest(&replays, &dissect, &cache, out.as_deref()),
-        Cmd::Baseline { show } => baseline(show),
         Cmd::Advise {
             last,
             match_id,
@@ -173,30 +165,6 @@ fn main() -> Result<()> {
     }
 }
 
-fn baseline(show: bool) -> Result<()> {
-    let b = Baseline::embedded().context("embedded baseline is invalid")?;
-    println!(
-        "baseline: {} operators, {} maps, {} gamemodes (captured {})",
-        b.operators.len(),
-        b.maps.len(),
-        b.gamemodes.len(),
-        b.captured_at
-    );
-    if show {
-        println!("operator         rounds   K/D    HS%");
-        for (slug, c) in b.top_operators(10) {
-            println!(
-                "{:<16} {:>6}   {:>5.2}  {:>5.1}%",
-                slug,
-                c.rounds_played,
-                c.kd(),
-                c.headshot_pct()
-            );
-        }
-    }
-    Ok(())
-}
-
 fn ingest(replays: &Path, dissect: &Path, cache: &Path, out: Option<&Path>) -> Result<()> {
     let matches = load_matches(replays, Some(dissect), cache)?;
     print_table(&matches);
@@ -224,7 +192,7 @@ fn advise_cmd(
             .with_context(|| format!("no match with id or folder name {id}"))?,
         _ => matches.last().context("no matches")?,
     };
-    let baseline = Baseline::embedded().context("embedded baseline is invalid")?;
+    let baseline = Baseline::default(); // no external baseline since v3: history only
     println!(
         "{} | {} | {} | {}",
         target.match_id,

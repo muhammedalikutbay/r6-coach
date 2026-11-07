@@ -112,6 +112,7 @@ mod tests {
             score_them: 0,
             won: m.won,
             me_profile_id: "me".into(),
+            season: String::new(),
             players: vec![PlayerInfo { profile_id: "me".into(), username: "Me".into(), team_index: 0 }],
             rounds: m
                 .rounds
@@ -144,7 +145,7 @@ mod tests {
     fn empty_store_gives_none() {
         let conn = store::open_in_memory().unwrap();
         let ms = store::load_matches(&conn).unwrap();
-        let b = Baseline::embedded().unwrap();
+        let b = Baseline::default();
         assert!(report_from(&ms, None, &b).is_none());
         assert!(report_from(&ms, Some("x"), &b).is_none());
     }
@@ -155,7 +156,7 @@ mod tests {
         store::insert_full_match(&mut conn, &full(&mat("new", 20)), "Match-new").unwrap();
         store::insert_full_match(&mut conn, &full(&mat("old", 10)), "Match-old").unwrap();
         let ms = store::load_matches(&conn).unwrap();
-        let b = Baseline::embedded().unwrap();
+        let b = Baseline::default();
         let last = report_from(&ms, None, &b).unwrap();
         assert_eq!(last.match_summary.match_id, "new");
         assert_eq!(last.advice[0].kind, AdviceKind::Info);
@@ -179,7 +180,7 @@ mod tests {
         assert_eq!(first.new_matches, 30, "failed: {:?}", first.failed);
 
         let matches = store::load_matches(&db.0.lock().unwrap()).unwrap();
-        let b = Baseline::embedded().unwrap();
+        let b = Baseline::default();
         let report = report_from(&matches, None, &b).expect("report");
         // Same call the CLI makes, on the matches as parsed (not via the store).
         let direct = advise(matches.last().unwrap(), &matches, &b);
@@ -199,14 +200,14 @@ mod tests {
 
     #[test]
     fn unknown_match_has_no_session() {
-        let b = Baseline::embedded().unwrap();
+        let b = Baseline::default();
         let r = build(&mat("a", 2), &[], &b);
         assert!(r.session.is_none() && r.session_advice.is_empty());
     }
 
     #[test]
     fn session_covers_the_sitting_only() {
-        let b = Baseline::embedded().unwrap();
+        let b = Baseline::default();
         // The stamps are a day or more apart, so the sitting for "c" is just "c".
         let ms = vec![mat("a", 1), mat("b", 20), mat("c", 21)];
         let r = build(&ms[2], &ms, &b);
@@ -215,7 +216,7 @@ mod tests {
 
     #[test]
     fn serializes_like_the_typescript_dto() {
-        let b = Baseline::embedded().unwrap();
+        let b = Baseline::default();
         let m = mat("a", 2);
         let v = serde_json::to_value(build(&m, std::slice::from_ref(&m), &b)).unwrap();
         assert!(v["match"]["matchId"].is_string());

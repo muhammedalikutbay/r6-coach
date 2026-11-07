@@ -1,7 +1,7 @@
 //! `r6k bench`: measures how fast and how much memory the pure Rust pipeline uses.
 //!
 //! Each iteration parses every cached match JSON, then runs the advice engine (which merges the
-//! baseline with the history and produces the stats) once for every match. Timings use
+//! history into an empty baseline and produces the stats) once for every match. Timings use
 //! `std::time::Instant`; memory is the process working set read with `GetProcessMemoryInfo`.
 //! The sidecar (Go) parser is not part of this loop; time it separately.
 
@@ -15,7 +15,7 @@ use std::time::{Duration, Instant};
 pub fn run(cache: &Path, iterations: u32) -> Result<()> {
     let files = json_files(cache)?;
     anyhow::ensure!(!files.is_empty(), "no .json files in {}", cache.display());
-    let baseline = Baseline::embedded().context("embedded baseline is invalid")?;
+    let baseline = Baseline::default();
     let mem_start = working_set();
 
     // One untimed pass to warm up the allocator and the page cache.

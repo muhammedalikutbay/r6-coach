@@ -598,7 +598,7 @@ mod tests {
 
     #[test]
     fn rule5_suggests_better_operator_on_same_map_and_side() {
-        let base = Baseline::embedded().unwrap();
+        let base = flat_baseline();
         let hist = chalet_history(6);
         let last = mk("last", 10, CHALET_A, false, plain(6, Side::Defense, JAGER, 0));
         let v = advise(&last, &hist, &base);
@@ -612,7 +612,7 @@ mod tests {
 
     #[test]
     fn rule5_needs_twenty_rounds_of_history() {
-        let base = Baseline::embedded().unwrap();
+        let base = flat_baseline();
         let mut hist = chalet_history(6);
         hist.remove(2); // Jäger drops to 16 rounds + 2 in last = 18
         let mut last = mk("last", 10, CHALET_A, false, plain(2, Side::Defense, JAGER, 0));
@@ -623,7 +623,7 @@ mod tests {
 
     #[test]
     fn rule5_stays_quiet_when_operator_beats_the_map_average() {
-        let base = Baseline::embedded().unwrap();
+        let base = flat_baseline();
         let hist = chalet_history(24); // Jäger wins everything
         let last = mk("last", 10, CHALET_A, true, plain(6, Side::Defense, JAGER, 0));
         let v = advise(&last, &hist, &base);
@@ -696,7 +696,7 @@ mod tests {
     #[test]
     fn report_has_one_praise_and_at_most_two_improvements() {
         // Triggers rule 3 (no headshots) and rule 4 at once, plus rule 5 history.
-        let base = Baseline::embedded().unwrap();
+        let base = flat_baseline();
         let hist = chalet_history(6);
         let mut rs = plain(10, Side::Defense, JAGER, 0);
         for r in rs.iter_mut().take(5) {

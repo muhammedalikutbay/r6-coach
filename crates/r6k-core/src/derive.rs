@@ -317,6 +317,7 @@ mod tests {
             me_profile_id: "a1".into(),
             players,
             rounds,
+            season: String::new(),
         }
     }
 

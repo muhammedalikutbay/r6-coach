@@ -3,13 +3,12 @@
 //!
 //! * Focus = `apply(filter)`. The Coach view sends `range = last1 | last5`; other ranges work too.
 //! * Reference = the same filter without the range, minus the focus: every other match for
-//!   `last1`, the 20 matches before the focus for `last5`. When that is too thin the career
-//!   counters of the Tracker baseline stand in for the headline metrics.
+//!   `last1`, the 20 matches before the focus for `last5`. The reference is always the player's own
+//!   stored matches; when it is too thin there is no comparison (no external baseline exists).
 //! * Everything is judged on smoothed rates (`stats::adjusted`) so a short streak cannot
 //!   produce firm advice, and every metric has a minimum sample size.
 //! * Honest by construction: there are no weapon or assist claims (the parser has neither).
 
-use crate::baseline::{Baseline, CounterSet};
 use crate::derive::round_clutches;
 use crate::full::{FullMatch, FullRound, RoundPlayer};
 use crate::model::Side;
@@ -29,8 +28,6 @@ const K_CLUTCH: f64 = 3.0;
 const MIN_FOCUS_ROUNDS_SPLIT: u32 = 6;
 /// Rounds an operator or map needs in the reference before it can be compared.
 const MIN_REF_ROUNDS_SPLIT: u32 = 12;
-/// Rounds in the baseline before an operator or map counts as history.
-const MIN_BASELINE_ROUNDS: u64 = 30;
 /// Significant insight cards (praise or improve) that are shown at most.
 const MAX_SIGNAL: usize = 4;
 /// Insight cards in total.
@@ -116,9 +113,6 @@ fn map_name(key: &str) -> String {
         Ok(id) => format!("Map #{id}"),
         Err(_) => key.to_string(),
     })
-}
-fn norm_slug(s: &str) -> String {
-    s.chars().filter(|c| c.is_ascii_alphanumeric()).map(|c| c.to_ascii_lowercase()).collect()
 }
 
 // ---------------------------------------------------------------- tallies
@@ -505,37 +499,6 @@ fn range_label(r: Range) -> &'static str {
     }
 }
 
-/// Career counters of the Tracker baseline for a filter, with a label and the career headshot
-/// percentage. The overall headshot counter is not usable (see [`Baseline::career_headshot_pct`]),
-/// so the all-operators career takes its headshot rate from the operator segments. Gamemode
-/// blocks carry no headshot counter, so their headshot rate reads 0 and the HS card is skipped.
-fn career_counters<'a>(f: &Filter, b: &'a Baseline) -> Option<(&'a CounterSet, String, f64)> {
-    if f.side != SideFilter::Both || !f.maps.is_empty() || f.operators.len() > 1 {
-        return None;
-    }
-    if let Some(op) = f.operators.first() {
-        if f.mode != Mode::All {
-            return None;
-        }
-        let key = op.to_ascii_lowercase();
-        return b
-            .operators
-            .get(&key)
-            .map(|c| (c, format!("{} career", op_name(&key)), c.headshot_pct()));
-    }
-    match f.mode {
-        Mode::All => Some((&b.overall, "career".to_string(), b.career_headshot_pct())),
-        Mode::Ranked => b
-            .gamemodes
-            .get("pvp_ranked")
-            .map(|c| (c, "ranked career".to_string(), c.headshot_pct())),
-        Mode::Unranked | Mode::Quick => b
-            .gamemodes
-            .get("pvp_quickplay")
-            .map(|c| (c, "casual career".to_string(), c.headshot_pct())),
-    }
-}
-
 /// Reference matches: everything the filter allows (ignoring the range) that is not in the focus.
 /// `last5` keeps only the [`PREVIOUS_MATCHES`] newest ones before the focus.
 fn reference_set<'a>(
@@ -558,8 +521,7 @@ fn reference_set<'a>(
 fn reference_label(f: &Filter, n: u32) -> String {
     match f.range {
         Range::Last5 => format!("Previous {}", matches_txt(n as u64)),
-        Range::Last1 => format!("Your other {}", matches_txt(n as u64)),
-        _ => format!("Your other {}", matches_txt(n as u64)),
+        _ => format!("All your other stored matches ({})", n),
     }
 }
 
@@ -643,7 +605,7 @@ fn smoothed_kd(t: &Tally, ref_kpr: f64, ref_dpr: f64) -> Option<f64> {
     (d > 0.0).then(|| k / d)
 }
 
-fn operator_candidates(f: &Agg, r: &Agg, filter: &Filter, baseline: &Baseline) -> Vec<Candidate> {
+fn operator_candidates(f: &Agg, r: &Agg, filter: &Filter) -> Vec<Candidate> {
     let mut out = Vec::new();
     if filter.operators.len() == 1 {
         return out; // The headline cards already describe this one operator.
@@ -652,24 +614,14 @@ fn operator_candidates(f: &Agg, r: &Agg, filter: &Filter, baseline: &Baseline) -
         if t.rounds < MIN_FOCUS_ROUNDS_SPLIT {
             continue;
         }
-        // Reference rates: the operator's own replay history, else its Tracker career.
-        let (kpr, dpr, ref_kd, src) = match r.by_op.get(key).filter(|x| x.rounds >= MIN_REF_ROUNDS_SPLIT) {
-            Some(x) => (
-                x.kills as f64 / x.rounds as f64,
-                x.deaths as f64 / x.rounds as f64,
-                ratio(x.kills, x.deaths),
-                "in your history",
-            ),
-            None => match baseline.operators.get(key).filter(|c| c.rounds_played >= MIN_BASELINE_ROUNDS) {
-                Some(c) => (
-                    c.kills as f64 / c.rounds_played as f64,
-                    c.deaths as f64 / c.rounds_played as f64,
-                    c.kd(),
-                    "in your career",
-                ),
-                None => continue,
-            },
-        };
+        // Reference rates: the operator's own stored history; too few rounds means no card.
+        let Some(x) = r.by_op.get(key).filter(|x| x.rounds >= MIN_REF_ROUNDS_SPLIT) else { continue };
+        let (kpr, dpr, ref_kd, src) = (
+            x.kills as f64 / x.rounds as f64,
+            x.deaths as f64 / x.rounds as f64,
+            ratio(x.kills, x.deaths),
+            "in your history",
+        );
         if ref_kd <= 0.0 {
             continue;
         }
@@ -713,7 +665,7 @@ fn operator_candidates(f: &Agg, r: &Agg, filter: &Filter, baseline: &Baseline) -
     out
 }
 
-fn map_candidates(f: &Agg, r: &Agg, filter: &Filter, baseline: &Baseline) -> Vec<Candidate> {
+fn map_candidates(f: &Agg, r: &Agg, filter: &Filter) -> Vec<Candidate> {
     let mut out = Vec::new();
     if filter.maps.len() == 1 {
         return out;
@@ -722,22 +674,8 @@ fn map_candidates(f: &Agg, r: &Agg, filter: &Filter, baseline: &Baseline) -> Vec
         if t.rounds < MIN_FOCUS_ROUNDS_SPLIT {
             continue;
         }
-        let (ref_rate, src) = match r.by_map.get(key).filter(|x| x.rounds >= MIN_REF_ROUNDS_SPLIT) {
-            Some(x) => (x.rounds_won as f64 / x.rounds as f64, "in your history"),
-            None => {
-                let slug = norm_slug(key);
-                match baseline
-                    .maps
-                    .iter()
-                    .find(|(k, _)| norm_slug(k) == slug)
-                    .map(|(_, s)| &s.total)
-                    .filter(|c| c.rounds_played >= MIN_BASELINE_ROUNDS)
-                {
-                    Some(c) => (c.rounds_won as f64 / c.rounds_played as f64, "in your career"),
-                    None => continue,
-                }
-            }
-        };
+        let Some(x) = r.by_map.get(key).filter(|x| x.rounds >= MIN_REF_ROUNDS_SPLIT) else { continue };
+        let (ref_rate, src) = (x.rounds_won as f64 / x.rounds as f64, "in your history");
         if ref_rate <= 0.0 {
             continue;
         }
@@ -778,63 +716,6 @@ fn map_candidates(f: &Agg, r: &Agg, filter: &Filter, baseline: &Baseline) -> Vec
         });
     }
     out
-}
-
-/// Focus K/D, hs and win against the Tracker career, when the reference is the replay history.
-fn career_candidates(m: Metric, f: &Agg, c: &CounterSet, hs_pct: f64, label: &str) -> Option<Candidate> {
-    if !matches!(m, Metric::Kd | Metric::Hs | Metric::Win) || !m.enough(f, true) {
-        return None;
-    }
-    let (cv, rate_n) = match m {
-        Metric::Kd => (c.kd(), c.deaths + c.kills),
-        Metric::Hs => (hs_pct, c.kills),
-        _ => (c.win_pct(), c.matches_played),
-    };
-    if cv <= 0.0 || rate_n < 30 {
-        return None;
-    }
-    // Pull the focus toward the career value and judge the same way as the history cards.
-    let sm = match m {
-        Metric::Kd => {
-            let rp = c.rounds_played.max(1) as f64;
-            smoothed_kd(&f.t, c.kills as f64 / rp, c.deaths as f64 / rp)?
-        }
-        _ => {
-            let (x, n) = m.parts(f);
-            100.0 * (x + m.k() * cv / 100.0) / (n + m.k())
-        }
-    };
-    let rel = (sm - cv) / cv;
-    if rel.abs() < REL_THRESHOLD {
-        return None;
-    }
-    let praise = rel > 0.0;
-    let fv = m.value(f);
-    let what = match m {
-        Metric::Kd => "K/D",
-        Metric::Hs => "headshot rate",
-        _ => "win rate",
-    };
-    let conf = m.sample(f) as f64 / (m.sample(f) as f64 + m.k());
-    Some(Candidate {
-        key: format!("career:{}", m.label()),
-        kind: if praise { InsightKind::Praise } else { InsightKind::Improve },
-        // Slightly below the history cards so the same subject is not shown twice.
-        score: rel.abs() * conf * 0.9,
-        insight: Insight {
-            kind: if praise { InsightKind::Praise } else { InsightKind::Improve },
-            title: if praise { format!("Above your {label} {what}") } else { format!("Below your {label} {what}") },
-            text: format!(
-                "{}Your {what} in this stretch is {} your long-term level.",
-                confidence_prefix(f.t.rounds),
-                if praise { "above" } else { "below" }
-            ),
-            evidence: format!("{} vs {} {label} ({})", m.fmt(fv), m.fmt(cv), signed(m, fv - cv)),
-            operator_key: None,
-            map_key: None,
-        },
-        short: format!("{} vs {label}: {} vs {}", m.label(), m.fmt(fv), m.fmt(cv)),
-    })
 }
 
 // ---------------------------------------------------------------- info cards
@@ -934,7 +815,7 @@ fn info_cards(f: &Agg, label: &str) -> Vec<Insight> {
 // ---------------------------------------------------------------- report
 
 /// Builds the coach report for `filter`. `all` is every known match (any order).
-pub fn coach(filter: &Filter, all: &[FullMatch], baseline: &Baseline) -> CoachReport {
+pub fn coach(filter: &Filter, all: &[FullMatch]) -> CoachReport {
     let focus_set = apply(filter, all);
     let focus_label = {
         let mut s = range_label(filter.range).to_string();
@@ -959,10 +840,9 @@ pub fn coach(filter: &Filter, all: &[FullMatch], baseline: &Baseline) -> CoachRe
     let r = Agg::build(filter, &ref_set);
     let ref_name = "usual";
 
-    let mut reference_label_text = reference_label(filter, r.matches);
+    let reference_label_text = reference_label(filter, r.matches);
     let mut comparisons: Vec<Comparison> = Vec::new();
     let mut cands: Vec<Candidate> = Vec::new();
-    let career = career_counters(filter, baseline);
 
     if r.t.rounds > 0 {
         for m in METRICS {
@@ -986,55 +866,16 @@ pub fn coach(filter: &Filter, all: &[FullMatch], baseline: &Baseline) -> CoachRe
                 cands.push(c);
             }
         }
-        cands.extend(operator_candidates(&f, &r, filter, baseline));
-        cands.extend(map_candidates(&f, &r, filter, baseline));
-    } else if let Some((c, label, hs_pct)) = &career {
-        // No replay history to compare with: use the career headline numbers instead.
-        reference_label_text = format!("Your {label}");
-        let kpr = c.kills_per_round();
-        let rows: [(Metric, f64); 4] = [
-            (Metric::Kd, c.kd()),
-            (Metric::Kpr, kpr),
-            (Metric::Hs, *hs_pct),
-            (Metric::Win, c.win_pct()),
-        ];
-        for (m, rv) in rows {
-            if rv <= 0.0 || !m.enough(&f, true) {
-                continue;
-            }
-            let fv = m.value(&f);
-            let places = if m.is_pct() { 1 } else { 2 };
-            comparisons.push(Comparison {
-                metric: m.label().to_string(),
-                focus: round_to(fv, places),
-                reference: round_to(rv, places),
-                delta: round_to(fv - rv, places),
-                better: fv > rv,
-            });
-        }
-        cands.extend(operator_candidates(&f, &r, filter, baseline));
-        cands.extend(map_candidates(&f, &r, filter, baseline));
+        cands.extend(operator_candidates(&f, &r, filter));
+        cands.extend(map_candidates(&f, &r, filter));
     }
 
-    // Career cards for the focus sets that are shorter than the reference.
-    if let (Some((c, label, hs_pct)), true) = (&career, matches!(filter.range, Range::Last1 | Range::Last5 | Range::Last20)) {
-        if r.t.rounds > 0 {
-            for m in [Metric::Kd, Metric::Hs, Metric::Win] {
-                if let Some(cand) = career_candidates(m, &f, c, *hs_pct, label) {
-                    cands.push(cand);
-                }
-            }
-        }
-    }
-
-    // One card per subject; a career card is dropped when the history card for the same
-    // metric exists (the history card is the more specific statement).
+    // One card per subject.
     cands.sort_by(|a, b| b.score.partial_cmp(&a.score).unwrap_or(std::cmp::Ordering::Equal));
     let mut seen: HashSet<String> = HashSet::new();
     let mut unique: Vec<Candidate> = Vec::new();
     for c in cands {
-        let subject = c.key.strip_prefix("career:").map(|m| format!("metric:{m}")).unwrap_or_else(|| c.key.clone());
-        if seen.insert(subject) {
+        if seen.insert(c.key.clone()) {
             unique.push(c);
         }
     }
@@ -1200,6 +1041,7 @@ mod tests {
                 PlayerInfo { profile_id: "foe2".into(), username: "Foe2".into(), team_index: 1 },
             ],
             rounds,
+            season: String::new(),
         }
     }
 
@@ -1219,10 +1061,9 @@ mod tests {
     #[test]
     fn last_match_is_compared_with_the_others() {
         let all = history();
-        let b = Baseline::default();
-        let rep = coach(&filter(Range::Last1), &all, &b);
+        let rep = coach(&filter(Range::Last1), &all);
         assert_eq!(rep.focus_label, "Last match");
-        assert_eq!(rep.reference_label, "Your other 8 matches");
+        assert_eq!(rep.reference_label, "All your other stored matches (8)");
         let kd = rep.comparisons.iter().find(|c| c.metric == "K/D").unwrap();
         assert_eq!(kd.focus, 20.0); // 20 kills, 1 death
         assert_eq!(kd.reference, 1.25);
@@ -1235,7 +1076,7 @@ mod tests {
     #[test]
     fn last5_uses_previous_matches_and_respects_cap() {
         let all = history();
-        let rep = coach(&filter(Range::Last5), &all, &Baseline::default());
+        let rep = coach(&filter(Range::Last5), &all);
         assert_eq!(rep.focus_label, "Last 5 matches");
         assert_eq!(rep.reference_label, "Previous 4 matches");
     }
@@ -1245,7 +1086,7 @@ mod tests {
         assert_eq!(matches_txt(1), "1 match");
         assert_eq!(rounds_txt(2), "2 rounds");
         let all = history();
-        let rep = coach(&filter(Range::Last1), &all, &Baseline::default());
+        let rep = coach(&filter(Range::Last1), &all);
         let mut titles: Vec<&str> = rep.insights.iter().map(|i| i.title.as_str()).collect();
         titles.sort();
         let n = titles.len();
@@ -1257,7 +1098,7 @@ mod tests {
     #[test]
     fn thin_history_makes_no_comparisons() {
         let all = vec![mk("a", "2026-10-01T20:00:00", 10, 1, 5, 5)];
-        let rep = coach(&filter(Range::Last1), &all, &Baseline::default());
+        let rep = coach(&filter(Range::Last1), &all);
         assert!(rep.comparisons.is_empty());
         assert!(rep.strengths.is_empty() && rep.work_on.is_empty());
         assert!(rep.summary.contains("no earlier history") || rep.summary.contains("Nothing"));
@@ -1269,7 +1110,7 @@ mod tests {
     fn empty_filter_result_is_handled() {
         let all = history();
         let f = Filter { maps: vec!["no-such-map".into()], ..Filter::default() };
-        let rep = coach(&f, &all, &Baseline::default());
+        let rep = coach(&f, &all);
         assert!(rep.insights.is_empty() && rep.comparisons.is_empty());
         assert!(rep.summary.contains("No matches"));
     }
@@ -1277,7 +1118,7 @@ mod tests {
     #[test]
     fn serializes_to_the_ts_contract() {
         let all = history();
-        let rep = coach(&filter(Range::Last1), &all, &Baseline::default());
+        let rep = coach(&filter(Range::Last1), &all);
         let v = serde_json::to_value(&rep).unwrap();
         for k in ["summary", "insights", "strengths", "workOn", "comparisons", "focusLabel", "referenceLabel"] {
             assert!(v.get(k).is_some(), "missing {k}");

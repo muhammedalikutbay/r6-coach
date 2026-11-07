@@ -3,32 +3,24 @@
 //! `app/src/lib/v2/types.ts` (camelCase, see `docs/v2-contract.md`).
 //!
 //! # Filter semantics
-//! * `mode`, `maps` and `range` select **matches**. `last1/5/20` take the newest N matches that
-//!   pass the other filters; `season` keeps matches from [`SEASON_START`] on.
+//! * `mode`, `maps`, `range = season`, the date range and the hour-of-day window select
+//!   **matches**. `last1/5/20` take the newest N matches that pass all of those.
+//! * `range = season` keeps matches whose `season` equals the newest season among all stored
+//!   matches (a match with an empty season never qualifies).
+//! * Dates and hours are local: the UTC match timestamp plus `tz_offset_min`. The hour window may
+//!   wrap past midnight (`hour_from > hour_to`).
 //! * `side` and `operators` select **rounds** of the tracked player. All numbers inside the
 //!   filtered set count only those rounds. A match with no qualifying round drops out of the set.
 //!
-//! # Source (`career` vs `replays`)
-//! `career` (baseline merged with post-capture replays) is used only when the filter has no
-//! operator and no map, `range` is `all` or `season`, and `mode` and `side` are not both set (the
-//! baseline has no mode-by-side split). Everything else is computed from local replays.
-//! The baseline has no round counts for gamemodes or the overall block, so in `career` mode the
-//! round-based KPIs (kills/round, FK/FD, survival) come from the per-operator totals (side-aware),
-//! while K/D, win % and matches come from the overall/gamemode block. Clutch % has no baseline
-//! counterpart (only wins are stored) and always comes from replays. Trend and recent matches are
-//! always replay based.
+//! Every number comes from the stored replays; there is no external baseline. The app shell may
+//! attach official totals in [`QueryResult::official`].
 
-use crate::baseline::{Baseline, CounterSet};
 use crate::derive::{is_traded, player_match_stats, round_clutches, PlayerMatchStats};
 use crate::full::{FullMatch, FullRound, RoundPlayer, WinCondition};
-use crate::model::{Match, Round, Side};
+use crate::model::Side;
 use crate::names;
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
-
-/// First instant (UTC, `YYYY-MM-DDTHH:MM:SS`) of the current ranked season. Matches before it
-/// are outside `range = season`. Assumption: Y11S3 started on 2026-09-02; adjust when it moves.
-pub const SEASON_START: &str = "2026-09-02T00:00:00";
 
 /// Matches per `recentMatches` list.
 pub const RECENT_MATCHES: usize = 10;
@@ -95,6 +87,16 @@ pub struct Filter {
     pub side: SideFilter,
     pub operators: Vec<String>,
     pub maps: Vec<String>,
+    /// Local date `YYYY-MM-DD`, inclusive.
+    pub date_from: Option<String>,
+    /// Local date `YYYY-MM-DD`, inclusive.
+    pub date_to: Option<String>,
+    /// Local hour 0-23, inclusive.
+    pub hour_from: Option<u32>,
+    /// Local hour 0-23, inclusive; `hour_from > hour_to` wraps past midnight.
+    pub hour_to: Option<u32>,
+    /// Minutes to ADD to UTC to get local time.
+    pub tz_offset_min: i32,
 }
 
 // ---------------------------------------------------------------- DTOs
@@ -102,8 +104,23 @@ pub struct Filter {
 #[derive(Debug, Clone, Copy, Serialize, Deserialize)]
 #[serde(rename_all = "lowercase")]
 pub enum Source {
-    Career,
     Replays,
+}
+
+/// Official Ubisoft totals attached by the app shell; the core never fills them.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct OfficialTotals {
+    /// `season` or `all`.
+    pub scope: String,
+    pub kd: f64,
+    pub win_pct: f64,
+    pub kills: u64,
+    pub deaths: u64,
+    pub wins: u64,
+    pub losses: u64,
+    pub matches: u64,
+    pub fetched_at: String,
 }
 
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
@@ -183,6 +200,8 @@ pub struct QueryResult {
     pub operators: Vec<OperatorCard>,
     pub maps: Vec<MapCard>,
     pub recent_matches: Vec<MatchRow>,
+    /// Always `None` from the core; the app shell fills it when signed in.
+    pub official: Option<OfficialTotals>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -245,7 +264,7 @@ fn r1(x: f64) -> f64 {
 fn r2(x: f64) -> f64 {
     (x * 100.0).round() / 100.0
 }
-/// Kills per death; zero deaths gives the kill count (same rule as the baseline).
+/// Kills per death; zero deaths gives the kill count.
 fn ratio_kd(k: u64, d: u64) -> f64 {
     if d == 0 {
         k as f64
@@ -295,6 +314,7 @@ fn pretty_slug(s: &str) -> String {
     out
 }
 /// Lowercase alphanumerics only ("kafe-dostoyevsky" == "kafedostoyevsky").
+#[cfg(test)]
 fn norm_slug(s: &str) -> String {
     s.chars().filter(|c| c.is_ascii_alphanumeric()).map(|c| c.to_ascii_lowercase()).collect()
 }
@@ -356,11 +376,95 @@ fn has_round_filter(f: &Filter) -> bool {
     f.side != SideFilter::Both || !f.operators.is_empty()
 }
 
+/// Days since 1970-01-01 for a civil date (proleptic Gregorian).
+fn days_from_civil(y: i64, m: i64, d: i64) -> i64 {
+    let y = if m <= 2 { y - 1 } else { y };
+    let era = y.div_euclid(400);
+    let yoe = y - era * 400;
+    let mp = (m + 9) % 12;
+    let doy = (153 * mp + 2) / 5 + d - 1;
+    let doe = yoe * 365 + yoe / 4 - yoe / 100 + doy;
+    era * 146097 + doe - 719468
+}
+
+/// Civil date for days since 1970-01-01.
+fn civil_from_days(z: i64) -> (i64, i64, i64) {
+    let z = z + 719468;
+    let era = z.div_euclid(146097);
+    let doe = z - era * 146097;
+    let yoe = (doe - doe / 1460 + doe / 36524 - doe / 146096) / 365;
+    let y = yoe + era * 400;
+    let doy = doe - (365 * yoe + yoe / 4 - yoe / 100);
+    let mp = (5 * doy + 2) / 153;
+    let d = doy - (153 * mp + 2) / 5 + 1;
+    let m = if mp < 10 { mp + 3 } else { mp - 9 };
+    (if m <= 2 { y + 1 } else { y }, m, d)
+}
+
+/// Local date (`YYYY-MM-DD`) and hour (0-23) of a UTC `YYYY-MM-DDTHH:MM:SS` timestamp shifted by
+/// `tz_offset_min`. `None` when the timestamp cannot be parsed.
+pub fn local_date_hour(utc_ts: &str, tz_offset_min: i32) -> Option<(String, u32)> {
+    let t = ts_prefix(utc_ts);
+    let num = |a: usize, b: usize| t.get(a..b)?.parse::<i64>().ok();
+    let (y, mo, d, h, mi) = (num(0, 4)?, num(5, 7)?, num(8, 10)?, num(11, 13)?, num(14, 16)?);
+    if !(1..=12).contains(&mo) || !(1..=31).contains(&d) || h > 23 || mi > 59 {
+        return None;
+    }
+    let minutes = days_from_civil(y, mo, d) * 1440 + h * 60 + mi + tz_offset_min as i64;
+    let (ly, lm, ld) = civil_from_days(minutes.div_euclid(1440));
+    let hour = (minutes.rem_euclid(1440) / 60) as u32;
+    Some((format!("{ly:04}-{lm:02}-{ld:02}"), hour))
+}
+
+fn has_time_filter(f: &Filter) -> bool {
+    f.date_from.is_some() || f.date_to.is_some() || f.hour_from.is_some() || f.hour_to.is_some()
+}
+
+/// True when the local hour is inside the window; `from > to` wraps past midnight. A missing
+/// bound stands for the start (0) or end (23) of the day.
+fn hour_in_window(hour: u32, from: Option<u32>, to: Option<u32>) -> bool {
+    let (from, to) = (from.unwrap_or(0).min(23), to.unwrap_or(23).min(23));
+    if from <= to {
+        hour >= from && hour <= to
+    } else {
+        hour >= from || hour <= to
+    }
+}
+
+/// Date range and hour-of-day filters on a match start. Matches with an unreadable timestamp
+/// fail an active time filter.
+fn passes_time(f: &Filter, m: &FullMatch) -> bool {
+    if !has_time_filter(f) {
+        return true;
+    }
+    let Some((date, hour)) = local_date_hour(&m.timestamp, f.tz_offset_min) else {
+        return false;
+    };
+    let day = |s: &String| s.get(..10).map(str::to_owned).unwrap_or_else(|| s.clone());
+    if f.date_from.as_ref().is_some_and(|d| date < day(d)) {
+        return false;
+    }
+    if f.date_to.as_ref().is_some_and(|d| date > day(d)) {
+        return false;
+    }
+    hour_in_window(hour, f.hour_from, f.hour_to)
+}
+
+/// Season of the newest stored match that has one (empty when no match carries a season).
+pub fn newest_season(matches: &[FullMatch]) -> &str {
+    matches
+        .iter()
+        .filter(|m| !m.season.is_empty())
+        .max_by(|a, b| a.timestamp.cmp(&b.timestamp))
+        .map_or("", |m| m.season.as_str())
+}
+
 /// Matches that pass the filter, oldest first.
 ///
-/// Mode, map and season select matches; side and operator filters work per round, and a match
-/// with no qualifying round is dropped. `last1/5/20` keep the newest N of what remains.
+/// Mode, map, season, date and hour select matches; side and operator filters work per round,
+/// and a match with no qualifying round is dropped. `last1/5/20` keep the newest N of what remains.
 pub fn apply<'a>(f: &Filter, matches: &'a [FullMatch]) -> Vec<&'a FullMatch> {
+    let season = if f.range == Range::Season { newest_season(matches) } else { "" };
     let mut v: Vec<&FullMatch> = matches
         .iter()
         .filter(|m| f.mode == Mode::All || mode_of(&m.match_type) == Some(f.mode))
@@ -370,7 +474,8 @@ pub fn apply<'a>(f: &Filter, matches: &'a [FullMatch]) -> Vec<&'a FullMatch> {
                 f.maps.iter().any(|x| x.eq_ignore_ascii_case(&k))
             }
         })
-        .filter(|m| f.range != Range::Season || ts_prefix(&m.timestamp) >= SEASON_START)
+        .filter(|m| f.range != Range::Season || (!season.is_empty() && m.season == season))
+        .filter(|m| passes_time(f, m))
         .filter(|m| {
             !has_round_filter(f) || m.rounds.iter().any(|r| selected(f, r, &m.me_profile_id).is_some())
         })
@@ -381,17 +486,6 @@ pub fn apply<'a>(f: &Filter, matches: &'a [FullMatch]) -> Vec<&'a FullMatch> {
         v.drain(..drop);
     }
     v
-}
-
-/// Source for a filter (see the module docs).
-pub fn source_for(f: &Filter) -> Source {
-    let range_ok = matches!(f.range, Range::All | Range::Season);
-    let split_ok = !(f.mode != Mode::All && f.side != SideFilter::Both);
-    if f.operators.is_empty() && f.maps.is_empty() && range_ok && split_ok {
-        Source::Career
-    } else {
-        Source::Replays
-    }
 }
 
 // ---------------------------------------------------------------- tallies
@@ -466,46 +560,25 @@ fn tally_match(f: &Filter, m: &FullMatch) -> Tally {
 
 // ---------------------------------------------------------------- query
 
-/// Converts a full match to the tracked-player model so [`Baseline::merged`] can use it.
-fn to_match(m: &FullMatch) -> Match {
-    let rounds = m
-        .rounds
-        .iter()
-        .filter_map(|r| {
-            let p = r.players.iter().find(|p| p.profile_id == m.me_profile_id)?;
-            Some(Round {
-                number: r.number,
-                side: p.side,
-                operator_id: p.operator_id,
-                kills: p.kills,
-                deaths: p.deaths,
-                assists: 0,
-                headshots: p.headshots,
-                first_blood: p.first_kill,
-                first_death: p.first_death,
-                planted: false,
-                defused: false,
-                won: r.winner_team == Some(p.team_index),
-            })
-        })
-        .collect();
-    Match {
-        match_id: m.match_id.clone(),
-        timestamp: m.timestamp.clone(),
-        match_type: m.match_type.clone(),
-        gamemode: m.gamemode.clone(),
-        map_id: m.map_id,
-        won: m.won,
-        rounds,
+/// K/D over every round of the tracked player in all stored matches (reference for operator deltas).
+fn overall_kd(matches: &[FullMatch]) -> f64 {
+    let (mut k, mut d) = (0u64, 0u64);
+    for m in matches {
+        for r in &m.rounds {
+            if let Some(p) = r.players.iter().find(|p| p.profile_id == m.me_profile_id) {
+                k += p.kills as u64;
+                d += p.deaths as u64;
+            }
+        }
     }
+    ratio_kd(k, d)
 }
 
-pub fn query(filter: &Filter, matches: &[FullMatch], baseline: &Baseline) -> QueryResult {
+pub fn query(filter: &Filter, matches: &[FullMatch]) -> QueryResult {
     let set = apply(filter, matches);
-    let merged = baseline.merged(&matches.iter().map(to_match).collect::<Vec<_>>());
-    let career_kd = ratio_kd(merged.overall.kills, merged.overall.deaths);
+    let career_kd = overall_kd(matches);
 
-    // Replay-based numbers (always used for trend and recent matches).
+    // Numbers come from the stored replays only.
     let mut total = Tally::default();
     let mut wins = 0u32;
     let mut per_match: Vec<Tally> = Vec::with_capacity(set.len());
@@ -548,24 +621,20 @@ pub fn query(filter: &Filter, matches: &[FullMatch], baseline: &Baseline) -> Que
     let recent_matches: Vec<MatchRow> =
         set.iter().rev().take(RECENT_MATCHES).map(|m| match_row(m)).collect();
 
-    let source = source_for(filter);
-    let (kpis, operators, maps, match_count) = match source {
-        Source::Replays => (
-            kpis_replays.clone(),
-            replay_operator_cards(filter, &set, career_kd),
-            replay_map_cards(filter, &set),
-            kpis_replays.matches,
-        ),
-        Source::Career => {
-            let kpis = career_kpis(filter, &merged, &kpis_replays);
-            let count = kpis.matches;
-            let ops = career_operator_cards(filter, &merged, kpis.kd);
-            let maps = career_map_cards(filter, &merged);
-            (kpis, ops, maps, count)
-        }
-    };
+    let match_count = kpis_replays.matches;
+    let operators = replay_operator_cards(filter, &set, career_kd);
+    let maps = replay_map_cards(filter, &set);
 
-    QueryResult { source, match_count, kpis, trend, operators, maps, recent_matches }
+    QueryResult {
+        source: Source::Replays,
+        match_count,
+        kpis: kpis_replays,
+        trend,
+        operators,
+        maps,
+        recent_matches,
+        official: None,
+    }
 }
 
 fn replay_operator_cards(f: &Filter, set: &[&FullMatch], career_kd: f64) -> Vec<OperatorCard> {
@@ -640,120 +709,6 @@ fn replay_map_cards(f: &Filter, set: &[&FullMatch]) -> Vec<MapCard> {
             defense_win_pct: r1(pct(a.def.1, a.def.0)),
             kd: r2(ratio_kd(a.kills, a.deaths)),
             key,
-        })
-        .collect();
-    cards.sort_by(|a, b| b.matches.cmp(&a.matches).then_with(|| a.key.cmp(&b.key)));
-    cards
-}
-
-fn side_str(s: SideFilter) -> Option<&'static str> {
-    match s {
-        SideFilter::Both => None,
-        SideFilter::Attack => Some("attacker"),
-        SideFilter::Defense => Some("defender"),
-    }
-}
-
-fn gamemode_key(m: Mode) -> Option<&'static str> {
-    match m {
-        Mode::All => None,
-        Mode::Ranked => Some("pvp_ranked"),
-        // The baseline has no unranked block; Tracker folds it into quickplay.
-        Mode::Unranked | Mode::Quick => Some("pvp_quickplay"),
-    }
-}
-
-fn career_kpis(f: &Filter, merged: &Baseline, replays: &Kpis) -> Kpis {
-    // Operator totals (side-aware) carry the round counts the other blocks lack.
-    let want = side_str(f.side);
-    let mut ops = CounterSet::default();
-    for c in merged.operators.values() {
-        if want.is_none() || c.side.as_deref() == want {
-            ops.rounds_played += c.rounds_played;
-            ops.rounds_won += c.rounds_won;
-            ops.kills += c.kills;
-            ops.deaths += c.deaths;
-            ops.headshots += c.headshots;
-            ops.first_bloods += c.first_bloods;
-            ops.first_deaths += c.first_deaths;
-        }
-    }
-    // Block for K/D, win % and matches.
-    let (kd, win_pct, matches) = if want.is_some() {
-        // No per-side match counts for the whole career: use rounds.
-        (ops.kd(), ops.round_win_pct(), merged.overall.matches_played)
-    } else if let Some(gm) = gamemode_key(f.mode).and_then(|k| merged.gamemodes.get(k)) {
-        (gm.kd(), gm.win_pct(), gm.matches_played)
-    } else {
-        (merged.overall.kd(), merged.overall.win_pct(), merged.overall.matches_played)
-    };
-    // Career headshot rate from the operator segments (overall.headshots is not usable).
-    let career_hs = merged.career_headshot_pct();
-    let hs = if want.is_none() && career_hs > 0.0 {
-        career_hs
-    } else {
-        ops.headshot_pct()
-    };
-    Kpis {
-        kd: r2(kd),
-        win_pct: r1(win_pct),
-        hs_pct: r1(hs),
-        kills_per_round: r2(ops.kills_per_round()),
-        fk_fd_ratio: r2(ratio_kd(ops.first_bloods, ops.first_deaths)),
-        clutch_pct: replays.clutch_pct,
-        survival_pct: r1(if ops.rounds_played == 0 {
-            0.0
-        } else {
-            100.0 * (1.0 - ops.deaths as f64 / ops.rounds_played as f64)
-        }),
-        rounds: ops.rounds_played.min(u32::MAX as u64) as u32,
-        matches: matches.min(u32::MAX as u64) as u32,
-    }
-}
-
-fn career_operator_cards(f: &Filter, merged: &Baseline, career_kd: f64) -> Vec<OperatorCard> {
-    let want = side_str(f.side);
-    let mut cards: Vec<OperatorCard> = merged
-        .operators
-        .iter()
-        .filter(|(_, c)| c.rounds_played > 0 && (want.is_none() || c.side.as_deref() == want))
-        .map(|(key, c)| OperatorCard {
-            key: norm_slug(key),
-            name: op_name(&norm_slug(key)),
-            side: if c.side.as_deref() == Some("attacker") { TeamSide::Attack } else { TeamSide::Defense },
-            rounds: c.rounds_played.min(u32::MAX as u64) as u32,
-            win_pct: r1(c.round_win_pct()),
-            kd: r2(c.kd()),
-            hs_pct: r1(c.headshot_pct()),
-            delta_kd: Some(r2(c.kd() - career_kd)),
-        })
-        .collect();
-    cards.sort_by(|a, b| b.rounds.cmp(&a.rounds).then_with(|| a.key.cmp(&b.key)));
-    cards
-}
-
-fn career_map_cards(f: &Filter, merged: &Baseline) -> Vec<MapCard> {
-    let want = side_str(f.side);
-    let mut cards: Vec<MapCard> = merged
-        .maps
-        .iter()
-        .filter(|(_, ms)| ms.total.matches_played > 0)
-        .map(|(slug, ms)| {
-            let key = norm_slug(slug);
-            let c = match want {
-                Some(s) => ms.sides.get(s).unwrap_or(&ms.total),
-                None => &ms.total,
-            };
-            let side_win = |s: &str| ms.sides.get(s).map_or(0.0, |c| c.round_win_pct());
-            MapCard {
-                name: names::map_name_by_key(&key).unwrap_or_else(|| pretty_slug(slug)),
-                matches: c.matches_played.min(u32::MAX as u64) as u32,
-                win_pct: r1(c.win_pct()),
-                attack_win_pct: r1(side_win("attacker")),
-                defense_win_pct: r1(side_win("defender")),
-                kd: r2(c.kd()),
-                key,
-            }
         })
         .collect();
     cards.sort_by(|a, b| b.matches.cmp(&a.matches).then_with(|| a.key.cmp(&b.key)));
@@ -973,6 +928,7 @@ mod tests {
                 round(1, Side::Attack, op_id("zofia"), 2, false, true),
                 round(2, Side::Defense, op_id("jager"), 0, true, false),
             ],
+            season: String::new(),
         }
     }
 
@@ -1011,12 +967,11 @@ mod tests {
     #[test]
     fn side_and_operator_filter_rounds() {
         let ms = set();
-        let b = Baseline::default();
-        let all = query(&filter("{}"), &ms, &b);
+        let all = query(&filter("{}"), &ms);
         assert_eq!((all.kpis.rounds, all.matches_total()), (14, 7));
 
         // Zofia only: the attack round (2 kills, 0 deaths) of every match.
-        let z = query(&filter(r#"{"operators":["zofia"]}"#), &ms, &b);
+        let z = query(&filter(r#"{"operators":["zofia"]}"#), &ms);
         assert_eq!(z.kpis.rounds, 7);
         assert_eq!(z.kpis.kd, 14.0); // 14 kills / 0 deaths -> kills
         assert_eq!(z.kpis.survival_pct, 100.0);
@@ -1026,36 +981,106 @@ mod tests {
         assert!(z.operators[0].delta_kd.is_some());
 
         // Defense side only: the Jager round (0 kills, died).
-        let d = query(&filter(r#"{"side":"defense"}"#), &ms, &b);
+        let d = query(&filter(r#"{"side":"defense"}"#), &ms);
         assert_eq!(d.kpis.rounds, 7);
         assert_eq!(d.kpis.kd, 0.0);
         assert_eq!(d.operators[0].key, "jager");
 
         // Zofia and defense never meet: no round, no match.
-        let none = query(&filter(r#"{"operators":["zofia"],"side":"defense"}"#), &ms, &b);
+        let none = query(&filter(r#"{"operators":["zofia"],"side":"defense"}"#), &ms);
         assert_eq!((none.kpis.rounds, none.kpis.matches), (0, 0));
         assert!(none.trend.is_empty() && none.operators.is_empty());
     }
 
     #[test]
-    fn source_selection() {
-        let src = |j: &str| match source_for(&filter(j)) {
-            Source::Career => "career",
-            Source::Replays => "replays",
-        };
-        assert_eq!(src("{}"), "career");
-        assert_eq!(src(r#"{"range":"season","mode":"ranked"}"#), "career");
-        assert_eq!(src(r#"{"side":"attack"}"#), "career");
-        assert_eq!(src(r#"{"mode":"ranked","side":"attack"}"#), "replays");
-        assert_eq!(src(r#"{"range":"last5"}"#), "replays");
-        assert_eq!(src(r#"{"operators":["zofia"]}"#), "replays");
-        assert_eq!(src(r#"{"maps":["clubhouse"]}"#), "replays");
+    fn season_is_the_newest_stored_season() {
+        let mut ms = set();
+        for m in ms.iter_mut().take(3) {
+            m.season = "Y11S2".into();
+        }
+        for m in ms.iter_mut().skip(3).take(3) {
+            m.season = "Y11S3".into();
+        }
+        // The newest match (m7) has no season: the newest known season (Y11S3) is used and the
+        // season-less match never qualifies.
+        let v = apply(&filter(r#"{"range":"season"}"#), &ms);
+        assert_eq!(v.len(), 3);
+        assert!(v.iter().all(|m| m.season == "Y11S3"));
+        ms[6].season = "Y11S4".into();
+        let v = apply(&filter(r#"{"range":"season"}"#), &ms);
+        assert_eq!(v.iter().map(|m| m.match_id.as_str()).collect::<Vec<_>>(), ["m7"]);
+        // No season anywhere: nothing qualifies.
+        let none: Vec<FullMatch> = set();
+        assert!(apply(&filter(r#"{"range":"season"}"#), &none).is_empty());
+    }
+
+    #[test]
+    fn local_time_conversion() {
+        assert_eq!(local_date_hour("2026-10-01T22:30:00Z", 180), Some(("2026-10-02".into(), 1)));
+        assert_eq!(local_date_hour("2026-10-01T02:30:00", -300), Some(("2026-09-30".into(), 21)));
+        assert_eq!(local_date_hour("2026-03-01T00:00:00", -1), Some(("2026-02-28".into(), 23)));
+        assert_eq!(local_date_hour("2024-02-28T23:59:00", 1), Some(("2024-02-29".into(), 0)));
+        assert_eq!(local_date_hour("garbage", 0), None);
+    }
+
+    fn at(ms: &mut [FullMatch], i: usize, ts: &str) {
+        ms[i].timestamp = ts.into();
+    }
+
+    #[test]
+    fn date_range_is_inclusive_and_local() {
+        let mut ms = set();
+        at(&mut ms, 0, "2026-10-01T23:30:00Z"); // local (UTC+3) 2026-10-02 02:30
+        let ids = |f: &str| apply(&filter(f), &ms).iter().map(|m| m.match_id.clone()).collect::<Vec<_>>();
+        // m2..m7 are Oct 2-7 10:00 UTC; m1 is Oct 1 UTC but Oct 2 local at UTC+3.
+        assert_eq!(ids(r#"{"dateFrom":"2026-10-03","dateTo":"2026-10-04"}"#), ["m3", "m4"]);
+        assert_eq!(ids(r#"{"dateTo":"2026-10-01"}"#), ["m1"]);
+        assert_eq!(ids(r#"{"dateTo":"2026-10-01","tzOffsetMin":180}"#).len(), 0);
+        assert_eq!(ids(r#"{"dateFrom":"2026-10-02","dateTo":"2026-10-02","tzOffsetMin":180}"#), ["m1", "m2"]);
+        assert_eq!(ids(r#"{"dateFrom":"2026-10-07"}"#), ["m7"]);
+    }
+
+    #[test]
+    fn hour_window_wraps_past_midnight() {
+        assert!(hour_in_window(10, Some(9), Some(17)));
+        assert!(!hour_in_window(18, Some(9), Some(17)));
+        assert!(hour_in_window(23, Some(22), Some(2)));
+        assert!(hour_in_window(1, Some(22), Some(2)));
+        assert!(hour_in_window(2, Some(22), Some(2)));
+        assert!(!hour_in_window(12, Some(22), Some(2)));
+        assert!(hour_in_window(20, Some(18), None));
+        assert!(hour_in_window(3, None, Some(5)));
+        assert!(!hour_in_window(6, None, Some(5)));
+
+        let mut ms = set();
+        at(&mut ms, 0, "2026-10-01T21:00:00Z");
+        at(&mut ms, 1, "2026-10-02T01:00:00Z");
+        at(&mut ms, 2, "2026-10-03T12:00:00Z");
+        let ids = |f: &str| apply(&filter(f), &ms).iter().map(|m| m.match_id.clone()).collect::<Vec<_>>();
+        assert_eq!(ids(r#"{"hourFrom":22,"hourTo":2,"dateTo":"2026-10-03"}"#), ["m2"]);
+        // UTC+1: m1 -> 22:00 and m2 -> 02:00 both fall in the 22 -> 2 window.
+        assert_eq!(
+            ids(r#"{"hourFrom":22,"hourTo":2,"dateTo":"2026-10-03","tzOffsetMin":60}"#),
+            ["m1", "m2"]
+        );
+    }
+
+    #[test]
+    fn time_filters_run_before_last_n() {
+        let mut ms = set();
+        // Only m2 and m4 are evening matches; last1 must pick the newest of those, not the
+        // newest overall.
+        at(&mut ms, 1, "2026-10-02T20:00:00Z");
+        at(&mut ms, 3, "2026-10-04T20:00:00Z");
+        let v = apply(&filter(r#"{"range":"last1","hourFrom":19,"hourTo":23}"#), &ms);
+        assert_eq!(v.len(), 1);
+        assert_eq!(v[0].match_id, "m4");
     }
 
     #[test]
     fn trend_is_rolling_and_recent_is_newest_first() {
         let ms = set();
-        let r = query(&filter(r#"{"range":"last5"}"#), &ms, &Baseline::default());
+        let r = query(&filter(r#"{"range":"last5"}"#), &ms);
         assert_eq!(r.match_count, 5);
         assert_eq!(r.trend.len(), 5);
         assert_eq!(r.trend[0].index, 1);
@@ -1066,11 +1091,11 @@ mod tests {
     }
 
     #[test]
-    fn career_trend_comes_from_replays_and_keys_are_normalised() {
+    fn result_is_replay_sourced_and_keys_are_normalised() {
         let ms = set();
-        let b = Baseline::embedded().unwrap();
-        let r = query(&Filter::default(), &ms, &b);
-        assert!(matches!(r.source, Source::Career));
+        let r = query(&Filter::default(), &ms);
+        assert!(r.official.is_none());
+        assert_eq!(serde_json::to_value(&r).unwrap()["source"], "replays");
         assert_eq!(r.trend.len(), ms.len());
         for k in r.maps.iter().map(|m| &m.key).chain(r.operators.iter().map(|o| &o.key)) {
             assert_eq!(k, &norm_slug(k), "key {k} is not normalised");
@@ -1131,13 +1156,12 @@ mod tests {
     fn real_data_acceptance() {
         let ms = load_real();
         assert_eq!(ms.len(), 30);
-        let b = Baseline::embedded().unwrap();
 
-        let last5 = query(&filter(r#"{"range":"last5"}"#), &ms, &b);
+        let last5 = query(&filter(r#"{"range":"last5"}"#), &ms);
         assert_eq!(last5.match_count, 5);
         assert_eq!(last5.trend.len(), 5);
 
-        let z = query(&filter(r#"{"operators":["zofia"]}"#), &ms, &b);
+        let z = query(&filter(r#"{"operators":["zofia"]}"#), &ms);
         assert_eq!(z.operators.len(), 1);
         assert_eq!(z.operators[0].key, "zofia");
         let zofia_rounds: u32 = ms

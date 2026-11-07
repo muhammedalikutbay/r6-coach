@@ -129,7 +129,7 @@ async fn refresh(app: tauri::AppHandle) -> Cmd<store::RefreshResult> {
 }
 
 fn baseline() -> Cmd<r6k_core::Baseline> {
-    r6k_core::Baseline::embedded().map_err(|e| format!("baseline is invalid: {e}"))
+    Ok(r6k_core::Baseline::default()) // no external baseline since v3
 }
 
 #[tauri::command]
@@ -233,7 +233,7 @@ mod real_data {
         println!("Outback: {} match(es), {k} K / {d} D", outback.len());
         assert_eq!((k, d), (5, 4));
         let matches = store::load_matches(&db.0.lock().unwrap()).unwrap();
-        let b = r6k_core::Baseline::embedded().unwrap();
+        let b = r6k_core::Baseline::default();
         let ops = tables::operator_table(&b, &matches);
         let maps = tables::map_table(&b, &matches);
         for o in ops.iter().take(5) {
@@ -242,6 +242,5 @@ mod real_data {
         for m in maps.iter().take(3) {
             println!("{m:?}");
         }
-        assert_eq!(ops[0].rounds, b.top_operators(1)[0].1.rounds_played);
     }
 }

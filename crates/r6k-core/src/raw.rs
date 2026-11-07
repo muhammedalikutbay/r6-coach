@@ -13,6 +13,9 @@ pub struct RawMatch {
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct RawRound {
+    /// Replay header game version, e.g. "Y11S3_Alpha04".
+    #[serde(default)]
+    pub game_version: String,
     #[serde(default)]
     pub timestamp: String,
     #[serde(default)]

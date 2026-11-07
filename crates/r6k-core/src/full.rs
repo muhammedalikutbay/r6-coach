@@ -87,6 +87,10 @@ pub struct FullMatch {
     pub me_profile_id: String,
     pub players: Vec<PlayerInfo>,
     pub rounds: Vec<FullRound>,
+    /// Season from the replay game version (`Y11S3_Alpha04` -> `Y11S3`); empty when unknown.
+    /// Older stored JSON has no such field and reads as empty.
+    #[serde(default)]
+    pub season: String,
 }
 
 impl FullMatch {
@@ -182,7 +186,35 @@ pub fn full_match_from_raw(raw: &RawMatch) -> Result<FullMatch, ConvertError> {
         me_profile_id,
         players,
         rounds,
+        season: season_of(&first.game_version),
     })
+}
+
+/// Season prefix of a game version: `Y11S3_Alpha04` -> `Y11S3`. Empty when the version does not
+/// start with `Y<digits>S<digits>`.
+pub fn season_of(game_version: &str) -> String {
+    let head = game_version.split(['_', '-', ' ', '.']).next().unwrap_or("").trim();
+    let b = head.as_bytes();
+    let mut i = 0;
+    let digits = |i: &mut usize| {
+        let start = *i;
+        while *i < b.len() && b[*i].is_ascii_digit() {
+            *i += 1;
+        }
+        *i > start
+    };
+    if b.first().map(|c| c.eq_ignore_ascii_case(&b'y')) != Some(true) {
+        return String::new();
+    }
+    i += 1;
+    if !digits(&mut i) || b.get(i).map(|c| c.eq_ignore_ascii_case(&b's')) != Some(true) {
+        return String::new();
+    }
+    i += 1;
+    if !digits(&mut i) {
+        return String::new();
+    }
+    head[..i].to_ascii_uppercase()
 }
 
 fn convert_round(r: &RawRound, me_profile_id: &str) -> FullRound {
@@ -292,7 +324,7 @@ fn win_condition(r: &RawRound, winner: Option<usize>, players: &[RoundPlayer]) -
 mod tests {
     use super::*;
 
-    const JSON: &str = r#"{"rounds":[{"timestamp":"2026-10-24T12:08:22Z","matchType":{"name":"Ranked","id":2},
+    const JSON: &str = r#"{"rounds":[{"gameVersion":"Y11S3_Alpha04","timestamp":"2026-10-24T12:08:22Z","matchType":{"name":"Ranked","id":2},
 "map":{"name":"X","id":7},"gamemode":{"name":"Bomb","id":1},"recordingProfileID":"a1","matchID":"m1",
 "roundNumber":0,"site":"Lobby",
 "teams":[{"score":1,"won":true,"role":"Attack"},{"score":0,"won":false,"role":"Defense"}],
@@ -307,6 +339,23 @@ mod tests {
  {"type":{"name":"Kill"},"username":"A1","target":"B2","timeInSeconds":100}],
 "stats":[{"username":"A1","kills":2,"died":false,"headshots":1},{"username":"A2","kills":0,"died":true},
  {"username":"B1","kills":0,"died":true},{"username":"B2","kills":1,"died":true}]}]}"#;
+
+    #[test]
+    fn season_comes_from_the_game_version() {
+        assert_eq!(season_of("Y11S3_Alpha04"), "Y11S3");
+        assert_eq!(season_of("Y9S12"), "Y9S12");
+        assert_eq!(season_of("y10s1_beta"), "Y10S1");
+        for bad in ["", "Alpha04", "Y11", "YS3", "Y11S"] {
+            assert_eq!(season_of(bad), "", "{bad}");
+        }
+        assert_eq!(full_match_from_json(JSON).unwrap().season, "Y11S3");
+        // Stored JSON from before v3 has no season field.
+        let old = serde_json::to_value(full_match_from_json(JSON).unwrap()).unwrap();
+        let mut old = old;
+        old.as_object_mut().unwrap().remove("season");
+        let m: FullMatch = serde_json::from_value(old).unwrap();
+        assert_eq!(m.season, "");
+    }
 
     #[test]
     fn builds_full_model() {

@@ -2,7 +2,7 @@
 
 use anyhow::{bail, Context, Result};
 use r6k_core::query::{query, Filter};
-use r6k_core::{read_full_match_file, Baseline, FullMatch};
+use r6k_core::{read_full_match_file, FullMatch};
 use std::path::Path;
 
 pub fn run(
@@ -32,8 +32,7 @@ pub fn run(
         bail!("no cached matches in {}", cache.display());
     }
     matches.sort_by(|a, b| a.timestamp.cmp(&b.timestamp));
-    let baseline = Baseline::embedded().context("embedded baseline is invalid")?;
-    let result = query(&filter, &matches, &baseline);
+    let result = query(&filter, &matches);
     println!("{}", serde_json::to_string_pretty(&result)?);
     Ok(())
 }
