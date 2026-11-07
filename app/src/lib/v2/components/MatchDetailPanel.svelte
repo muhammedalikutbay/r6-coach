@@ -223,6 +223,7 @@
                   {#if k.headshot}<Crosshair class="size-3.5 text-accent" aria-label="Headshot" />{:else}<Skull class="size-3.5 text-muted" />{/if}
                   <OperatorBadge opKey={k.victimOperator} name={opName(k.victimOperator)} size={22} />
                   <span class={cn(k.killerTeam === 0 ? 'text-bad' : 'text-good')}>{k.victim}</span>
+                  {#if k.weapon}<span class="ml-auto text-xs text-muted" title={k.weaponSlot ?? undefined}>{k.weapon}</span>{/if}
                 </li>
               {/each}
             </ul>

@@ -42,7 +42,7 @@
     aria-expanded={open}
     onclick={() => (open = !open)}
   >
-    {label}{selected.length > 0 ? ` Â· ${selected.length}` : ''}
+    {label}{selected.length > 0 ? ` · ${selected.length}` : ''}
     <ChevronDown class="size-3.5" />
   </button>
   {#if open}
@@ -51,7 +51,7 @@
         <Search class="absolute left-2 top-1/2 size-3.5 -translate-y-1/2 text-muted" />
         <input
           bind:value={q}
-          placeholder="Search {label.toLowerCase()}â€¦"
+          placeholder="Search {label.toLowerCase()}…"
           class="h-8 w-full rounded-lg border border-border bg-surface-2 pl-7 pr-2 text-xs outline-none focus:border-accent"
         />
       </div>

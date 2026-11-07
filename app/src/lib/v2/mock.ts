@@ -52,6 +52,7 @@ export const MOCK_MAPS: { key: string; name: string }[] = [
 ];
 
 const MODES = ['Ranked', 'Ranked', 'Ranked', 'Unranked', 'Quick Match'];
+const MOCK_WEAPONS = ['R4-C', 'MP5', 'AK-12', 'P90', 'SG-CQB'];
 const DAY = 86_400_000;
 const NOW = Date.UTC(2026, 9, 31, 22, 0, 0);
 
@@ -97,6 +98,19 @@ function applyFilter(f: Filter): MatchRow[] {
     rows = rows.filter((m) => m.mode === want);
   }
   if (f.maps.length) rows = rows.filter((m) => f.maps.includes(m.mapKey));
+  if (f.dateFrom || f.dateTo || f.hourFrom !== null || f.hourTo !== null) {
+    const off = -new Date().getTimezoneOffset() * 60_000;
+    rows = rows.filter((m) => {
+      const local = new Date(Date.parse(m.timestamp) + off).toISOString();
+      const day = local.slice(0, 10);
+      const hour = Number(local.slice(11, 13));
+      if (f.dateFrom && day < f.dateFrom) return false;
+      if (f.dateTo && day > f.dateTo) return false;
+      const hf = f.hourFrom ?? 0;
+      const ht = f.hourTo ?? 23;
+      return hf <= ht ? hour >= hf && hour <= ht : hour >= hf || hour <= ht;
+    });
+  }
   const limit = { last1: 1, last5: 5, last20: 20, season: 24, all: Infinity }[f.range];
   return rows.slice(0, limit);
 }
@@ -255,7 +269,10 @@ export function mockMatchDetail(matchId: string): MatchDetail {
         victim: rows[vi].username,
         victimOperator: rows[vi].ops[ri],
         headshot: hs,
-        killerTeam: killerTeam as 0 | 1
+        killerTeam: killerTeam as 0 | 1,
+        // Mock: some kills carry no weapon, like replays where it could not be decoded.
+        weapon: k % 3 === 2 ? null : MOCK_WEAPONS[(ri + k) % MOCK_WEAPONS.length],
+        weaponSlot: k % 3 === 2 ? null : 'primary'
       });
     }
     alive.forEach((i) => rows[i].survived++);

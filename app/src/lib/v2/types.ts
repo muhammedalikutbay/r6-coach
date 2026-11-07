@@ -13,6 +13,14 @@ export interface Filter {
   side: Side;
   operators: string[];
   maps: string[];
+  /** Local date 'YYYY-MM-DD', inclusive. */
+  dateFrom: string | null;
+  dateTo: string | null;
+  /** Local hour 0-23, inclusive. hourFrom > hourTo wraps past midnight (22 -> 2). */
+  hourFrom: number | null;
+  hourTo: number | null;
+  /** Minutes to add to UTC to get local time. Set by api.ts on every call, not by the UI. */
+  tzOffsetMin: number;
 }
 
 export const DEFAULT_FILTER: Filter = {
@@ -20,7 +28,12 @@ export const DEFAULT_FILTER: Filter = {
   mode: 'all',
   side: 'both',
   operators: [],
-  maps: []
+  maps: [],
+  dateFrom: null,
+  dateTo: null,
+  hourFrom: null,
+  hourTo: null,
+  tzOffsetMin: 0
 };
 
 export interface Kpis {
@@ -123,6 +136,10 @@ export interface KillEventView {
   headshot: boolean;
   /** 0 = my team, 1 = other team. */
   killerTeam: 0 | 1;
+  /** Weapon display name, e.g. 'R4-C'. Null when unknown. */
+  weapon: string | null;
+  /** 'primary' | 'secondary' | 'gadget' | 'ability', or null when unknown. */
+  weaponSlot: string | null;
 }
 
 export interface RoundDetail {
