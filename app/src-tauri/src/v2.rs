@@ -4,12 +4,38 @@
 use r6k_core::coach::CoachReport;
 use r6k_core::query::{self, Filter, MatchDetail, MatchRow, QueryResult};
 
-use crate::{lock, store, Cmd};
+use crate::{lock, store, ubisoft, Cmd};
+
+/// Converts the Ubisoft module's totals into the core `QueryResult` shape.
+fn to_core_totals(t: ubisoft::OfficialTotals) -> query::OfficialTotals {
+    query::OfficialTotals {
+        scope: match t.scope {
+            ubisoft::Scope::Season => "season".into(),
+            ubisoft::Scope::All => "all".into(),
+        },
+        kd: t.kd,
+        win_pct: t.win_pct,
+        kills: t.kills,
+        deaths: t.deaths,
+        wins: t.wins,
+        losses: t.losses,
+        matches: t.matches,
+        fetched_at: t.fetched_at,
+    }
+}
 
 fn run_query(conn: &rusqlite::Connection, filter: &Filter) -> Cmd<QueryResult> {
     let matches = store::load_full_matches(conn).map_err(|e| e.to_string())?;
-    let result = query::query(filter, &matches);
-    log::info!("query {:?}: {} match(es), source {:?}", filter, result.match_count, result.source);
+    let mut result = query::query(filter, &matches);
+    // Official Ubisoft totals, from the signed-in user's cached profile only (no network).
+    result.official = ubisoft::cached_official(conn, filter).map(to_core_totals);
+    log::info!(
+        "query {:?}: {} match(es), source {:?}, official {}",
+        filter,
+        result.match_count,
+        result.source,
+        result.official.is_some()
+    );
     Ok(result)
 }
 

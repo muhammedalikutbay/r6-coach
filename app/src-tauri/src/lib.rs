@@ -2,6 +2,7 @@ mod report;
 mod store;
 mod summary;
 mod tables;
+mod ubisoft;
 mod v2;
 mod watcher;
 
@@ -193,6 +194,8 @@ pub fn run() {
             app.manage(store::Db(Mutex::new(conn)));
             let w = watcher::start(app.handle());
             app.manage(w);
+            // Ubisoft sign-in state; no network call until the user signs in or asks for rank.
+            app.manage(ubisoft::UbiState::new());
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
@@ -209,7 +212,12 @@ pub fn run() {
             v2::query,
             v2::list_matches,
             v2::match_detail,
-            v2::coach
+            v2::coach,
+            ubisoft::ubi_status,
+            ubisoft::ubi_login,
+            ubisoft::ubi_login_2fa,
+            ubisoft::ubi_logout,
+            ubisoft::ranked_profile
         ])
         .run(tauri::generate_context!())
     {
