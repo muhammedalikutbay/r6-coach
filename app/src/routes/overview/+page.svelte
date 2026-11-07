@@ -15,30 +15,40 @@
   import MatchRowItem from '$lib/v2/components/MatchRowItem.svelte';
   import { filterStore } from '$lib/v2/filter.svelte';
   import { query } from '$lib/v2/api';
-  import { ubiStatus, rankedProfile } from '$lib/v2/ubisoft';
+  import { arenyzeStatus, onlineProfile } from '$lib/v2/arenyze';
   import { refreshTick } from '$lib/v2/refresh.svelte';
   import { formatShortDate } from '$lib/v2/format';
   import { toast } from '$lib/toast.svelte';
-  import type { QueryResult, RankedProfile, UbiStatus } from '$lib/v2/types';
+  import type { ArenyzeStatus, OfficialOperator, OnlineProfile, QueryResult } from '$lib/v2/types';
 
   let data = $state<QueryResult | null>(null);
   let loading = $state(true);
   let failed = $state(false);
   let seq = 0;
 
-  let ubi = $state<UbiStatus | null>(null);
-  let profile = $state<RankedProfile | null>(null);
+  let online = $state<ArenyzeStatus | null>(null);
+  let profile = $state<OnlineProfile | null>(null);
+  let rankError = $state<string | null>(null);
   let rankLoading = $state(true);
   let rankRefreshing = $state(false);
 
+  /** Rank + official numbers from Arenyze. Without `force` this is served from the 15-minute cache. */
   async function loadRank(force: boolean) {
     try {
-      ubi = await ubiStatus();
-      profile = ubi.signedIn ? await rankedProfile(force) : null;
+      online = await arenyzeStatus();
+      if (!online.hasKey) {
+        profile = null;
+        rankError = null;
+        return;
+      }
+      profile = await onlineProfile(force);
+      rankError = null;
+      online = await arenyzeStatus(); // username / quota may have changed
     } catch (e) {
       console.error('[overview] rank failed', e);
-      profile = null;
-      if (force) toast('error', 'Could not refresh your rank.');
+      // Keep the last profile on screen when a refresh fails.
+      rankError = typeof e === 'string' ? e : 'Could not load your rank.';
+      if (force) toast('error', rankError);
     }
   }
 
@@ -84,6 +94,16 @@
       value: t.kd
     }))
   );
+  const normName = (s: string) => s.toLowerCase().replace(/[^a-z0-9]/g, '');
+  // Official (Arenyze) per-operator numbers of the current ranked season: shown on the season range only.
+  const officialOps = $derived.by(() => {
+    const map = new Map<string, OfficialOperator>();
+    if (filterStore.value.range !== 'season' || !profile) return map;
+    for (const o of profile.operators) map.set(`${normName(o.name)}|${o.side}`, o);
+    return map;
+  });
+  const officialOf = (name: string, side: string) =>
+    officialOps.get(`${normName(name)}|${side}`) ?? officialOps.get(`${normName(name)}|`);
   const maxRounds = $derived(Math.max(1, ...(data?.operators ?? []).map((o) => o.rounds)));
   const pct = (v: number) => `${v.toFixed(1)}%`;
   const winBars = (m: { attackWinPct: number; defenseWinPct: number }) => [
@@ -94,7 +114,7 @@
 
 <PageHeader title="Overview" sub={sourceHint} />
 
-<RankHeader {profile} status={ubi} loading={rankLoading} refreshing={rankRefreshing} onrefresh={refreshRank} />
+<RankHeader {profile} status={online} loading={rankLoading} refreshing={rankRefreshing} error={rankError} onrefresh={refreshRank} />
 
 {#if loading && !data}
   <div class="grid grid-cols-2 gap-3 lg:grid-cols-3 xl:grid-cols-6">
@@ -113,10 +133,10 @@
   <div class="transition-opacity {loading ? 'opacity-60' : ''}">
     <div class="mb-6 grid grid-cols-2 gap-3 lg:grid-cols-3 xl:grid-cols-6">
       <StatCard label="K/D" value={data.kpis.kd.toFixed(2)} sub="{data.kpis.rounds} rounds">
-        {#if data.official}<div class="text-xs text-muted tabular-nums">Ubisoft: {data.official.kd.toFixed(2)} K/D</div>{/if}
+        {#if data.official}<div class="text-xs text-muted tabular-nums">Official: {data.official.kd.toFixed(2)} K/D</div>{/if}
       </StatCard>
       <StatCard label="Win %" value={pct(data.kpis.winPct)} sub="{data.kpis.matches} matches">
-        {#if data.official}<div class="text-xs text-muted tabular-nums">Ubisoft: {pct(data.official.winPct)} win</div>{/if}
+        {#if data.official}<div class="text-xs text-muted tabular-nums">Official: {pct(data.official.winPct)} win</div>{/if}
       </StatCard>
       <StatCard label="HS %" value={pct(data.kpis.hsPct)} />
       <StatCard label="Kills / round" value={data.kpis.killsPerRound.toFixed(2)} />
@@ -154,6 +174,12 @@
                     {#if op.side === 'attack'}<Swords class="size-3 text-muted" />{:else}<Shield class="size-3 text-muted" />{/if}
                   </div>
                   <div class="text-xs text-muted tabular-nums">{op.rounds} rounds · Win {op.winPct.toFixed(0)}%</div>
+                  {#if officialOf(op.name, op.side)}
+                    {@const off = officialOf(op.name, op.side)!}
+                    <div class="text-xs text-muted tabular-nums" title="Official numbers from Arenyze, ranked, current season">
+                      Official: {off.kd.toFixed(2)} K/D · {off.rounds} rounds
+                    </div>
+                  {/if}
                 </div>
                 <div class="text-right">
                   <div class="text-sm font-bold tabular-nums">{op.kd.toFixed(2)}</div>

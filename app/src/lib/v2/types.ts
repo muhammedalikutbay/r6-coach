@@ -110,33 +110,64 @@ export interface OfficialTotals {
   fetchedAt: string;
 }
 
-export interface UbiStatus {
-  signedIn: boolean;
+export interface ArenyzeQuota {
+  plan: string | null;
+  used: number | null;
+  limit: number | null;
+  remaining: number | null;
+  /** ISO UTC. */
+  checkedAt: string;
+}
+
+export interface ArenyzeStatus {
+  hasKey: boolean;
+  /** Tracked player (newest stored match); null until a replay is imported. */
   username: string | null;
-  profileId: string | null;
-  matchesReplayPlayer: boolean | null;
+  quota: ArenyzeQuota | null;
+  /** ISO UTC of the last successful online fetch. */
+  lastFetchedAt: string | null;
+  /** A raw answer is in memory and can be saved for diagnostics. */
+  hasRawResponse: boolean;
 }
 
-export interface UbiLoginResult {
-  status: 'ok' | 'needs2fa' | 'error';
-  message: string | null;
-  user: UbiStatus | null;
-}
-
-export interface RankedProfile {
-  season: string;
-  rankName: string;
+export interface RankPoint {
+  label: string | null;
   rankPoints: number;
-  maxRankName: string;
-  maxRankPoints: number;
-  topRankPosition: number | null;
+}
+
+/** Official per-operator numbers of the current ranked season. */
+export interface OfficialOperator {
+  name: string;
+  side: 'attack' | 'defense' | '';
+  rounds: number;
+  kd: number;
   kills: number;
   deaths: number;
-  wins: number;
-  losses: number;
-  abandons: number;
+}
+
+/** The tracked player's online profile. Fields Arenyze did not return are null. */
+export interface OnlineProfile {
+  source: 'arenyze';
+  username: string;
+  season: string | null;
+  rankName: string | null;
+  rankPoints: number | null;
+  maxRankName: string | null;
+  maxRankPoints: number | null;
+  topRankPosition: number | null;
   /** Local asset key under /assets/ranks/<key>.png, or null. */
   rankIcon: string | null;
+  seasonKd: number | null;
+  kills: number | null;
+  deaths: number | null;
+  wins: number | null;
+  losses: number | null;
+  abandons: number | null;
+  matches: number | null;
+  level: number | null;
+  profilePictureUrl: string | null;
+  rankHistory: RankPoint[];
+  operators: OfficialOperator[];
   /** ISO UTC. */
   fetchedAt: string;
   official: { season: OfficialTotals | null; all: OfficialTotals | null };
@@ -145,7 +176,7 @@ export interface RankedProfile {
 export interface QueryResult {
   /** Always computed from the stored local replays. */
   source: 'replays';
-  /** Official Ubisoft totals; set by the app shell when signed in and the filter is plain season/all. */
+  /** Official Arenyze totals (cached, no network); set when a key is saved and the filter is plain season/all. */
   official?: OfficialTotals | null;
   matchCount: number;
   kpis: Kpis;

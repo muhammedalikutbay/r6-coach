@@ -9,7 +9,7 @@
   import Skeleton from '$lib/components/Skeleton.svelte';
   import Card from '$lib/components/ui/Card.svelte';
   import Button from '$lib/components/ui/Button.svelte';
-  import UbisoftSignIn from '$lib/v2/components/UbisoftSignIn.svelte';
+  import ArenyzeKey from '$lib/v2/components/ArenyzeKey.svelte';
 
   let dir = $state('');
   let loading = $state(true);
@@ -98,7 +98,7 @@
     <Button onclick={change} disabled={busy || loading}>Change folder</Button>
   </Card>
 
-  <UbisoftSignIn />
+  <ArenyzeKey />
 
   <Card>
     <h3 class="font-semibold">Welcome</h3>

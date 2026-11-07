@@ -32,13 +32,12 @@ rusqlite = { version = "0.32", features = ["bundled"] }
 flate2 = "1"
 notify-debouncer-mini = "0.6"
 
-# Ubisoft sign-in (v3): HTTPS via rustls with the `ring` provider (no aws-lc/cmake build),
-# OS certificate store via rustls-platform-verifier. The remember-me ticket lives in the
+# Arenyze online stats (v4): HTTPS via rustls with the `ring` provider (no aws-lc/cmake build),
+# OS certificate store via rustls-platform-verifier. The user's API key lives in the
 # Windows Credential Manager (`keyring`, windows-native backend).
 reqwest = { version = "0.13", default-features = false, features = ["rustls-no-provider"] }
 rustls = { version = "0.23", default-features = false, features = ["ring", "std", "tls12"] }
 keyring = { version = "3", features = ["windows-native"] }
-base64 = "0.22"
 chrono = { version = "0.4", default-features = false, features = ["clock", "std"] }
 
 [dev-dependencies]

@@ -1,8 +1,8 @@
+mod arenyze;
 mod report;
 mod store;
 mod summary;
 mod tables;
-mod ubisoft;
 mod v2;
 mod watcher;
 
@@ -191,11 +191,13 @@ pub fn run() {
             let dir = app.path().app_data_dir()?;
             std::fs::create_dir_all(&dir)?;
             let conn = store::open(&dir.join("r6koc.db"))?;
+            // Remove what the old Ubisoft sign-in left behind (once).
+            arenyze::cleanup_legacy(&conn);
             app.manage(store::Db(Mutex::new(conn)));
             let w = watcher::start(app.handle());
             app.manage(w);
-            // Ubisoft sign-in state; no network call until the user signs in or asks for rank.
-            app.manage(ubisoft::UbiState::new());
+            // Arenyze state; no network call until the user has entered a key and asks for rank.
+            app.manage(arenyze::ArenyzeState::new());
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
@@ -213,11 +215,12 @@ pub fn run() {
             v2::list_matches,
             v2::match_detail,
             v2::coach,
-            ubisoft::ubi_status,
-            ubisoft::ubi_login,
-            ubisoft::ubi_login_2fa,
-            ubisoft::ubi_logout,
-            ubisoft::ranked_profile
+            arenyze::arenyze_status,
+            arenyze::arenyze_set_key,
+            arenyze::arenyze_clear_key,
+            arenyze::online_profile,
+            arenyze::arenyze_save_last_response,
+            arenyze::arenyze_open_key_page
         ])
         .run(tauri::generate_context!())
     {
