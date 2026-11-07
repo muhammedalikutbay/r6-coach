@@ -14,6 +14,7 @@ type Header struct {
 	GameVersion            string    `json:"gameVersion"`
 	CodeVersion            int       `json:"codeVersion"`
 	Timestamp              time.Time `json:"timestamp"`
+	StartTimeMs            int64     `json:"startTime,omitempty"` // header "starttime": round start, Unix ms
 	MatchType              MatchType `json:"matchType"`
 	Map                    Map       `json:"map"`
 	Site                   string    `json:"site,omitempty"`
@@ -444,6 +445,15 @@ func (r *Reader) readHeader() (Header, error) {
 		return h, err
 	}
 	h.Timestamp = t
+	// Parse round start (Unix ms). Optional: older replays may lack it, and a bad value must
+	// not make the whole file unreadable.
+	if v, ok := props["starttime"]; ok {
+		if ms, err := strconv.ParseInt(v, 10, 64); err == nil {
+			h.StartTimeMs = ms
+		} else {
+			log.Debug().Err(err).Msg("omitting starttime")
+		}
+	}
 	// Parse match type
 	n, err = strconv.Atoi(props["matchtype"])
 	if err != nil {

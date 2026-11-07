@@ -18,6 +18,9 @@ pub struct RawRound {
     pub game_version: String,
     #[serde(default)]
     pub timestamp: String,
+    /// Round start, Unix ms (header `starttime`); 0 when the replay has none.
+    #[serde(default)]
+    pub start_time: i64,
     #[serde(default)]
     pub match_type: Named,
     #[serde(default)]

@@ -20,7 +20,11 @@
       }
     ],
     "security": {
-      "csp": null
+      "csp": null,
+      "assetProtocol": {
+        "enable": true,
+        "scope": ["$LOCALAPPDATA/com.kutbay.r6koc/clips/**"]
+      }
     }
   },
   "bundle": {

@@ -126,9 +126,13 @@ fn watch(app: &AppHandle, tx: &Sender<Msg>) -> Option<Debouncer<RecommendedWatch
         return None;
     }
     let tx = tx.clone();
+    let app = app.clone();
     let handler = move |res: DebounceEventResult| match res {
         Ok(events) if !events.is_empty() => {
             log::debug!("replay watcher: {} change(s)", events.len());
+            // Kill clips: the game writes a round file when the round ends, so a changed `.rec`
+            // means "cut the clips of that round now" (ignored unless the user enabled clips).
+            crate::clips::on_replay_files(&app, events.iter().map(|e| e.path.clone()).collect());
             let _ = tx.send(Msg::Refresh);
         }
         Ok(_) => {}

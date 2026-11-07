@@ -901,6 +901,7 @@ mod tests {
         let other = if my_side == Side::Attack { Side::Defense } else { Side::Attack };
         FullRound {
             number: n,
+            start_time_ms: 0,
             winner_team: Some(if won { 0 } else { 1 }),
             win_condition: WinCondition::Elimination,
             site: "Lobby".into(),

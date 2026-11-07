@@ -58,6 +58,11 @@ Principle: unknown operator, map or role IDs must never panic; the raw ID stays 
    96.4%, name found 95.0%; every asset ID maps to one name (except the per-operator Nitro Cell variants).
    Output apart from these fields is identical to the build before this patch. Re-check after each Siege update.
 
+6. **Round start time** (`dissect/header.go`). The header property `starttime` (Unix ms, the same moment as
+   `datetime`, but real UTC) is parsed into `Header.StartTimeMs` and written as `startTime` in the JSON (omitted when
+   the header has none or it does not parse). The v4 kill clips use it to place a round on the wall clock. Output
+   apart from this field is unchanged.
+
 Other callers of `Role()` (`player.go`, `site.go`) compare against `Defense`, so `Unknown` is safe there.
 
 ## Build and verify

@@ -1011,6 +1011,7 @@ mod tests {
         let rounds = (1..=n)
             .map(|i| FullRound {
                 number: i,
+                start_time_ms: 0,
                 winner_team: Some(if i <= win_rounds { 0 } else { 1 }),
                 win_condition: WinCondition::Elimination,
                 site: String::new(),

@@ -32,5 +32,6 @@ The app never sends requests to Tracker Network or Ubisoft. Since v4 (user decis
 - Unknown operator or map IDs must never crash anything: keep the raw ID and show a readable fallback.
 
 ## Lessons
+- Never launch `r6koc-app.exe` (debug or release) to test: it always opens the user's real app data. Setting `APPDATA` / `LOCALAPPDATA` does not isolate it, because Tauri resolves these folders through the Windows known-folder API. Test backend logic with unit tests and temp databases; leave real app runs to the user. (Incident 2026-11-07, clips task.)
 - Dev runs, built exes and the installed app share one app data folder (`%APPDATA%\com.kutbay.r6koc` with `r6koc.db`, `%LOCALAPPDATA%\com.kutbay.r6koc`). Scenarios that call `reset_database` or cleanup that deletes these folders also hit the user's own copy. Before such a test, check that no `R6 Coach.exe` / `r6koc-app.exe` started by the user is running; if one is, do not reset or delete.
 - r6-dissect binary offsets break on every Siege season. Operator swaps were lost in Y11 (about 11-16% wrong operators, found by comparing with Tracker). After a game update, re-compare replay operators with the Tracker JSON before trusting new data (see `tools/r6-dissect/UPSTREAM.md`, patch 4).

@@ -1,4 +1,5 @@
 mod arenyze;
+mod clips;
 mod report;
 mod store;
 mod summary;
@@ -193,7 +194,10 @@ pub fn run() {
             let conn = store::open(&dir.join("r6koc.db"))?;
             // Remove what the old Ubisoft sign-in left behind (once).
             arenyze::cleanup_legacy(&conn);
+            let clip_settings = clips::load_settings(&conn);
             app.manage(store::Db(Mutex::new(conn)));
+            // Kill clips (v4): off by default; the recorder thread idles until the user turns it on.
+            app.manage(clips::init(app.handle(), clip_settings)?);
             let w = watcher::start(app.handle());
             app.manage(w);
             // Arenyze state; no network call until the user has entered a key and asks for rank.
@@ -220,7 +224,15 @@ pub fn run() {
             arenyze::arenyze_clear_key,
             arenyze::online_profile,
             arenyze::arenyze_save_last_response,
-            arenyze::arenyze_open_key_page
+            arenyze::arenyze_open_key_page,
+            clips::get_clip_settings,
+            clips::set_clip_settings,
+            clips::clips_status,
+            clips::list_clips,
+            clips::set_clip_starred,
+            clips::delete_all_clips,
+            clips::show_clip_in_folder,
+            clips::open_clips_folder
         ])
         .run(tauri::generate_context!())
     {

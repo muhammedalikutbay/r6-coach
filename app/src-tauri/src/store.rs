@@ -127,6 +127,28 @@ pub fn migrate(conn: &Connection) -> rusqlite::Result<()> {
             ALTER TABLE meta ADD COLUMN parser_version INTEGER NOT NULL DEFAULT 0;",
         )?;
     }
+    // Kill clips (v4): created whenever it is missing, independent of the schema number, so it
+    // does not collide with other tables added in parallel. Rows point at match IDs without a
+    // foreign key (a clip is cut when a round ends, before the match row exists).
+    conn.execute_batch(
+        "CREATE TABLE IF NOT EXISTS clips (
+            id          INTEGER PRIMARY KEY AUTOINCREMENT,
+            match_id    TEXT NOT NULL,
+            round       INTEGER NOT NULL,
+            kind        TEXT NOT NULL,
+            time_s      INTEGER NOT NULL,
+            killer      TEXT NOT NULL DEFAULT '',
+            victim      TEXT NOT NULL DEFAULT '',
+            path        TEXT NOT NULL,
+            starred     INTEGER NOT NULL DEFAULT 0,
+            size        INTEGER NOT NULL,
+            start_ms    INTEGER NOT NULL DEFAULT 0,
+            duration_ms INTEGER NOT NULL DEFAULT 0,
+            created_ms  INTEGER NOT NULL,
+            UNIQUE (match_id, round, kind, time_s, victim)
+        );
+        CREATE INDEX IF NOT EXISTS idx_clips_match ON clips(match_id);",
+    )?;
     // Future steps: `if current < 5 { ... }`
     conn.execute("UPDATE meta SET schema_version = ?1", [SCHEMA_VERSION])?;
     Ok(())

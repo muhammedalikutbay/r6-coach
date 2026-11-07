@@ -71,6 +71,10 @@ pub struct KillEvent {
 pub struct FullRound {
     /// 1-based.
     pub number: u32,
+    /// Round start on the wall clock (Unix ms, replay header `starttime`); 0 when the replay has
+    /// none. Older stored JSON has no such field and reads as 0.
+    #[serde(default)]
+    pub start_time_ms: i64,
     /// Team index of the round winner, if known.
     pub winner_team: Option<usize>,
     pub win_condition: WinCondition,
@@ -284,6 +288,7 @@ fn convert_round(r: &RawRound, me_profile_id: &str) -> FullRound {
 
     FullRound {
         number: r.round_number + 1,
+        start_time_ms: r.start_time,
         winner_team,
         win_condition: win_condition(r, winner_team, &round_players),
         site: r.site.clone(),
@@ -421,6 +426,20 @@ mod tests {
         assert_eq!((k[1].weapon.as_deref(), k[1].weapon_slot.as_deref()), (None, None));
         // no weapon fields at all
         assert_eq!((k[2].weapon_id, k[2].weapon.as_deref(), k[2].weapon_slot.as_deref()), (None, None, None));
+    }
+
+    #[test]
+    fn round_start_time_comes_from_the_header_and_defaults_to_zero() {
+        let with = JSON.replacen("\"rounds\":[{", "\"rounds\":[{\"startTime\":1793397371708,", 1);
+        assert_ne!(with, JSON, "fixture has the expected shape");
+        assert_eq!(full_match_from_json(&with).unwrap().rounds[0].start_time_ms, 1_793_397_371_708);
+        assert_eq!(full_match_from_json(JSON).unwrap().rounds[0].start_time_ms, 0);
+        // Stored JSON of an older build has no such field.
+        let r = &full_match_from_json(JSON).unwrap().rounds[0];
+        let mut v = serde_json::to_value(r).unwrap();
+        v.as_object_mut().unwrap().remove("start_time_ms");
+        let back: FullRound = serde_json::from_value(v).unwrap();
+        assert_eq!(back.start_time_ms, 0);
     }
 
     #[test]

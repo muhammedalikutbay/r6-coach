@@ -8,6 +8,7 @@
   import { toast, toastError } from '$lib/toast.svelte';
   import { cn } from '$lib/utils';
   import { onReplaysUpdated, refreshTick } from '$lib/v2/refresh.svelte';
+  import { watchClipWarnings } from '$lib/v2/clips';
   import WelcomeScreen from '$lib/WelcomeScreen.svelte';
   import Toaster from '$lib/components/Toaster.svelte';
   import FilterBar from '$lib/v2/components/FilterBar.svelte';
@@ -23,6 +24,13 @@
     } catch (e) {
       console.error('first-run folder check failed', e);
     }
+  });
+
+  // Clip recorder warnings (e.g. exclusive fullscreen gives a black capture), shown once as a toast.
+  onMount(() => {
+    let stop: (() => void) | undefined;
+    watchClipWarnings().then((f) => (stop = f));
+    return () => stop?.();
   });
 
   // Auto refresh: the backend imports new replays by itself and sends `replays-updated`.

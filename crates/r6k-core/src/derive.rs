@@ -277,6 +277,7 @@ mod tests {
         }
         FullRound {
             number,
+            start_time_ms: 0,
             winner_team: Some(winner),
             win_condition: WinCondition::Elimination,
             site: String::new(),

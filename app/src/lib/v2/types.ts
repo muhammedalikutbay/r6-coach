@@ -266,3 +266,75 @@ export interface CoachReport {
   focusLabel: string;
   referenceLabel: string;
 }
+
+// ---------------------------------------------------------------- kill clips (v4)
+
+/** Which events get a clip. */
+export type ClipKinds = 'kills' | 'deaths' | 'both';
+
+export interface ClipSettings {
+  /** Recording is off until the user turns it on. */
+  enabled: boolean;
+  kinds: ClipKinds;
+  /** Keep the clips of this many newest matches; 0 = all. */
+  keepMatches: number;
+  /** Disk cap for all clips in GB; 0 = none. */
+  diskCapGb: number;
+  /** Seconds added to every event time to correct a systematic timing error. */
+  offsetS: number;
+  /** Clip window: seconds before the event ... */
+  beforeS: number;
+  /** ... and after it. */
+  afterS: number;
+}
+
+export type RecState = 'off' | 'waiting' | 'recording' | 'minimized' | 'error';
+
+export interface RecStatus {
+  state: RecState;
+  gameRunning: boolean;
+  /** The capture is black: the game is probably in exclusive fullscreen. */
+  blackFrames: boolean;
+  message: string;
+}
+
+export interface ClipsStatus {
+  recording: RecStatus;
+  bufferBytes: number;
+  clipsBytes: number;
+  clipsCount: number;
+  starredCount: number;
+  clipsDir: string;
+}
+
+export interface ClipRow {
+  id: number;
+  matchId: string;
+  /** 1-based, like `RoundDetail.number`. */
+  round: number;
+  kind: 'kill' | 'death';
+  /** Round clock value of the event: the same number as `KillEventView.timeS`. */
+  timeS: number;
+  killer: string;
+  victim: string;
+  /** Absolute path of the MP4 file. */
+  path: string;
+  starred: boolean;
+  size: number;
+  /** Where playback starts inside the file (the file begins at a keyframe before it). */
+  startMs: number;
+  durationMs: number;
+  createdMs: number;
+}
+
+/** Payload of the `clips-updated` event. */
+export interface ClipsUpdated {
+  matchId: string;
+  added: number;
+}
+
+/** Payload of the `clips-warning` event. */
+export interface ClipsWarning {
+  kind: 'blackFrames';
+  message: string;
+}

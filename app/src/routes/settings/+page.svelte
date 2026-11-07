@@ -10,6 +10,7 @@
   import Card from '$lib/components/ui/Card.svelte';
   import Button from '$lib/components/ui/Button.svelte';
   import ArenyzeKey from '$lib/v2/components/ArenyzeKey.svelte';
+  import ClipSettings from '$lib/v2/components/ClipSettings.svelte';
 
   let dir = $state('');
   let loading = $state(true);
@@ -99,6 +100,8 @@
   </Card>
 
   <ArenyzeKey />
+
+  <ClipSettings />
 
   <Card>
     <h3 class="font-semibold">Welcome</h3>

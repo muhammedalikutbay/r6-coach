@@ -19,7 +19,7 @@ crate-type = ["staticlib", "cdylib", "rlib"]
 tauri-build = { version = "2", features = [] }
 
 [dependencies]
-tauri = { version = "2", features = [] }
+tauri = { version = "2", features = ["protocol-asset"] }
 log = "0.4"
 tauri-plugin-dialog = "2"
 serde = { version = "1", features = ["derive"] }
@@ -39,6 +39,14 @@ reqwest = { version = "0.13", default-features = false, features = ["rustls-no-p
 rustls = { version = "0.23", default-features = false, features = ["ring", "std", "tls12"] }
 keyring = { version = "3", features = ["windows-native"] }
 chrono = { version = "0.4", default-features = false, features = ["clock", "std"] }
+mp4 = "0.14"
 
 [dev-dependencies]
 tempfile = "3"
+bytes = "1"
+
+# Kill clips (v4): Windows Graphics Capture of the game window (no injection, hardware H.264 encoder),
+# plus the few Win32 calls to find the game window. Nothing is downloaded at run time.
+[target."cfg(windows)".dependencies]
+windows-capture = "2"
+windows = { version = "0.62", features = ["Win32_Foundation", "Win32_System_Threading", "Win32_UI_WindowsAndMessaging"] }

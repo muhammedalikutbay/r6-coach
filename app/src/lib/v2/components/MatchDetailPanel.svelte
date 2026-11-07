@@ -1,12 +1,14 @@
 <script lang="ts">
-  import { Skull, Bomb, ShieldCheck, Clock, Crosshair, X, CircleHelp } from '@lucide/svelte';
+  import { Skull, Bomb, ShieldCheck, Clock, Crosshair, X, CircleHelp, Play, Star } from '@lucide/svelte';
   import OperatorBadge from '$lib/components/OperatorBadge.svelte';
   import MapThumb from '$lib/components/MapThumb.svelte';
   import Skeleton from '$lib/components/Skeleton.svelte';
   import { cn } from '$lib/utils';
   import { formatDateTime } from '$lib/v2/format';
   import * as api from '$lib/v2/api';
-  import type { MatchDetail, RoundDetail, ScoreboardRow } from '$lib/v2/types';
+  import * as clipApi from '$lib/v2/clips';
+  import ClipPlayer from '$lib/v2/components/ClipPlayer.svelte';
+  import type { ClipRow, KillEventView, MatchDetail, RoundDetail, ScoreboardRow } from '$lib/v2/types';
 
   let { matchId, onclose }: { matchId: string; onclose: () => void } = $props();
 
@@ -33,6 +35,46 @@
   });
 
   const round = $derived(detail?.rounds.find((r) => r.number === selected) ?? detail?.rounds[0]);
+
+  // Clips (v4): the kill feed row of a clipped kill or death gets a play button. A clip is matched
+  // to its row by round, round clock value and the two players.
+  let clipRows = $state<ClipRow[]>([]);
+  let playing = $state<ClipRow | null>(null);
+  const clipKey = (r: number, t: number, killer: string, victim: string) => `${r}|${t}|${killer}|${victim}`;
+  const clipByKey = $derived(new Map(clipRows.map((c) => [clipKey(c.round, c.timeS, c.killer, c.victim), c])));
+  const clipOf = (k: KillEventView): ClipRow | undefined =>
+    round ? clipByKey.get(clipKey(round.number, k.timeS, k.killer, k.victim)) : undefined;
+
+  $effect(() => {
+    const id = matchId;
+    clipRows = [];
+    playing = null;
+    const load = () =>
+      clipApi
+        .listClips(id)
+        .then((rows) => {
+          if (id === matchId) clipRows = rows;
+        })
+        .catch((e) => console.error('[clips] cannot load the clips of this match', e));
+    void load();
+    let unlisten: (() => void) | undefined;
+    let closed = false;
+    clipApi
+      .onClipsUpdated((u) => {
+        if (u.matchId === id) void load();
+      })
+      .then((u) => (closed ? u() : (unlisten = u)))
+      .catch((e) => console.error('[clips] cannot listen for clip updates', e));
+    return () => {
+      closed = true;
+      unlisten?.();
+    };
+  });
+
+  function clipChanged(c: ClipRow) {
+    clipRows = clipRows.map((x) => (x.id === c.id ? c : x));
+    if (playing?.id === c.id) playing = c;
+  }
 
   function condIcon(c: string) {
     const s = c.toLowerCase();
@@ -216,6 +258,7 @@
           {:else}
             <ul class="divide-y divide-border rounded-lg border border-border">
               {#each round.kills as k, i (i)}
+                {@const clip = clipOf(k)}
                 <li class="flex items-center gap-2 px-3 py-1.5 text-sm">
                   <span class="w-10 text-xs text-muted">{fmtTime(k.timeS)}</span>
                   <OperatorBadge opKey={k.killerOperator} name={opName(k.killerOperator)} size={22} />
@@ -224,6 +267,18 @@
                   <OperatorBadge opKey={k.victimOperator} name={opName(k.victimOperator)} size={22} />
                   <span class={cn(k.killerTeam === 0 ? 'text-bad' : 'text-good')}>{k.victim}</span>
                   {#if k.weapon}<span class="ml-auto text-xs text-muted" title={k.weaponSlot ?? undefined}>{k.weapon}</span>{/if}
+                  {#if clip}
+                    <button
+                      type="button"
+                      onclick={() => (playing = clip)}
+                      title={clip.kind === 'kill' ? 'Play the clip of this kill' : 'Play the clip of this death'}
+                      aria-label="Play clip"
+                      class={cn('flex items-center gap-1 rounded-md p-1 text-accent hover:bg-accent/15', !k.weapon && 'ml-auto')}
+                    >
+                      {#if clip.starred}<Star class="size-3.5 fill-accent" />{/if}
+                      <Play class="size-4 fill-current" />
+                    </button>
+                  {/if}
                 </li>
               {/each}
             </ul>
@@ -233,3 +288,7 @@
     </div>
   {/if}
 </div>
+
+{#if playing}
+  <ClipPlayer clip={playing} onclose={() => (playing = null)} onchange={clipChanged} />
+{/if}

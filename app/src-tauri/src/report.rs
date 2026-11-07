@@ -119,6 +119,7 @@ mod tests {
                 .iter()
                 .map(|r| FullRound {
                     number: r.number,
+                    start_time_ms: 0,
                     winner_team: Some(if r.won { 0 } else { 1 }),
                     win_condition: WinCondition::Elimination,
                     site: String::new(),
