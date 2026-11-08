@@ -161,8 +161,8 @@ mod tests {
         let s = MatchSummary::from(&m);
         assert_eq!((s.score_us, s.score_them), (2, 1));
         assert_eq!(s.operators[0], OperatorUse { name: "Azami".into(), rounds: 2 });
-        assert_eq!(s.operators[1].name, "Operator #5");
-        assert_eq!(s.map, "Map #999");
+        assert_eq!(s.operators[1].name, "Unknown operator (5)");
+        assert_eq!(s.map, "Unknown map (999)");
         assert_eq!((s.kills, s.first_bloods), (3, 1));
         let json = serde_json::to_value(&s).unwrap();
         for key in ["matchId", "scoreUs", "scoreThem", "matchType", "firstBloods", "firstDeaths"] {

@@ -22,7 +22,7 @@ Principle: unknown operator, map or role IDs must never panic; the raw ID stays 
 3. **Round end with unknown players** (`dissect/time.go`, `dissect/utils.go`): kill/death/defuser feedback that
    names a player missing from the header used to index `Players[-1]` (index out of range panic).
    New helper `teamIndexByUsername` returns -1 and those entries are skipped.
-
+
 4. **Operator swaps in Y11 replays** (`dissect/player.go` `readAtkOpSwap`, `dissect/reader.go` `pawnOwner`).
    Root cause: the header lists the operator picked at the start; operators changed during the prep phase arrive as
    `22 A9 26 0B E4` records (`MatchUpdateType` `OperatorSwap`). Upstream identified the swapping player by a "ui id"
@@ -62,6 +62,17 @@ Principle: unknown operator, map or role IDs must never panic; the raw ID stays 
    `datetime`, but real UTC) is parsed into `Header.StartTimeMs` and written as `startTime` in the JSON (omitted when
    the header has none or it does not parse). The v4 kill clips use it to place a round on the wall clock. Output
    apart from this field is unchanged.
+
+7. **Loadouts of Solid Snake and Noor** (`dissect/loadout_extra.go`, `dissect/loadout_items.go`). The wnc-replay name
+   table has no Noor and lists the Snake loadout block `0x64D62DB918` as "DIAMOND" without an operator. Found on the
+   30 local Y11S3 matches: in every round with a header operator ID 444310693746 (Solid Snake) or 456757346397 (Noor),
+   exactly one loadout block stays unmatched after pairing the other nine operators by name, always the same one:
+   `0x64D62DB918` for Snake, `0x679C49B955` for Noor. `loadout_extra.go` adds Noor's block ID and maps the two dissect
+   operator IDs (which have no name in the generated `operator_string.go`) to their block names, so `weaponItemId` is
+   filled for their kills. Measured on the same 30 matches: kills with a known weapon name 1132 -> 1165 of 1192 (the rest are
+   explosion and melee kills with no slot and two Noor primaries and one Wamai gadget the name table does not know).
+   Output apart from `weaponItemId` is identical. Raw JSON stored by an older build lacks these item IDs; only a new
+   import (Reset database, then Update) fills them.
 
 Other callers of `Role()` (`player.go`, `site.go`) compare against `Defense`, so `Unknown` is safe there.
 

@@ -9,6 +9,10 @@
 // map entries are skipped. In weapons.json the kind comes from the source section:
 // weapon, ability (operator gadget), gadget (secondary gadget), reinforcement, drone,
 // objective, equipment or other.
+//
+// Entries that carry a `"source"` field in the existing weapons.json (names matched by hand or by
+// elimination, e.g. `"source": "inferred"`) are not in the name table; they are read back from the
+// old file and kept, so regenerating does not lose them. A `source` entry wins over the table.
 package main
 
 import (
@@ -21,9 +25,10 @@ import (
 )
 
 type entry struct {
-	id   uint64
-	name string
-	kind string
+	id     uint64
+	name   string
+	kind   string
+	source string // only set for entries kept from the old weapons.json
 }
 
 var pairRe = regexp.MustCompile(`0[xX]([0-9A-Fa-f]+)\s*:\s*"((?:[^"\\]|\\.)*)"`)
@@ -56,6 +61,39 @@ func sectionKind(comment string, current string) (string, bool) {
 		return "other", true
 	}
 	return current, false
+}
+
+var manualRe = regexp.MustCompile(`^\s*"(\d+)":\s*\{\s*"name":\s*("(?:[^"\\]|\\.)*")\s*,\s*"kind":\s*"([a-z]*)"\s*,\s*"source":\s*"([a-z]+)"`)
+
+// mergeManual adds the entries of the old weapons.json that have a "source" field to out,
+// replacing generated entries with the same id.
+func mergeManual(out []entry, oldPath string) []entry {
+	old, err := os.ReadFile(oldPath)
+	if err != nil {
+		return out
+	}
+	byID := map[uint64]int{}
+	for i, e := range out {
+		byID[e.id] = i
+	}
+	for _, line := range strings.Split(strings.ReplaceAll(string(old), "\r\n", "\n"), "\n") {
+		m := manualRe.FindStringSubmatch(line)
+		if m == nil {
+			continue
+		}
+		id, err := strconv.ParseUint(m[1], 10, 64)
+		name, err2 := strconv.Unquote(m[2])
+		if err != nil || err2 != nil {
+			continue
+		}
+		e := entry{id, name, m[3], m[4]}
+		if i, ok := byID[id]; ok {
+			out[i] = e
+		} else {
+			out = append(out, e)
+		}
+	}
+	return out
 }
 
 func main() {
@@ -111,18 +149,23 @@ func main() {
 			}
 			seen[id] = name
 			if kind == "operator" {
-				operators = append(operators, entry{id, name, kind})
+				operators = append(operators, entry{id, name, kind, ""})
 			} else {
-				out = append(out, entry{id, name, kind})
+				out = append(out, entry{id, name, kind, ""})
 			}
 		}
 	}
+	out = mergeManual(out, os.Args[2])
 	sort.Slice(out, func(i, j int) bool { return out[i].id < out[j].id })
 	var b strings.Builder
 	b.WriteString("{\n")
 	for i, e := range out {
 		name := strconv.Quote(e.name)
-		fmt.Fprintf(&b, "  \"%d\": { \"name\": %s, \"kind\": %q }", e.id, name, e.kind)
+		src := ""
+		if e.source != "" {
+			src = fmt.Sprintf(", \"source\": %q", e.source)
+		}
+		fmt.Fprintf(&b, "  \"%d\": { \"name\": %s, \"kind\": %q%s }", e.id, name, e.kind, src)
 		if i < len(out)-1 {
 			b.WriteString(",")
 		}

@@ -235,7 +235,7 @@ mod tests {
         assert_eq!(m.rounds[0].operator_id, 424242);
         assert_eq!(
             crate::names::operator_name(m.rounds[0].operator_id),
-            "Operator #424242"
+            "Unknown operator (\u{2026}4242)"
         );
         assert_eq!(m.rounds[0].number, 1);
         assert_eq!(m.rounds[0].side, Side::Attack);

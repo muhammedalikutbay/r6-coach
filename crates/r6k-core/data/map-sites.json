@@ -1,0 +1,67 @@
+{
+  "comment": "Bomb site names per map key, from real Y11S3 replays (tools/gen-weapons/map_sites.py).",
+  "maps": {
+    "bank": [
+      "2F Executive Lounge, 2F CEO Office",
+      "B Lockers, B CCTV Room"
+    ],
+    "border": [
+      "1F Bathroom, 1F Tellers",
+      "1F Ventilation Room, 1F Workshop",
+      "2F Armory Lockers, 2F Archives"
+    ],
+    "chalet": [
+      "1F Bar, 1F Gaming Room",
+      "1F Kitchen, 1F Dining Room",
+      "2F Master Bedroom, 2F Office",
+      "B Wine Cellar, B Snowmobile Garage"
+    ],
+    "clubhouse": [
+      "2F CCTV Room, 2F Cash Room",
+      "2F Gym, 2F Bedroom",
+      "B Church, B Arsenal Room"
+    ],
+    "coastline": [
+      "1F Kitchen, 1F Service Entrance",
+      "2F Hookah Lounge, 2F Billiards Room",
+      "2F Penthouse, 2F Theater"
+    ],
+    "consulate": [
+      "1F Exposition Room, 1F Piano Room",
+      "2F Consul Office, 2F Meeting Room",
+      "B Cafeteria, B Garage"
+    ],
+    "fortress": [
+      "2F Bathroom, 2F Commander's Office",
+      "2F Dormitory, 2F Games Room"
+    ],
+    "kafedostoyevsky": [
+      "1F Kitchen Service, 1F Kitchen Cooking",
+      "3F Bar, 3F Cocktail Lounge"
+    ],
+    "kanal": [
+      "1F Security Room, 1F Map Room",
+      "2F Server Room, 2F Radar Room",
+      "B1 Kayaks, B1 Supply Room"
+    ],
+    "nighthavenlabs": [
+      "1F Kitchen, 1F Cafeteria",
+      "2F Command Center, 2F Servers",
+      "B Assembly, B Tank"
+    ],
+    "oregon": [
+      "1F Kitchen, 1F Dining Hall",
+      "2F Kids' Dorms, 2F Dorms Main Hall",
+      "B Laundry Room, B Supply Room"
+    ],
+    "outback": [
+      "1F Green Bedroom, 1F Red Bedroom",
+      "2F Laundry, 2F Piano Room",
+      "2F Party Room, 2F Office"
+    ],
+    "villa": [
+      "2F Aviator Room, 2F Games Room",
+      "2F Trophy Room, 2F Statuary Room"
+    ]
+  }
+}

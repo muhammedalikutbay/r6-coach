@@ -59,10 +59,12 @@ pub struct KillEvent {
     /// Raw asset ID from the kill packet. `None` when unknown.
     #[serde(default)]
     pub weapon_id: Option<u64>,
-    /// Display name, e.g. `R4-C`. `None` when the item has no known name.
+    /// Display name, e.g. `R4-C`. Kills by melee or explosion say `Melee` / `Explosion`; an item
+    /// the tables do not know says `Unknown primary` (or `Unknown weapon` without a slot), never a
+    /// made-up name. `None` when the kill packet has no weapon at all.
     #[serde(default)]
     pub weapon: Option<String>,
-    /// `primary` | `secondary` | `gadget` | `ability`. `None` when unknown.
+    /// `primary` | `secondary` | `gadget` | `ability` | `melee` | `explosion`. `None` when unknown.
     #[serde(default)]
     pub weapon_slot: Option<String>,
 }
@@ -93,6 +95,8 @@ pub struct FullMatch {
     pub timestamp: String,
     pub match_type: String,
     pub gamemode: String,
+    /// Map id. An id missing from `data/maps.json` is replaced by the known map whose bomb sites
+    /// match this match's rounds (the stored raw JSON keeps the replay's own id).
     pub map_id: u64,
     pub score_us: u32,
     pub score_them: u32,
@@ -187,12 +191,16 @@ pub fn full_match_from_raw(raw: &RawMatch) -> Result<FullMatch, ConvertError> {
         }
     };
 
+    // Map ids differ per season and playlist; an unknown one is identified by its bomb sites.
+    let map_id = crate::names::resolve_map_by_sites(first.map.id, raw.rounds.iter().map(|r| r.site.as_str()))
+        .unwrap_or(first.map.id);
+
     Ok(FullMatch {
         match_id: first.match_id.clone(),
         timestamp: dissect_local_to_utc(&first.timestamp),
         match_type: first.match_type.name.clone(),
         gamemode: first.gamemode.name.clone(),
-        map_id: first.map.id,
+        map_id,
         score_us,
         score_them,
         won,
@@ -239,17 +247,23 @@ fn convert_round(r: &RawRound, me_profile_id: &str) -> FullRound {
         .match_feedback
         .iter()
         .filter(|e| e.kind.name == "Kill")
-        .map(|e| KillEvent {
-            time_s: e.time_in_seconds,
-            killer: id_of(&e.username),
-            victim: id_of(&e.target),
-            headshot: e.headshot,
-            weapon_id: e.weapon_id.filter(|&id| id != 0),
-            weapon: e
-                .weapon_item_id
-                .and_then(crate::weapons::weapon_name)
-                .map(String::from),
-            weapon_slot: e.weapon_slot.as_deref().and_then(known_slot).map(String::from),
+        .map(|e| {
+            let weapon_id = e.weapon_id.filter(|&id| id != 0);
+            let weapon_item_id = e.weapon_item_id.filter(|&id| id != 0);
+            let (weapon_slot, weapon) = kill_label(
+                weapon_id,
+                weapon_item_id,
+                e.weapon_slot.as_deref().and_then(known_slot),
+            );
+            KillEvent {
+                time_s: e.time_in_seconds,
+                killer: id_of(&e.username),
+                victim: id_of(&e.target),
+                headshot: e.headshot,
+                weapon_id,
+                weapon,
+                weapon_slot,
+            }
         })
         .collect();
     // Stable: ties keep the listed order. Larger time_s = earlier in the round.
@@ -295,6 +309,32 @@ fn convert_round(r: &RawRound, me_profile_id: &str) -> FullRound {
         my_side,
         players: round_players,
         kills,
+    }
+}
+
+/// Slot and display label of a kill.
+///
+/// A named item gives its name. A kill with no inventory slot whose asset is a known generic source
+/// is `Melee` / `Explosion`. Anything else the tables do not know gets a readable fallback that
+/// names the slot (`Unknown primary`) or just says `Unknown weapon`; the raw ids stay on the event.
+fn kill_label(
+    asset: Option<u64>,
+    item: Option<u64>,
+    slot: Option<&'static str>,
+) -> (Option<String>, Option<String>) {
+    use crate::weapons::{generic_kill_source, weapon_name};
+    if let Some(name) = item.and_then(weapon_name) {
+        return (slot.map(String::from), Some(name.to_string()));
+    }
+    if slot.is_none() {
+        if let Some((generic_slot, label)) = asset.and_then(generic_kill_source) {
+            return (Some(generic_slot.to_string()), Some(label.to_string()));
+        }
+    }
+    match (slot, asset) {
+        (Some(slot), _) => (Some(slot.to_string()), Some(format!("Unknown {slot}"))),
+        (None, Some(_)) => (None, Some("Unknown weapon".to_string())),
+        (None, None) => (None, None),
     }
 }
 
@@ -421,11 +461,38 @@ mod tests {
         assert_eq!(k[0].weapon_id, Some(1366019316));
         assert_eq!(k[0].weapon.as_deref(), Some("R4-C"));
         assert_eq!(k[0].weapon_slot.as_deref(), Some("primary"));
-        // unknown item and slot: raw id kept, nothing guessed
+        // an asset with no slot that is a known explosion
         assert_eq!(k[1].weapon_id, Some(70077334926));
-        assert_eq!((k[1].weapon.as_deref(), k[1].weapon_slot.as_deref()), (None, None));
+        assert_eq!((k[1].weapon.as_deref(), k[1].weapon_slot.as_deref()), (Some("Explosion"), Some("explosion")));
         // no weapon fields at all
         assert_eq!((k[2].weapon_id, k[2].weapon.as_deref(), k[2].weapon_slot.as_deref()), (None, None, None));
+    }
+
+    #[test]
+    fn unknown_weapons_get_readable_labels_not_made_up_names() {
+        let label = |asset, item, slot| {
+            let (s, w) = kill_label(asset, item, slot);
+            (s, w)
+        };
+        // Unknown item in a known slot, unknown asset without a slot, melee, nothing at all.
+        assert_eq!(label(Some(1), Some(7), Some("primary")), (Some("primary".into()), Some("Unknown primary".into())));
+        assert_eq!(label(Some(1), None, None), (None, Some("Unknown weapon".into())));
+        assert_eq!(label(Some(3099101909), None, None), (Some("melee".into()), Some("Melee".into())));
+        assert_eq!(label(None, None, None), (None, None));
+        // A real name wins over everything.
+        assert_eq!(label(Some(1), Some(0x37802D177E), Some("primary")).1.as_deref(), Some("R4-C"));
+    }
+
+    #[test]
+    fn unknown_map_is_resolved_by_its_bomb_sites() {
+        let known = JSON.replace(r#""id":7},"gamemode""#, r#""id":4242},"gamemode""#)
+            .replace(r#""site":"Lobby""#, r#""site":"1F Bar, 1F Gaming Room""#);
+        let m = full_match_from_json(&known).unwrap();
+        assert_eq!(m.map_id, crate::names::map_id_for_key("chalet").unwrap());
+        assert_eq!(crate::names::map_name(m.map_id), "Chalet");
+        // sites that no known map has: the id stays, nothing is guessed
+        let m = full_match_from_json(JSON).unwrap();
+        assert_eq!(m.map_id, 7);
     }
 
     #[test]

@@ -11,6 +11,7 @@
   import Button from '$lib/components/ui/Button.svelte';
   import ArenyzeKey from '$lib/v2/components/ArenyzeKey.svelte';
   import ClipSettings from '$lib/v2/components/ClipSettings.svelte';
+  import UnknownIdsExport from '$lib/v2/components/UnknownIdsExport.svelte';
 
   let dir = $state('');
   let loading = $state(true);
@@ -103,6 +104,8 @@
   <ArenyzeKey />
 
   <ClipSettings />
+
+  <UnknownIdsExport />
 
   <Card>
     <h3 class="font-semibold">Welcome</h3>

@@ -68,7 +68,7 @@ func readOperatorBlock(r *Reader) error {
 	if !validItemID(op) {
 		return nil
 	}
-	name, ok := gameOperatorNames[op]
+	name, ok := gameOperatorName(op)
 	if !ok {
 		log.Debug().Uint64("op", op).Msg("loadout block for an unknown game operator id")
 		return nil
@@ -128,7 +128,7 @@ func (r *Reader) itemID(op Operator, s WeaponSlot) uint64 {
 	if r.inventory == nil {
 		return 0
 	}
-	items := r.inventory.operatorItems[operatorSlot{operatorKey(op.String()), slotHash(s)}]
+	items := r.inventory.operatorItems[operatorSlot{operatorKey(loadoutOperatorName(op)), slotHash(s)}]
 	if len(items) != 1 {
 		return 0
 	}

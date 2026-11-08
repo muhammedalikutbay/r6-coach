@@ -18,6 +18,13 @@ export const MAPS: MapEntry[] = [
 const opByKey = new Map(OPERATORS.map((o) => [o.key, o]));
 const mapByKey = new Map(MAPS.map((m) => [m.key, m]));
 
-/** Unknown keys never crash: fall back to the raw key. */
-export const operatorName = (key: string) => opByKey.get(normKey(key))?.name ?? key;
-export const mapName = (key: string) => mapByKey.get(normKey(key))?.name ?? key;
+/** Last four digits of a raw id ("441842102525" -> "…2525"), matching the Rust fallback names. */
+const idHint = (id: string) => (id.length > 4 ? `…${id.slice(-4)}` : id);
+/** A key that is a raw numeric id belongs to an operator or map the tables do not know yet. */
+const isRawId = (key: string) => /^\d+$/.test(key);
+
+/** Unknown keys never crash: a readable fallback ("Unknown map (…2525)"), or the key itself. */
+export const operatorName = (key: string) =>
+  opByKey.get(normKey(key))?.name ?? (isRawId(key) ? `Unknown operator (${idHint(key)})` : key);
+export const mapName = (key: string) =>
+  mapByKey.get(normKey(key))?.name ?? (isRawId(key) ? `Unknown map (${idHint(key)})` : key);

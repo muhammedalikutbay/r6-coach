@@ -1,6 +1,7 @@
 mod arenyze;
 mod clips;
 mod details;
+mod diagnostics;
 mod report;
 mod store;
 mod summary;
@@ -214,6 +215,7 @@ pub fn run() {
             set_replay_dir,
             inspect_replay_dir,
             reset_database,
+            diagnostics::export_unknown_ids,
             report::last_match_report,
             report::match_report,
             v2::query,

@@ -1139,7 +1139,7 @@ mod tests {
         assert!(v["teams"][0][0]["operatorsByRound"].is_array());
         assert_eq!(v["rounds"][1]["mySide"], "defense");
         // Unknown map id stays readable.
-        assert_eq!(d.match_row.map_name, "Map #1");
+        assert_eq!(d.match_row.map_name, "Unknown map (1)");
     }
 
     impl QueryResult {

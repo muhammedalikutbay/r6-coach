@@ -16,11 +16,15 @@ struct Entry {
     name: String,
     #[serde(default)]
     kind: String,
+    #[serde(default)]
+    source: String,
 }
 
 struct Weapon {
     name: String,
     kind: String,
+    /// `inferred` for names matched by elimination instead of read from a source table.
+    source: String,
 }
 
 fn table() -> &'static HashMap<u64, Weapon> {
@@ -30,7 +34,7 @@ fn table() -> &'static HashMap<u64, Weapon> {
             .into_iter()
             .filter_map(|(id, e)| {
                 let id = id.parse::<u64>().ok()?;
-                Some((id, Weapon { name: e.name, kind: e.kind }))
+                Some((id, Weapon { name: e.name, kind: e.kind, source: e.source }))
             })
             .collect(),
         Err(e) => {
@@ -51,6 +55,29 @@ pub fn weapon_kind(id: u64) -> Option<&'static str> {
     table().get(&id).map(|w| w.kind.as_str()).filter(|k| !k.is_empty())
 }
 
+/// True when the name of this item was inferred (`"source": "inferred"` in `data/weapons.json`).
+pub fn weapon_is_inferred(id: u64) -> bool {
+    table().get(&id).is_some_and(|w| w.source == "inferred")
+}
+
+/// Kill sources that are not an inventory item, keyed by the raw asset ID of the kill packet:
+/// `(slot, label)`. They have no weapon slot and no loadout item.
+///
+/// Both come from the 30 local Y11S3 replays (1192 kills), where every kill with no slot carries one
+/// of these two asset IDs: 70077334926 for Fuze (cluster charge), Thorn (razorbloom shell) and Ace
+/// (S.E.L.M.A.), all non-headshot explosions; 3099101909 for Caveira, Bandit and Wamai, three
+/// operators without a shared gadget, so the one damage source every operator has: melee.
+/// The melee match is **inferred**, not read from a table.
+const GENERIC_KILLS: [(u64, &str, &str); 2] = [
+    (70077334926, "explosion", "Explosion"),
+    (3099101909, "melee", "Melee"),
+];
+
+/// Slot and label of a generic (non-item) kill source, e.g. `("melee", "Melee")`.
+pub fn generic_kill_source(asset: u64) -> Option<(&'static str, &'static str)> {
+    GENERIC_KILLS.iter().find(|g| g.0 == asset).map(|g| (g.1, g.2))
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -65,6 +92,21 @@ mod tests {
         assert_eq!(weapon_name(0x37802D177E), Some("R4-C"));
         assert_eq!(weapon_kind(0x37802D177E), Some("weapon"));
         assert_eq!(weapon_name(0x37802D1C53), Some("416-C CARBINE"));
+    }
+
+    #[test]
+    fn inferred_names_are_marked() {
+        assert_eq!(weapon_name(437464103147), Some("XK23"));
+        assert!(weapon_is_inferred(437464103147));
+        assert!(!weapon_is_inferred(0x37802D177E));
+        assert_eq!(weapon_kind(238373641120), Some("gadget")); // X-KAIROS
+    }
+
+    #[test]
+    fn generic_kill_sources() {
+        assert_eq!(generic_kill_source(70077334926), Some(("explosion", "Explosion")));
+        assert_eq!(generic_kill_source(3099101909), Some(("melee", "Melee")));
+        assert_eq!(generic_kill_source(1366019316), None);
     }
 
     #[test]
