@@ -131,7 +131,7 @@
               <tbody>
                 {#each deep.weapons as w (w.name)}
                   <tr>
-                    <td class="py-0.5">{w.name}{#if w.slot}<span class="ml-1.5 text-xs text-muted">{w.slot}</span>{/if}</td>
+                    <td class="py-0.5"><a class="hover:text-accent hover:underline" href={`/weapons/${w.name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '')}`}>{w.name}</a>{#if w.slot}<span class="ml-1.5 text-xs text-muted">{w.slot}</span>{/if}</td>
                     <td class="py-0.5 text-right tabular-nums">{w.kills}</td>
                     <td class="py-0.5 text-right tabular-nums">{w.hsPct.toFixed(0)}%</td>
                   </tr>
