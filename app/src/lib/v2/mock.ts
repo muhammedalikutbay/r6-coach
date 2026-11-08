@@ -2,6 +2,8 @@
 // real stats, but all opponent names are made up.
 import type {
   CoachReport,
+  DetailClip,
+  DetailStats,
   DeepStats,
   Filter,
   Kpis,
@@ -11,11 +13,15 @@ import type {
   MatchRow,
   OfficialTotals,
   OperatorCard,
+  OperatorListRow,
+  OperatorScreen,
   QueryResult,
   RoundDetail,
   ScoreboardRow,
   TeamSide,
-  TrendPoint
+  TrendPoint,
+  WeaponListRow,
+  WeaponScreen
 } from './types';
 
 const ME = 'H.A.N-01';
@@ -417,5 +423,211 @@ export function mockCoach(f: Filter): CoachReport {
     ],
     focusLabel: last5 ? 'Last match' : 'Last 5 matches',
     referenceLabel: last5 ? 'Your average' : 'Previous 20 matches'
+  };
+}
+
+// ---------- v5 operator and weapon screens ----------
+
+const MOCK_WEAPON_ROWS: { name: string; slot: string; kills: number; hs: number; ops: number }[] = [
+  { name: 'R4-C', slot: 'primary', kills: 41, hs: 22, ops: 3 },
+  { name: 'MP5', slot: 'primary', kills: 27, hs: 12, ops: 2 },
+  { name: 'AK-12', slot: 'primary', kills: 19, hs: 9, ops: 2 },
+  { name: 'P90', slot: 'primary', kills: 12, hs: 4, ops: 1 },
+  { name: 'SG-CQB', slot: 'primary', kills: 8, hs: 1, ops: 1 },
+  { name: 'P12', slot: 'secondary', kills: 6, hs: 3, ops: 4 }
+];
+const weaponKeyOf = (name: string) => name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
+
+export function mockOperatorList(f: Filter): OperatorListRow[] {
+  const rand = rng(11);
+  const side = f.side === 'both' ? null : f.side;
+  return MOCK_OPERATORS.filter((o) => !side || o.side === side)
+    .map((o, i) => {
+      const rounds = 90 - i * 9 + Math.floor(rand() * 6);
+      const kills = Math.round(rounds * (0.6 + rand() * 0.3));
+      const deaths = Math.round(rounds * (0.55 + rand() * 0.3));
+      return {
+        key: o.key,
+        name: o.name,
+        side: o.side,
+        matches: Math.max(1, Math.round(rounds / 7)),
+        rounds,
+        winPct: r1(40 + rand() * 25),
+        kills,
+        deaths,
+        kd: r2(kills / Math.max(1, deaths)),
+        killsPerRound: r2(kills / rounds),
+        hsPct: r1(20 + rand() * 25),
+        kostPct: r1(55 + rand() * 20)
+      };
+    })
+    .sort((a, b) => b.rounds - a.rounds);
+}
+
+export function mockWeaponList(_f: Filter): WeaponListRow[] {
+  return MOCK_WEAPON_ROWS.map((w) => ({
+    key: weaponKeyOf(w.name),
+    name: w.name,
+    slot: w.slot,
+    kills: w.kills,
+    headshots: w.hs,
+    hsPct: r1((100 * w.hs) / w.kills),
+    operators: w.ops
+  }));
+}
+
+function mockClips(opKey: string, weapon: string | null): DetailClip[] {
+  return [0, 1, 2].map((i) => ({
+    clip: {
+      id: 9000 + i,
+      matchId: ALL_MATCHES[i].matchId,
+      round: 2 + i,
+      kind: i === 2 ? ('death' as const) : ('kill' as const),
+      timeS: 150 - i * 40,
+      killer: i === 2 ? 'Rival_A' : ME,
+      victim: i === 2 ? ME : 'Rival_B',
+      path: '',
+      starred: i === 0,
+      size: 4_200_000,
+      startMs: 0,
+      durationMs: 8000,
+      createdMs: 0
+    },
+    headshot: i === 1,
+    weapon: i === 2 ? null : weapon,
+    mapKey: ALL_MATCHES[i].mapKey,
+    operatorKey: opKey,
+    enemyOperatorKey: MOCK_OPERATORS[(i + 3) % MOCK_OPERATORS.length].key
+  }));
+}
+
+export function mockOperatorScreen(f: Filter, key: string): OperatorScreen {
+  const op = MOCK_OPERATORS.find((o) => o.key === key);
+  const row = mockOperatorList({ ...f, side: 'both' }).find((o) => o.key === key);
+  const rows = applyFilter({ ...f, operators: [] }).slice(0, 10);
+  const rand = rng(key.length * 13 + 5);
+  const trend: TrendPoint[] = rows
+    .slice()
+    .reverse()
+    .map((m, i) => ({ index: i + 1, timestamp: m.timestamp, matchId: m.matchId, kd: r2(0.7 + rand() * 0.9), won: m.won }));
+  const rivals = (shift: number) =>
+    MOCK_OPERATORS.filter((o) => o.key !== key)
+      .slice(shift, shift + 4)
+      .map((o, i) => ({ operatorKey: o.key, name: o.name, count: 6 - i }));
+  if (!row || !op) {
+    const stats: DetailStats = {
+      matches: 0, rounds: 0, roundsWon: 0, winPct: 0, kills: 0, deaths: 0, kd: 0, killsPerRound: 0, hsPct: 0,
+      firstKills: 0, firstDeaths: 0, kostPct: 0, survivalPct: 0, clutchWon: 0, clutchLost: 0, clutchPct: 0
+    };
+    return {
+      detail: { key, name: key, side: null, stats, sides: [], maps: [], weapons: [], mostKilled: [], mostKilledBy: [], matches: [], trend: [] },
+      clips: []
+    };
+  }
+  return {
+    detail: {
+      key,
+      name: op.name,
+      side: op.side,
+      stats: {
+        matches: row.matches,
+        rounds: row.rounds,
+        roundsWon: Math.round((row.rounds * row.winPct) / 100),
+        winPct: row.winPct,
+        kills: row.kills,
+        deaths: row.deaths,
+        kd: row.kd,
+        killsPerRound: row.killsPerRound,
+        hsPct: row.hsPct,
+        firstKills: Math.round(row.rounds * 0.14),
+        firstDeaths: Math.round(row.rounds * 0.1),
+        kostPct: row.kostPct,
+        survivalPct: r1(35 + rand() * 20),
+        clutchWon: 3,
+        clutchLost: 5,
+        clutchPct: 37.5
+      },
+      sides: [{ side: op.side, rounds: row.rounds, winPct: row.winPct, kd: row.kd }],
+      maps: MOCK_MAPS.slice(0, 4).map((m, i) => ({
+        key: m.key,
+        name: m.name,
+        rounds: Math.max(1, Math.round(row.rounds / (i + 2))),
+        winPct: r1(35 + rand() * 40),
+        kills: 12 - i * 2,
+        deaths: 9 - i,
+        kd: r2((12 - i * 2) / (9 - i))
+      })),
+      weapons: MOCK_WEAPON_ROWS.slice(0, 3).map((w) => ({
+        key: weaponKeyOf(w.name),
+        name: w.name,
+        slot: w.slot,
+        kills: Math.round(w.kills / 2),
+        hsPct: r1((100 * w.hs) / w.kills)
+      })),
+      mostKilled: rivals(0),
+      mostKilledBy: rivals(2),
+      matches: rows.slice(0, 8).map((m) => ({
+        matchId: m.matchId,
+        timestamp: m.timestamp,
+        mapKey: m.mapKey,
+        mapName: m.mapName,
+        won: m.won,
+        scoreUs: m.scoreUs,
+        scoreThem: m.scoreThem,
+        rounds: 4 + Math.floor(rand() * 4),
+        kills: m.kills,
+        deaths: m.deaths
+      })),
+      trend
+    },
+    clips: mockClips(key, 'R4-C')
+  };
+}
+
+export function mockWeaponScreen(_f: Filter, key: string): WeaponScreen {
+  const w = MOCK_WEAPON_ROWS.find((x) => weaponKeyOf(x.name) === key);
+  if (!w) {
+    return {
+      detail: {
+        key, name: key, slot: null, kills: 0, headshots: 0, hsPct: 0, rounds: 0, killsPerRound: 0,
+        operators: [], maps: [], timing: { early: 0, mid: 0, late: 0 }, recentKills: []
+      },
+      clips: []
+    };
+  }
+  const rounds = w.kills * 3;
+  return {
+    detail: {
+      key,
+      name: w.name,
+      slot: w.slot,
+      kills: w.kills,
+      headshots: w.hs,
+      hsPct: r1((100 * w.hs) / w.kills),
+      rounds,
+      killsPerRound: r2(w.kills / rounds),
+      operators: MOCK_OPERATORS.slice(0, w.ops).map((o, i) => ({
+        key: o.key,
+        name: o.name,
+        kills: Math.max(1, Math.round(w.kills / (i + 1.5))),
+        hsPct: r1(20 + i * 5)
+      })),
+      maps: MOCK_MAPS.slice(0, 4).map((m, i) => ({ key: m.key, name: m.name, kills: Math.max(1, Math.round(w.kills / (i + 2))) })),
+      timing: { early: Math.round(w.kills * 0.3), mid: Math.round(w.kills * 0.5), late: Math.round(w.kills * 0.2) },
+      recentKills: ALL_MATCHES.slice(0, 6).map((m, i) => ({
+        matchId: m.matchId,
+        timestamp: m.timestamp,
+        mapKey: m.mapKey,
+        mapName: m.mapName,
+        round: 1 + i,
+        timeS: 170 - i * 20,
+        operatorKey: MOCK_OPERATORS[i % w.ops].key,
+        operatorName: MOCK_OPERATORS[i % w.ops].name,
+        victimOperatorKey: MOCK_OPERATORS[(i + 4) % MOCK_OPERATORS.length].key,
+        victimOperatorName: MOCK_OPERATORS[(i + 4) % MOCK_OPERATORS.length].name,
+        headshot: i % 3 === 0
+      }))
+    },
+    clips: mockClips(MOCK_OPERATORS[0].key, w.name)
   };
 }

@@ -6,6 +6,7 @@ pub mod baseline;
 pub mod coach;
 pub mod convert;
 pub mod derive;
+pub mod details;
 pub mod full;
 pub mod metrics;
 pub mod model;

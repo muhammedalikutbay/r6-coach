@@ -1,7 +1,26 @@
 // v2 front-end API. Mock data in a plain browser; real Tauri `invoke` calls inside the app.
 // Set USE_MOCK_V2 to `true` to force mock data even inside Tauri (dev switch).
-import type { CoachReport, Filter, MatchDetail, MatchRow, QueryResult } from './types';
-import { mockCoach, mockListMatches, mockMatchDetail, mockQuery } from './mock';
+import type {
+  CoachReport,
+  Filter,
+  MatchDetail,
+  MatchRow,
+  OperatorListRow,
+  OperatorScreen,
+  QueryResult,
+  WeaponListRow,
+  WeaponScreen
+} from './types';
+import {
+  mockCoach,
+  mockListMatches,
+  mockMatchDetail,
+  mockOperatorList,
+  mockOperatorScreen,
+  mockQuery,
+  mockWeaponList,
+  mockWeaponScreen
+} from './mock';
 
 const FORCE_MOCK = false;
 export const USE_MOCK_V2 =
@@ -34,3 +53,17 @@ export const matchDetail = (matchId: string) =>
   call<MatchDetail>('match_detail', { matchId }, () => mockMatchDetail(matchId));
 
 export const coach = (filter: Filter) => call<CoachReport>('coach', { filter: withTz(filter) }, () => mockCoach(filter));
+
+// ---- v5 operator and weapon screens
+
+export const operatorList = (filter: Filter) =>
+  call<OperatorListRow[]>('operator_list', { filter: withTz(filter) }, () => mockOperatorList(filter));
+
+export const weaponList = (filter: Filter) =>
+  call<WeaponListRow[]>('weapon_list', { filter: withTz(filter) }, () => mockWeaponList(filter));
+
+export const operatorDetail = (filter: Filter, key: string) =>
+  call<OperatorScreen>('operator_detail', { filter: withTz(filter), key }, () => mockOperatorScreen(filter, key));
+
+export const weaponDetail = (filter: Filter, key: string) =>
+  call<WeaponScreen>('weapon_detail', { filter: withTz(filter), key }, () => mockWeaponScreen(filter, key));

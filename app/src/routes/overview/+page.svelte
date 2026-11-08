@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { LayoutDashboard, Swords, Shield } from '@lucide/svelte';
+  import { LayoutDashboard, Swords, Shield, Funnel } from '@lucide/svelte';
   import PageHeader from '$lib/components/PageHeader.svelte';
   import EmptyState from '$lib/components/EmptyState.svelte';
   import Section from '$lib/components/Section.svelte';
@@ -155,18 +155,29 @@
       </Card>
     </Section>
 
-    <CollapsibleSection id="operators" title="Operators" hint="Click an operator to filter by it" summary="{data.operators.length} {data.operators.length === 1 ? 'operator' : 'operators'}">
+    <CollapsibleSection id="operators" title="Operators" hint="Click an operator for its screen; the funnel adds it to the filter" summary="{data.operators.length} {data.operators.length === 1 ? 'operator' : 'operators'}">
+      <div class="mb-3 flex gap-4 text-xs">
+        <a href="/operators" class="text-accent hover:underline">All operators</a>
+        <a href="/weapons" class="text-accent hover:underline">All weapons</a>
+      </div>
       {#if data.operators.length === 0}
         <p class="text-muted">No operator data.</p>
       {:else}
         <div class="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3">
           {#each data.operators as op (op.key + op.side)}
             {@const active = filterStore.value.operators.includes(op.key)}
+            <div class="relative rounded-xl border bg-surface-1 transition-colors hover:bg-surface-2 {active ? 'border-accent' : 'border-border'}">
             <button
               type="button"
               onclick={() => filterStore.toggleOperator(op.key)}
-              class="rounded-xl border bg-surface-1 p-3 text-left transition-colors hover:bg-surface-2 {active ? 'border-accent' : 'border-border'}"
+              title={active ? 'Remove from the filter' : 'Add to the filter'}
+              aria-label={active ? `Remove ${op.name} from the filter` : `Filter by ${op.name}`}
+              aria-pressed={active}
+              class="absolute right-2 bottom-2 z-10 rounded-md p-1 transition-colors hover:bg-surface-3 {active ? 'text-accent' : 'text-muted'}"
             >
+              <Funnel class="size-3.5" />
+            </button>
+            <a href="/operators/{encodeURIComponent(op.key)}" class="block p-3 text-left" title="Open the {op.name} screen">
               <div class="flex items-center gap-3">
                 <OperatorBadge opKey={op.key} name={op.name} size={40} />
                 <div class="min-w-0 flex-1">
@@ -190,7 +201,8 @@
               <div class="mt-2 h-1 overflow-hidden rounded-full bg-surface-3">
                 <div class="h-full rounded-full bg-accent" style="width:{(op.rounds / maxRounds) * 100}%"></div>
               </div>
-            </button>
+            </a>
+            </div>
           {/each}
         </div>
       {/if}

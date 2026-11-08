@@ -428,3 +428,182 @@ export interface DeepStats {
   rivals: RivalView[];
   clutchByOpponents: ClutchView[];
 }
+
+// ---- v5 operator and weapon screens (core: `r6k_core::details`, app: `details.rs`)
+
+/** Numbers of one operator under the current filter. */
+export interface DetailStats {
+  matches: number;
+  rounds: number;
+  roundsWon: number;
+  winPct: number;
+  kills: number;
+  deaths: number;
+  kd: number;
+  killsPerRound: number;
+  hsPct: number;
+  firstKills: number;
+  firstDeaths: number;
+  kostPct: number;
+  survivalPct: number;
+  clutchWon: number;
+  clutchLost: number;
+  clutchPct: number;
+}
+
+export interface DetailSideRow {
+  side: TeamSide;
+  rounds: number;
+  winPct: number;
+  kd: number;
+}
+
+export interface DetailMapRow {
+  key: string;
+  name: string;
+  rounds: number;
+  winPct: number;
+  kills: number;
+  deaths: number;
+  kd: number;
+}
+
+export interface DetailWeaponUse {
+  key: string;
+  name: string;
+  slot: string | null;
+  kills: number;
+  hsPct: number;
+}
+
+export interface DetailRival {
+  operatorKey: string;
+  name: string;
+  count: number;
+}
+
+export interface DetailOperatorMatch {
+  matchId: string;
+  timestamp: string;
+  mapKey: string;
+  mapName: string;
+  won: boolean;
+  scoreUs: number;
+  scoreThem: number;
+  rounds: number;
+  kills: number;
+  deaths: number;
+}
+
+export interface OperatorDetail {
+  key: string;
+  name: string;
+  /** `null` when the operator has no rounds under the filter. */
+  side: TeamSide | null;
+  stats: DetailStats;
+  sides: DetailSideRow[];
+  maps: DetailMapRow[];
+  weapons: DetailWeaponUse[];
+  mostKilled: DetailRival[];
+  mostKilledBy: DetailRival[];
+  /** Newest first. */
+  matches: DetailOperatorMatch[];
+  /** Rolling K/D, oldest first. */
+  trend: TrendPoint[];
+}
+
+export interface WeaponOperatorRow {
+  key: string;
+  name: string;
+  kills: number;
+  hsPct: number;
+}
+
+export interface WeaponMapRow {
+  key: string;
+  name: string;
+  kills: number;
+}
+
+export interface WeaponTiming {
+  early: number;
+  mid: number;
+  late: number;
+}
+
+export interface WeaponRecentKill {
+  matchId: string;
+  timestamp: string;
+  mapKey: string;
+  mapName: string;
+  round: number;
+  timeS: number;
+  operatorKey: string;
+  operatorName: string;
+  victimOperatorKey: string;
+  victimOperatorName: string;
+  headshot: boolean;
+}
+
+export interface WeaponDetail {
+  key: string;
+  name: string;
+  slot: string | null;
+  kills: number;
+  headshots: number;
+  hsPct: number;
+  /** Rounds spent on operators that made a kill with this weapon. */
+  rounds: number;
+  killsPerRound: number;
+  operators: WeaponOperatorRow[];
+  maps: WeaponMapRow[];
+  timing: WeaponTiming;
+  recentKills: WeaponRecentKill[];
+}
+
+export interface OperatorListRow {
+  key: string;
+  name: string;
+  side: TeamSide;
+  matches: number;
+  rounds: number;
+  winPct: number;
+  kills: number;
+  deaths: number;
+  kd: number;
+  killsPerRound: number;
+  hsPct: number;
+  kostPct: number;
+}
+
+export interface WeaponListRow {
+  key: string;
+  name: string;
+  slot: string | null;
+  kills: number;
+  headshots: number;
+  hsPct: number;
+  operators: number;
+}
+
+/** A recorded clip that belongs to a kill or death shown on a detail screen. */
+export interface DetailClip {
+  clip: ClipRow;
+  headshot: boolean;
+  weapon: string | null;
+  mapKey: string;
+  /** Operator you used. */
+  operatorKey: string;
+  /** Operator of the other player; empty when unknown. */
+  enemyOperatorKey: string;
+}
+
+export interface OperatorScreen {
+  detail: OperatorDetail;
+  clips: DetailClip[];
+}
+
+export interface WeaponScreen {
+  detail: WeaponDetail;
+  clips: DetailClip[];
+}

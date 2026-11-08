@@ -3,7 +3,7 @@
   import { page } from '$app/state';
   import { goto } from '$app/navigation';
   import { onMount } from 'svelte';
-  import { LayoutDashboard, Swords, Brain, Settings, RefreshCw } from '@lucide/svelte';
+  import { LayoutDashboard, Swords, Users, Crosshair, Brain, Settings, RefreshCw } from '@lucide/svelte';
   import { getReplayDir, refresh } from '$lib/api';
   import { toast, toastError } from '$lib/toast.svelte';
   import { cn } from '$lib/utils';
@@ -53,6 +53,8 @@
   const tabs = [
     { href: '/overview', label: 'Overview', icon: LayoutDashboard },
     { href: '/matches', label: 'Matches', icon: Swords },
+    { href: '/operators', label: 'Operators', icon: Users },
+    { href: '/weapons', label: 'Weapons', icon: Crosshair },
     { href: '/coach', label: 'Coach', icon: Brain },
     { href: '/settings', label: 'Settings', icon: Settings }
   ];
@@ -77,7 +79,7 @@
   <nav class="flex w-[76px] flex-none flex-col items-stretch gap-1 border-r border-border bg-surface-1 px-2 py-3">
     <div class="mb-3 text-center text-[11px] font-extrabold tracking-wider text-accent">R6 COACH</div>
     {#each tabs as t (t.href)}
-      {@const active = page.url.pathname === t.href}
+      {@const active = page.url.pathname === t.href || page.url.pathname.startsWith(t.href + '/')}
       <a
         href={t.href}
         aria-current={active ? 'page' : undefined}

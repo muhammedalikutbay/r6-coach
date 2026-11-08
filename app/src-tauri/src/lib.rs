@@ -1,5 +1,6 @@
 mod arenyze;
 mod clips;
+mod details;
 mod report;
 mod store;
 mod summary;
@@ -219,6 +220,10 @@ pub fn run() {
             v2::list_matches,
             v2::match_detail,
             v2::coach,
+            details::operator_list,
+            details::operator_detail,
+            details::weapon_list,
+            details::weapon_detail,
             arenyze::arenyze_status,
             arenyze::arenyze_set_key,
             arenyze::arenyze_clear_key,
