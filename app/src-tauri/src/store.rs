@@ -365,6 +365,10 @@ fn rebuild_if_parser_changed(conn: &Connection) -> rusqlite::Result<()> {
     if stored != PARSER_VERSION {
         let n = rebuild_all(conn)?;
         log::info!("parser version {stored} -> {PARSER_VERSION}: rebuilt {n} match(es) from raw JSON");
+        // Raw JSON from an older parser lacks what the new parser reads. Marking the fingerprints
+        // stale makes the next refresh re-parse every match whose replay folder still exists;
+        // matches whose folder is gone keep the rebuild from raw JSON above.
+        conn.execute("UPDATE matches SET fingerprint = 'reparse:' || fingerprint WHERE fingerprint NOT LIKE 'reparse:%'", [])?;
         conn.execute("UPDATE meta SET parser_version = ?1", [PARSER_VERSION])?;
     }
     Ok(())
@@ -879,6 +883,8 @@ mod tests {
         assert!(!json.contains("stale"));
         let p: i64 = conn.query_row("SELECT parser_version FROM meta", [], |r| r.get(0)).unwrap();
         assert_eq!(p, PARSER_VERSION);
+        let fp: String = conn.query_row("SELECT fingerprint FROM matches", [], |r| r.get(0)).unwrap();
+        assert!(fp.starts_with("reparse:"), "a parser change marks the folder for re-parsing");
     }
 
     #[test]

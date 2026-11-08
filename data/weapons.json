@@ -153,7 +153,7 @@
   "238373641117": { "name": "SUPERNOVA", "kind": "weapon" },
   "238373641118": { "name": "P229", "kind": "weapon" },
   "238373641119": { "name": "BEARING 9", "kind": "weapon" },
-  "238373641120": { "name": "X-KAIROS", "kind": "gadget" },
+  "238373641120": { "name": "X-KAIROS", "kind": "gadget", "source": "manual" },
   "238373641178": { "name": "RAPPEL DEVICE", "kind": "equipment" },
   "238373641179": { "name": "ELECTRONICS DETECTOR", "kind": "ability" },
   "238373641181": { "name": "SHEET CHARGE", "kind": "gadget" },
