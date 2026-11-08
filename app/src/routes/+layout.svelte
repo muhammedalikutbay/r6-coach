@@ -3,7 +3,7 @@
   import { page } from '$app/state';
   import { goto } from '$app/navigation';
   import { onMount } from 'svelte';
-  import { LayoutDashboard, Swords, Users, Crosshair, Brain, Settings, RefreshCw } from '@lucide/svelte';
+  import { House, LayoutDashboard, Swords, Users, Crosshair, Brain, Settings, RefreshCw } from '@lucide/svelte';
   import { getReplayDir, refresh } from '$lib/api';
   import { toast, toastError } from '$lib/toast.svelte';
   import { cn } from '$lib/utils';
@@ -51,6 +51,7 @@
   });
 
   const tabs = [
+    { href: '/home', label: 'Home', icon: House },
     { href: '/overview', label: 'Overview', icon: LayoutDashboard },
     { href: '/matches', label: 'Matches', icon: Swords },
     { href: '/operators', label: 'Operators', icon: Users },
@@ -96,7 +97,10 @@
 
   <div class="flex min-w-0 flex-1 flex-col">
     <header class="flex flex-none items-center justify-between gap-3 border-b border-border bg-surface-1/60 px-5 py-2.5">
-      <div class="min-w-0 flex-1"><FilterBar /></div>
+      <div class="min-w-0 flex-1">
+        <!-- The global filter does not apply to Home (online profile) or Settings. -->
+        {#if !page.url.pathname.startsWith('/home') && !page.url.pathname.startsWith('/settings')}<FilterBar />{/if}
+      </div>
       <Button variant="primary" onclick={update} disabled={updating}>
         <RefreshCw class={cn('size-4', updating && 'animate-spin')} />
         {updating ? 'Updating…' : 'Update'}

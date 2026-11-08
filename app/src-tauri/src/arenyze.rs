@@ -13,11 +13,16 @@
 //! has every occurrence of the key replaced before it is written.
 //!
 //! # Response shapes
-//! `docs/arenyze-api.md` shows only empty example segments, so the parser is tolerant: it looks for
-//! Tracker-Network-style segments (`type`, `attributes`, `stats.<key>.{value, metadata}`) anywhere in
-//! the Profile V2 / Full Stats V2 response and picks the newest ranked season. The rank name comes
-//! from the tier name when present (`Emerald II` style, case-insensitive) and from the numeric rank
-//! id (0..36) otherwise. A missing field stays `null`; nothing is invented.
+//! The real Profile V2 answer (seen 2026-11-08, `docs/v5-spec.md`) keeps the rank in
+//! `stats.platform_families_full_profiles[].board_ids_full_profiles[]` (`ranked` / `standard` /
+//! `casual`, rank id 0..36), the RP history in `history.data.history.data` (newest first), and one
+//! Tracker-style segment per season and playlist in `seasons.data.segments`. The parser reads these
+//! first. The older tolerant path stays as a fallback: it looks for Tracker-Network-style segments
+//! (`type`, `attributes`, `stats.<key>.{value, metadata}`) anywhere in the answer and picks the
+//! newest ranked season; the rank name then comes from a tier name (`Emerald II`, case-insensitive)
+//! or the numeric rank id. A missing field stays `null`; nothing is invented. The only derived value
+//! is the rank of past seasons, computed from RP (100 RP per tier from 1000 RP; checked against the
+//! real board ranks 21 / 23).
 
 use std::sync::Mutex as StdMutex;
 use std::time::{Duration, Instant};
@@ -56,7 +61,11 @@ const AUTO_GAP: Duration = Duration::from_secs(10 * 60);
 /// Minimum gap between two manual refreshes.
 const MANUAL_GAP: Duration = Duration::from_secs(20);
 const HTTP_TIMEOUT: Duration = Duration::from_secs(20);
-const MAX_HISTORY_POINTS: usize = 60;
+const MAX_HISTORY_POINTS: usize = 150;
+/// Cache lifetime of one (season, mode) operator table.
+const OPERATORS_TTL_SECS: i64 = 15 * 60;
+/// A season needs this many ranked matches to count as the "best K/D season" (when any does).
+const PEAK_KD_MIN_MATCHES: u64 = 20;
 
 // ---------------------------------------------------------------- DTOs
 
@@ -93,9 +102,12 @@ pub struct OfficialPair {
 pub struct RankPoint {
     pub label: Option<String>,
     pub rank_points: i64,
+    /// Rank at that point (`Platinum V`), when the history says.
+    #[serde(default)]
+    pub rank_name: Option<String>,
 }
 
-/// Official per-operator numbers of the current season (Operators V2, ranked).
+/// Official per-operator numbers (Operators V2) for one season and playlist.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct OfficialOperator {
@@ -106,6 +118,96 @@ pub struct OfficialOperator {
     pub kd: f64,
     pub kills: u64,
     pub deaths: u64,
+    /// Round win percentage (0-100); `null` when Arenyze did not send it.
+    #[serde(default)]
+    pub win_pct: Option<f64>,
+    #[serde(default)]
+    pub hs_pct: Option<f64>,
+    #[serde(default)]
+    pub first_bloods: Option<u64>,
+    #[serde(default)]
+    pub first_deaths: Option<u64>,
+    #[serde(default)]
+    pub matches: Option<u64>,
+}
+
+/// One playlist inside one season (Ranked, Casual, Unranked, Event, Warmup) or the career line.
+#[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct PlaylistStats {
+    /// `ranked`, `casual`, `unranked`, `event`, `warmup` or `career`.
+    pub playlist: String,
+    pub rank_name: Option<String>,
+    /// Local asset key under `/assets/ranks/<key>.png`.
+    pub rank_icon: Option<String>,
+    pub rank_points: Option<i64>,
+    pub max_rank_name: Option<String>,
+    pub max_rank_icon: Option<String>,
+    pub max_rank_points: Option<i64>,
+    /// Matchmaking rating of the pre-RP seasons.
+    pub mmr: Option<i64>,
+    pub max_mmr: Option<i64>,
+    pub kd: Option<f64>,
+    pub kills: Option<u64>,
+    pub deaths: Option<u64>,
+    pub matches: Option<u64>,
+    pub wins: Option<u64>,
+    pub losses: Option<u64>,
+    pub abandons: Option<u64>,
+    /// 0-100, over matches played.
+    pub win_pct: Option<f64>,
+    /// Text such as `597h` or `2h 49m`, exactly as Arenyze sends it.
+    pub time_played: Option<String>,
+}
+
+/// One season with the playlists Arenyze has numbers for.
+#[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SeasonEntry {
+    pub season_id: i64,
+    /// `Y11S3`.
+    pub short_name: String,
+    /// `Split Fire`.
+    pub name: Option<String>,
+    /// `#rrggbb`, from Arenyze.
+    pub color: Option<String>,
+    pub playlists: Vec<PlaylistStats>,
+}
+
+/// A season picked as a personal best (highest rank, best K/D).
+#[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct PeakEntry {
+    pub season_id: i64,
+    pub short_name: String,
+    pub name: Option<String>,
+    pub color: Option<String>,
+    /// RP for the rank peak, K/D for the K/D peak.
+    pub value: f64,
+    /// `RP`, `MMR` or `K/D`.
+    pub unit: String,
+    pub rank_name: Option<String>,
+    pub rank_icon: Option<String>,
+    pub matches: Option<u64>,
+}
+
+#[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SeasonPeaks {
+    pub best_rank: Option<PeakEntry>,
+    pub best_kd: Option<PeakEntry>,
+}
+
+/// Answer of `online_operators`: one (season, mode) table.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct OperatorsView {
+    /// `Y11S3` or `all`.
+    pub season: String,
+    /// `all`, `ranked`, `standard`, `quick-match`, `dual-front` or `siege-cup`.
+    pub mode: String,
+    pub operators: Vec<OfficialOperator>,
+    pub fetched_at: String,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -137,6 +239,24 @@ pub struct OnlineProfile {
     pub operators: Vec<OfficialOperator>,
     pub fetched_at: String,
     pub official: OfficialPair,
+    /// `PC`, `PlayStation` or `Xbox`.
+    #[serde(default)]
+    pub platform: Option<String>,
+    #[serde(default)]
+    pub current_season_id: Option<i64>,
+    /// `Split Fire`.
+    #[serde(default)]
+    pub season_name: Option<String>,
+    #[serde(default)]
+    pub season_color: Option<String>,
+    /// Newest season first.
+    #[serde(default)]
+    pub seasons: Vec<SeasonEntry>,
+    #[serde(default)]
+    pub peaks: SeasonPeaks,
+    /// All-time line (Arenyze `overview` segment).
+    #[serde(default)]
+    pub career: Option<PlaylistStats>,
 }
 
 #[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
@@ -598,9 +718,11 @@ fn https_url(v: Option<&Value>) -> Option<String> {
     s.trim().starts_with("https://").then(|| s.trim().to_string())
 }
 
-/// Rank-points history: a list of numbers, or of objects with a points field and an optional date.
+/// Rank-points history. The real answer is `history.data.history.data`: a list of
+/// `[isoTime, {value, metadata: {rank: "Platinum 5"}}]` pairs, newest first. Older shapes (numbers, or
+/// objects with a points field and an optional date) still work. The result is oldest first.
 fn parse_history(root: &Value) -> Vec<RankPoint> {
-    let Some(arr) = ["/history/data/history", "/history/data", "/history", "/data/history"]
+    let Some(arr) = ["/history/data/history/data", "/history/data/history", "/history/data", "/history", "/data/history"]
         .iter()
         .find_map(|p| root.pointer(p).and_then(Value::as_array))
     else {
@@ -608,21 +730,36 @@ fn parse_history(root: &Value) -> Vec<RankPoint> {
     };
     const POINT_KEYS: [&str; 6] = ["rankPoints", "rank_points", "rp", "points", "mmr", "value"];
     const LABEL_KEYS: [&str; 7] = ["date", "timestamp", "time", "createdAt", "startDate", "at", "day"];
+    let rank_of = |v: &Value| {
+        nonempty_str(v.pointer("/metadata/rank")).map(|r| rank_from_name(&r).map_or(r, |(n, _)| n.to_string()))
+    };
     let mut out: Vec<RankPoint> = arr
         .iter()
         .filter_map(|e| match e {
-            Value::Number(n) => Some(RankPoint { label: None, rank_points: n.as_f64()?.round() as i64 }),
+            Value::Number(n) => Some(RankPoint { label: None, rank_points: n.as_f64()?.round() as i64, rank_name: None }),
+            Value::Array(pair) if pair.len() == 2 => {
+                let inner = &pair[1];
+                let points = inner.get("value").and_then(num).or_else(|| num(inner))?;
+                Some(RankPoint { label: nonempty_str(pair.first()), rank_points: points.round() as i64, rank_name: rank_of(inner) })
+            }
             Value::Object(o) => {
                 let points = POINT_KEYS
                     .iter()
                     .find_map(|k| o.get(*k).and_then(num))
                     .or_else(|| e.pointer("/stats/rankPoints/value").and_then(num))?;
                 let label = LABEL_KEYS.iter().find_map(|k| nonempty_str(o.get(*k)));
-                Some(RankPoint { label, rank_points: points.round() as i64 })
+                Some(RankPoint { label, rank_points: points.round() as i64, rank_name: rank_of(e) })
             }
             _ => None,
         })
         .collect();
+    // Arenyze lists the newest point first; the chart wants time to run left to right.
+    let stamp = |p: Option<&RankPoint>| p.and_then(|p| p.label.as_deref()).and_then(|l| DateTime::parse_from_rfc3339(l).ok());
+    if let (Some(first), Some(last)) = (stamp(out.first()), stamp(out.last())) {
+        if first > last {
+            out.reverse();
+        }
+    }
     if out.len() > MAX_HISTORY_POINTS {
         out.drain(..out.len() - MAX_HISTORY_POINTS);
     }
@@ -659,9 +796,310 @@ fn parse_operators(body: &Value) -> Vec<OfficialOperator> {
                 Some(s) if s.starts_with("def") => "defense",
                 _ => "",
             };
-            Some(OfficialOperator { name, side: side.to_string(), rounds, kd: r2(kd), kills, deaths })
+            let count = |k: &str| o.get(k).and_then(num).filter(|f| *f >= 0.0).map(|f| f.round() as u64);
+            Some(OfficialOperator {
+                name,
+                side: side.to_string(),
+                rounds,
+                kd: r2(kd),
+                kills,
+                deaths,
+                win_pct: o.get("winPercent").and_then(num).map(r1),
+                hs_pct: o.get("headshotPercent").and_then(num).map(r1),
+                first_bloods: count("firstBloods"),
+                first_deaths: count("firstDeaths"),
+                matches: count("matchesPlayed"),
+            })
         })
         .collect()
+}
+
+// ---------------------------------------------------------------- seasons, playlists, boards
+
+/// Playlist order in the UI.
+const PLAYLIST_ORDER: [&str; 5] = ["ranked", "casual", "unranked", "event", "warmup"];
+
+/// Segment `sessionType` (else `gamemode`) -> playlist key.
+fn playlist_of_segment(seg: &Value) -> Option<&'static str> {
+    let by_session = |s: &str| match s {
+        "ranked" => Some("ranked"),
+        "quick-match" | "casual" => Some("casual"),
+        "standard" | "unranked" => Some("unranked"),
+        "event" => Some("event"),
+        "arcade" | "warmup" => Some("warmup"),
+        _ => None,
+    };
+    attr_lower(seg, "sessionType").as_deref().and_then(by_session).or_else(|| {
+        match attr_lower(seg, "gamemode")?.as_str() {
+            "pvp_ranked" => Some("ranked"),
+            "pvp_casual" => Some("casual"),
+            "pvp_standard" => Some("unranked"),
+            "pvp_event" => Some("event"),
+            "pvp_warmup" => Some("warmup"),
+            _ => None,
+        }
+    })
+}
+
+/// Rank id from RP in the Siege X system: 100 RP per tier from 1000 RP (Copper V = 1, Platinum V =
+/// 21 at 3000, Champion = 36). `None` at or below 1000 RP (placement, no rank yet).
+fn rank_id_from_rp(rp: i64) -> Option<i64> {
+    (rp > 1000).then(|| (1 + (rp - 1000) / 100).min(36))
+}
+
+fn rank_of_rp(rp: Option<i64>) -> (Option<String>, Option<String>) {
+    match rp.and_then(rank_id_from_rp).map(rank_info) {
+        Some((name, icon)) => (Some(name), icon),
+        None => (None, None),
+    }
+}
+
+fn pct_of(part: Option<u64>, whole: Option<u64>) -> Option<f64> {
+    let (p, w) = (part?, whole?);
+    (w > 0).then(|| r1(100.0 * p as f64 / w as f64))
+}
+
+/// One playlist line from a season / overview segment. Ranks of past seasons are derived from RP.
+fn playlist_from_segment(seg: &Value, playlist: &str) -> PlaylistStats {
+    let rank_points = stat_i64(seg, "rankPoints").filter(|v| *v > 0);
+    let max_rank_points = stat_i64(seg, "maxRankPoints").filter(|v| *v > 0);
+    let (kills, deaths) = (stat_u64(seg, "kills"), stat_u64(seg, "deaths"));
+    let (wins, losses) = (stat_u64(seg, "matchesWon"), stat_u64(seg, "matchesLost"));
+    let matches = stat_u64(seg, "matchesPlayed").or_else(|| Some(wins? + losses?));
+    let (rank_name, rank_icon, max_rank_name, max_rank_icon) = if playlist == "ranked" {
+        let (n, i) = rank_of_rp(rank_points);
+        let (mn, mi) = rank_of_rp(max_rank_points);
+        (n, i, mn, mi)
+    } else {
+        (None, None, None, None)
+    };
+    PlaylistStats {
+        playlist: playlist.to_string(),
+        rank_name,
+        rank_icon,
+        rank_points,
+        max_rank_name,
+        max_rank_icon,
+        max_rank_points,
+        mmr: stat_i64(seg, "mmr").filter(|v| *v > 0),
+        max_mmr: stat_i64(seg, "maxMmr").filter(|v| *v > 0),
+        kd: stat_f64(seg, "kdRatio").or_else(|| Some(kills? as f64 / deaths? as f64).filter(|v| v.is_finite())).map(r2),
+        kills,
+        deaths,
+        matches,
+        wins,
+        losses,
+        abandons: None,
+        win_pct: pct_of(wins, matches),
+        time_played: nonempty_str(stat(seg, "timePlayed").and_then(|s| s.get("displayValue"))),
+    }
+}
+
+/// One board of the real `stats.platform_families_full_profiles` tree (newest season only).
+#[derive(Debug, Clone, PartialEq)]
+struct Board {
+    playlist: &'static str,
+    season_id: i64,
+    rank: i64,
+    rank_points: i64,
+    max_rank: i64,
+    max_rank_points: i64,
+    kills: u64,
+    deaths: u64,
+    wins: u64,
+    losses: u64,
+    abandons: u64,
+}
+
+fn parse_boards(root: &Value) -> Vec<Board> {
+    let Some(families) = first_pointer(root, &["/stats/platform_families_full_profiles", "/platform_families_full_profiles"])
+        .and_then(Value::as_array)
+    else {
+        return Vec::new();
+    };
+    let mut out = Vec::new();
+    for fam in families {
+        for board in fam.get("board_ids_full_profiles").and_then(Value::as_array).into_iter().flatten() {
+            let playlist = match board.get("board_id").and_then(Value::as_str).map(str::to_ascii_lowercase).as_deref() {
+                Some("ranked") => "ranked",
+                Some("casual") => "casual",
+                Some("standard") => "unranked",
+                Some("event") => "event",
+                Some("warmup") | Some("arcade") => "warmup",
+                _ => continue,
+            };
+            // Newest season of this board.
+            let Some(full) = board
+                .get("full_profiles")
+                .and_then(Value::as_array)
+                .and_then(|a| a.iter().max_by_key(|p| p.get("season_id").and_then(num).map_or(0, |f| f as i64)))
+            else {
+                continue;
+            };
+            let Some(season_id) = full.get("season_id").and_then(num).map(|f| f as i64).filter(|s| *s > 0) else { continue };
+            let Some(p) = full.get("profile") else { continue };
+            let n = |k: &str| p.get(k).and_then(num).filter(|f| *f >= 0.0).map_or(0, |f| f.round() as u64);
+            let i = |k: &str| p.get(k).and_then(num).map_or(0, |f| f.round() as i64);
+            out.push(Board {
+                playlist,
+                season_id,
+                rank: i("rank"),
+                rank_points: i("rank_points"),
+                max_rank: i("max_rank"),
+                max_rank_points: i("max_rank_points"),
+                kills: n("kills"),
+                deaths: n("deaths"),
+                wins: n("wins"),
+                losses: n("losses"),
+                abandons: n("abandon"),
+            });
+        }
+    }
+    out
+}
+
+/// Board numbers are the official live ones for the newest season: they replace the segment's.
+fn overlay_board(p: &mut PlaylistStats, b: &Board) {
+    if b.rank > 0 || b.playlist == "ranked" {
+        let (name, icon) = rank_info(b.rank);
+        p.rank_name = Some(name);
+        p.rank_icon = icon;
+        if b.max_rank > 0 {
+            let (name, icon) = rank_info(b.max_rank);
+            p.max_rank_name = Some(name);
+            p.max_rank_icon = icon;
+        }
+    }
+    if b.rank_points > 0 {
+        p.rank_points = Some(b.rank_points);
+    }
+    if b.max_rank_points > 0 {
+        p.max_rank_points = Some(b.max_rank_points);
+    }
+    p.kills = Some(b.kills);
+    p.deaths = Some(b.deaths);
+    p.wins = Some(b.wins);
+    p.losses = Some(b.losses);
+    p.abandons = Some(b.abandons);
+    if p.matches.is_none() || p.matches == Some(0) {
+        p.matches = Some(b.wins + b.losses);
+    }
+    if p.kd.is_none() && b.deaths > 0 {
+        p.kd = Some(r2(b.kills as f64 / b.deaths as f64));
+    }
+    p.win_pct = pct_of(p.wins, p.matches);
+}
+
+/// Seasons (newest first, playlists in UI order) from the segments and boards, plus the career line.
+fn build_seasons(segs: &[&Value], boards: &[Board]) -> (Vec<SeasonEntry>, Option<PlaylistStats>) {
+    let mut by_id: std::collections::BTreeMap<i64, SeasonEntry> = std::collections::BTreeMap::new();
+    let mut career = None;
+    for seg in segs {
+        if seg_type(seg) == "overview" {
+            career.get_or_insert_with(|| playlist_from_segment(seg, "career"));
+            continue;
+        }
+        let (Some(id), Some(playlist)) = (season_id(seg), playlist_of_segment(seg)) else { continue };
+        let entry = by_id.entry(id).or_insert_with(|| SeasonEntry { season_id: id, ..Default::default() });
+        if entry.short_name.is_empty() {
+            entry.short_name = nonempty_str(seg.pointer("/metadata/shortName")).unwrap_or_else(|| season_code(id));
+        }
+        if entry.name.is_none() {
+            entry.name = nonempty_str(seg.pointer("/metadata/name")).or_else(|| nonempty_str(seg.pointer("/metadata/seasonName")));
+        }
+        if entry.color.is_none() {
+            entry.color = nonempty_str(seg.pointer("/metadata/color")).filter(|c| c.starts_with('#') && c.len() <= 9);
+        }
+        if !entry.playlists.iter().any(|p| p.playlist == playlist) {
+            entry.playlists.push(playlist_from_segment(seg, playlist));
+        }
+    }
+    for b in boards {
+        let entry = by_id.entry(b.season_id).or_insert_with(|| SeasonEntry {
+            season_id: b.season_id,
+            short_name: season_code(b.season_id),
+            ..Default::default()
+        });
+        if !entry.playlists.iter().any(|p| p.playlist == b.playlist) {
+            entry.playlists.push(PlaylistStats { playlist: b.playlist.to_string(), ..Default::default() });
+        }
+        if let Some(p) = entry.playlists.iter_mut().find(|p| p.playlist == b.playlist) {
+            overlay_board(p, b);
+        }
+    }
+    let mut seasons: Vec<SeasonEntry> = by_id.into_values().rev().collect();
+    for s in &mut seasons {
+        s.playlists.sort_by_key(|p| PLAYLIST_ORDER.iter().position(|k| *k == p.playlist).unwrap_or(usize::MAX));
+    }
+    (seasons, career)
+}
+
+fn ranked_of(season: &SeasonEntry) -> Option<&PlaylistStats> {
+    season.playlists.iter().find(|p| p.playlist == "ranked")
+}
+
+fn peak_entry(s: &SeasonEntry, value: f64, unit: &str, rank: Option<(&Option<String>, &Option<String>)>, matches: Option<u64>) -> PeakEntry {
+    PeakEntry {
+        season_id: s.season_id,
+        short_name: s.short_name.clone(),
+        name: s.name.clone(),
+        color: s.color.clone(),
+        value,
+        unit: unit.to_string(),
+        rank_name: rank.and_then(|r| r.0.clone()),
+        rank_icon: rank.and_then(|r| r.1.clone()),
+        matches,
+    }
+}
+
+/// Highest-rank season (by best RP; MMR seasons only when no season has RP) and best-K/D season.
+/// Ties go to the newer season.
+fn compute_peaks(seasons: &[SeasonEntry]) -> SeasonPeaks {
+    let best_rank = seasons
+        .iter()
+        .filter_map(|s| {
+            let p = ranked_of(s)?;
+            let rp = p.max_rank_points.or(p.rank_points).filter(|v| *v > 1000)?;
+            Some((rp, s.season_id, s, p))
+        })
+        .max_by_key(|(rp, id, _, _)| (*rp, *id))
+        .map(|(rp, _, s, p)| {
+            let (name, icon) = if p.max_rank_name.is_some() { (&p.max_rank_name, &p.max_rank_icon) } else { (&p.rank_name, &p.rank_icon) };
+            peak_entry(s, rp as f64, "RP", Some((name, icon)), p.matches)
+        })
+        .or_else(|| {
+            seasons
+                .iter()
+                .filter_map(|s| {
+                    let p = ranked_of(s)?;
+                    Some((p.max_mmr.or(p.mmr)?, s.season_id, s, p))
+                })
+                .max_by_key(|(v, id, _, _)| (*v, *id))
+                .map(|(v, _, s, p)| peak_entry(s, v as f64, "MMR", None, p.matches))
+        });
+    let kd_of = |min: u64| {
+        seasons
+            .iter()
+            .filter_map(|s| {
+                let p = ranked_of(s)?;
+                let m = p.matches.filter(|m| *m >= min.max(1))?;
+                Some((p.kd?, s.season_id, s, m))
+            })
+            .max_by(|a, b| a.0.total_cmp(&b.0).then(a.1.cmp(&b.1)))
+    };
+    let best_kd = kd_of(PEAK_KD_MIN_MATCHES).or_else(|| kd_of(1)).map(|(kd, _, s, m)| peak_entry(s, kd, "K/D", None, Some(m)));
+    SeasonPeaks { best_rank, best_kd }
+}
+
+fn platform_label(root: &Value) -> Option<String> {
+    let family = nonempty_str(root.pointer("/player/platformFamilies")).map(|s| s.to_ascii_lowercase());
+    let kind = nonempty_str(root.pointer("/player/platformType")).map(|s| s.to_ascii_lowercase());
+    match (family.as_deref(), kind.as_deref()) {
+        (Some("pc"), _) | (_, Some("uplay")) => Some("PC".into()),
+        (Some("psn"), _) | (_, Some("psn")) => Some("PlayStation".into()),
+        (Some("xbl"), _) | (_, Some("xbl")) => Some("Xbox".into()),
+        _ => None,
+    }
 }
 
 /// Builds the profile from the Profile V2 answer, optional extra answers that may carry segments
@@ -708,13 +1146,49 @@ fn build_profile(username: &str, profile: &Value, extra: &[&Value], operators: O
         official_season = totals_of(seg, Scope::Season, fetched_at);
     }
 
+    // Real-shape data: boards + season list. They win over the Tracker-style guess above.
+    let boards = parse_boards(profile);
+    let (seasons, career) = build_seasons(&segs, &boards);
+    let current_season_id = first_pointer(profile, &["/seasons/data/metadata/currentSeason", "/data/metadata/currentSeason"])
+        .and_then(num)
+        .map(|f| f as i64)
+        .filter(|s| *s > 0)
+        .or_else(|| boards.iter().find(|b| b.playlist == "ranked").map(|b| b.season_id))
+        .or_else(|| seasons.first().map(|s| s.season_id));
+    let current_entry = current_season_id.and_then(|id| seasons.iter().find(|s| s.season_id == id));
+    if let Some(entry) = current_entry {
+        season = Some(entry.short_name.clone());
+        if let Some(r) = ranked_of(entry) {
+            // A board rank is the real id; a rank derived from RP only fills what is still empty.
+            let from_board = boards.iter().any(|b| b.playlist == "ranked" && b.season_id == entry.season_id);
+            if r.rank_name.is_some() && (from_board || rank_name.is_none()) {
+                rank_name = r.rank_name.clone();
+                rank_icon = r.rank_icon.clone();
+            }
+            if from_board || max_rank_name.is_none() {
+                max_rank_name = r.max_rank_name.clone().or(max_rank_name);
+            }
+            rank_points = r.rank_points.or(rank_points);
+            max_rank_points = r.max_rank_points.or(max_rank_points);
+            season_kd = r.kd.or(season_kd);
+            kills = r.kills.or(kills);
+            deaths = r.deaths.or(deaths);
+            wins = r.wins.or(wins);
+            losses = r.losses.or(losses);
+            abandons = r.abandons.or(abandons);
+            matches = r.matches.or(matches);
+        }
+    }
+    let peaks = compute_peaks(&seasons);
+    let (season_name, season_color) = current_entry.map_or((None, None), |e| (e.name.clone(), e.color.clone()));
+
     let level = first_pointer(profile, &["/account/level", "/data/account/level", "/data/metadata/clearanceLevel"])
         .and_then(num)
         .filter(|l| *l >= 0.0)
         .map(|l| l.round() as u32);
     let profile_picture_url = https_url(first_pointer(
         profile,
-        &["/account/profilePicture", "/data/account/profilePicture", "/data/userInfo/customAvatarUrl"],
+        &["/account/profilePicture", "/data/account/profilePicture", "/data/userInfo/customAvatarUrl", "/seasons/data/platformInfo/avatarUrl"],
     ));
 
     OnlineProfile {
@@ -740,6 +1214,13 @@ fn build_profile(username: &str, profile: &Value, extra: &[&Value], operators: O
         operators: operators.map(parse_operators).unwrap_or_default(),
         fetched_at: fetched_at.to_string(),
         official: OfficialPair { season: official_season, all: all_time_totals(&segs, fetched_at) },
+        platform: platform_label(profile),
+        current_season_id,
+        season_name,
+        season_color,
+        seasons,
+        peaks,
+        career,
     }
 }
 
@@ -823,6 +1304,8 @@ fn newest_username(conn: &rusqlite::Connection) -> Option<String> {
 #[derive(Default)]
 struct Inner {
     cache: Option<CachedProfile>,
+    /// Operator tables by (season, mode); memory only, valid for 15 minutes.
+    ops_cache: std::collections::HashMap<(String, String), OperatorsView>,
     last_attempt: Option<Instant>,
     last_error: Option<String>,
 }
@@ -1114,6 +1597,11 @@ pub async fn online_profile(
             }
             inner.cache = Some(fresh);
             inner.last_error = None;
+            if let Some(season) = profile.season.clone() {
+                // The profile already carries the ranked table of its season: serve it from the cache.
+                let view = OperatorsView { season: season.clone(), mode: "ranked".into(), operators: profile.operators.clone(), fetched_at: profile.fetched_at.clone() };
+                inner.ops_cache.insert((season, "ranked".into()), view);
+            }
             log::info!("arenyze: profile refreshed (rank {:?})", profile.rank_name);
             Ok(Some(profile))
         }
@@ -1126,6 +1614,70 @@ pub async fn online_profile(
             }
         }
     }
+}
+
+/// Playlist choices of the operator table (Operators V2 `modes` values, lowercase).
+const OPERATOR_MODES: [&str; 6] = ["all", "ranked", "standard", "quick-match", "dual-front", "siege-cup"];
+
+/// Normalizes a (season, mode) request: season `all` or `Y<n>S<n>`, mode from the list above.
+/// Anything else is refused before it can reach the network.
+fn normalize_operator_query(season: &str, mode: &str) -> Option<(String, String)> {
+    let mode = mode.trim().to_ascii_lowercase();
+    if !OPERATOR_MODES.contains(&mode.as_str()) {
+        return None;
+    }
+    let season = season.trim().to_ascii_uppercase();
+    if season == "ALL" {
+        return Some(("all".into(), mode));
+    }
+    let b = season.as_bytes();
+    let digits = |s: &[u8]| !s.is_empty() && s.len() <= 2 && s.iter().all(u8::is_ascii_digit);
+    let ok = b.first() == Some(&b'Y')
+        && b.iter().position(|c| *c == b'S').is_some_and(|i| digits(&b[1..i]) && digits(&b[i + 1..]));
+    ok.then_some((season, mode))
+}
+
+fn ops_view_fresh(view: &OperatorsView, now: DateTime<Utc>) -> bool {
+    age_secs(&view.fetched_at, now).is_some_and(|a| (0..OPERATORS_TTL_SECS).contains(&a))
+}
+
+/// Operator table for one season and playlist (the Home selectors). Called only when the user picks a
+/// combination; answered from the 15-minute (season, mode) cache when it is there, unless `force`.
+#[tauri::command]
+pub async fn online_operators(
+    state: tauri::State<'_, ArenyzeState>,
+    db: tauri::State<'_, store::Db>,
+    season: String,
+    mode: String,
+    force: bool,
+) -> Cmd<OperatorsView> {
+    let (season, mode) = normalize_operator_query(&season, &mode).ok_or_else(|| "Unknown season or playlist.".to_string())?;
+    let key = key_load().ok_or_else(|| "Add your Arenyze key in Settings to load operator stats.".to_string())?;
+    let mut inner = state.inner.lock().await;
+    let now = Utc::now();
+    if !force {
+        if let Some(v) = inner.ops_cache.get(&(season.clone(), mode.clone())).filter(|v| ops_view_fresh(v, now)) {
+            return Ok(v.clone());
+        }
+    }
+    let username = newest_username(&*lock(&db)?).ok_or_else(|| OnlineError::PlayerNotFound.message())?;
+    let client = state.client().map_err(|e| e.message())?;
+    let mut fetcher = Fetcher { client, key: &key, username: &username, raw: Map::new(), quota: None };
+    let season_param = if season == "all" { "all" } else { season.as_str() };
+    let mode_param = if mode == "all" { "All" } else { mode.as_str() };
+    let result = fetcher.player("operators", "/v2/operators", &[("seasonYear", season_param), ("modes", mode_param)]).await;
+    let (raw, quota) = (std::mem::take(&mut fetcher.raw), fetcher.quota);
+    drop(fetcher);
+    if let (Ok(mut g), Some(answer)) = (state.raw.lock(), raw.get("operators")) {
+        g.get_or_insert_with(Map::new).insert(format!("operators_{season}_{mode}"), answer.clone());
+    }
+    if let Ok(conn) = lock(&db) {
+        store_quota(&conn, quota);
+    }
+    let body = result.map_err(|e| e.message())?;
+    let view = OperatorsView { season: season.clone(), mode: mode.clone(), operators: parse_operators(&body), fetched_at: now_iso() };
+    inner.ops_cache.insert((season, mode), view.clone());
+    Ok(view)
 }
 
 /// Replaces every occurrence of the key in a JSON text (defensive: answers should not contain it).
@@ -1209,6 +1761,9 @@ mod tests {
     const PROFILE: &str = include_str!("../tests/fixtures/arenyze_profile_v2.json");
     const FULLSTATS: &str = include_str!("../tests/fixtures/arenyze_fullstats_v2.json");
     const OPERATORS: &str = include_str!("../tests/fixtures/arenyze_operators_v2.json");
+    // Anonymized copies of the real answers (v5): board tree, season segments, pair history.
+    const REAL_PROFILE: &str = include_str!("../tests/fixtures/arenyze_profile_v2_real.json");
+    const REAL_OPERATORS: &str = include_str!("../tests/fixtures/arenyze_operators_v2_real.json");
     const NOW: &str = "2026-11-07T12:00:00Z";
 
     fn json(s: &str) -> Value {
@@ -1345,7 +1900,22 @@ mod tests {
     fn operators_are_parsed_and_empty_ones_dropped() {
         let ops = parse_operators(&json(OPERATORS));
         assert_eq!(ops.len(), 2);
-        assert_eq!(ops[0], OfficialOperator { name: "Twitch".into(), side: "attack".into(), rounds: 47, kd: 1.08, kills: 38, deaths: 35 });
+        assert_eq!(
+            ops[0],
+            OfficialOperator {
+                name: "Twitch".into(),
+                side: "attack".into(),
+                rounds: 47,
+                kd: 1.08,
+                kills: 38,
+                deaths: 35,
+                win_pct: None,
+                hs_pct: None,
+                first_bloods: None,
+                first_deaths: None,
+                matches: None,
+            }
+        );
         assert_eq!(ops[1].side, "defense");
     }
 
@@ -1356,7 +1926,148 @@ mod tests {
         let nested = json(r#"{"history":{"data":[{"date":"d1","stats":{"rankPoints":{"value":2000}}},{"date":"d2","rp":2100}]}}"#);
         let h = parse_history(&nested);
         assert_eq!(h.len(), 2);
-        assert_eq!(h[1], RankPoint { label: Some("d2".into()), rank_points: 2100 });
+        assert_eq!(h[1], RankPoint { label: Some("d2".into()), rank_points: 2100, rank_name: None });
+    }
+
+    #[test]
+    fn real_answer_gives_rank_from_the_board_tree() {
+        let p = build_profile("TestPlayer-01", &json(REAL_PROFILE), &[], Some(&json(REAL_OPERATORS)), NOW);
+        assert_eq!(p.season.as_deref(), Some("Y11S3"));
+        assert_eq!(p.current_season_id, Some(43));
+        assert_eq!(p.season_name.as_deref(), Some("Split Fire"));
+        assert_eq!(p.season_color.as_deref(), Some("#f5d36c"));
+        // Board rank 21 = Platinum V, max rank 23 = Platinum III (the segments carry no rank id).
+        assert_eq!(p.rank_name.as_deref(), Some("Platinum V"));
+        assert_eq!(p.rank_icon.as_deref(), Some("platinum-5"));
+        assert_eq!(p.max_rank_name.as_deref(), Some("Platinum III"));
+        assert_eq!((p.rank_points, p.max_rank_points), (Some(3007), Some(3261)));
+        assert_eq!((p.kills, p.deaths), (Some(1435), Some(1207)));
+        assert_eq!((p.wins, p.losses, p.abandons, p.matches), (Some(152), Some(154), Some(0), Some(306)));
+        assert_eq!(p.season_kd, Some(1.19));
+        assert_eq!(p.level, Some(210));
+        assert_eq!(p.platform.as_deref(), Some("PC"));
+        assert_eq!(p.profile_picture_url.as_deref(), Some("https://example.invalid/avatar-146.png"));
+        assert_eq!(p.operators.len(), 5);
+    }
+
+    #[test]
+    fn real_history_is_chronological_with_rank_names() {
+        let p = build_profile("TestPlayer-01", &json(REAL_PROFILE), &[], None, NOW);
+        assert_eq!(p.rank_history.len(), 10);
+        // Arenyze sends the newest point first; the chart wants the oldest first.
+        let (first, last) = (&p.rank_history[0], &p.rank_history[9]);
+        assert!(first.label < last.label);
+        assert_eq!(last.rank_points, 3007);
+        assert_eq!(last.rank_name.as_deref(), Some("Platinum V"));
+        assert_eq!(p.rank_history[8].rank_points, 3037);
+    }
+
+    #[test]
+    fn real_segments_give_seasons_playlists_and_peaks() {
+        let p = build_profile("TestPlayer-01", &json(REAL_PROFILE), &[], None, NOW);
+        let ids: Vec<i64> = p.seasons.iter().map(|s| s.season_id).collect();
+        assert_eq!(ids, vec![43, 39, 36, 35, 25]); // newest first
+        let cur = &p.seasons[0];
+        assert_eq!(cur.short_name, "Y11S3");
+        assert_eq!(cur.name.as_deref(), Some("Split Fire"));
+        let keys: Vec<&str> = cur.playlists.iter().map(|x| x.playlist.as_str()).collect();
+        assert_eq!(keys, vec!["ranked", "casual", "unranked", "event"]);
+        let ranked = &cur.playlists[0];
+        assert_eq!(ranked.rank_name.as_deref(), Some("Platinum V"));
+        assert_eq!(ranked.time_played.as_deref(), Some("597h"));
+        assert_eq!(ranked.win_pct, Some(49.7));
+        // The casual and unranked boards are overlaid with their abandons and results.
+        assert_eq!(cur.playlists[1].abandons, Some(3));
+        assert_eq!((cur.playlists[2].wins, cur.playlists[2].matches), (Some(1), Some(1)));
+        // Past ranked season: the rank is derived from RP.
+        let y9s3 = p.seasons.iter().find(|s| s.season_id == 35).unwrap();
+        let r = &y9s3.playlists[0];
+        assert_eq!(r.rank_points, Some(3553));
+        assert_eq!(r.rank_name.as_deref(), Some("Emerald V"));
+        assert_eq!(r.max_rank_points, Some(3767));
+        assert_eq!(r.max_rank_name.as_deref(), Some("Emerald III"));
+        // Pre-RP season keeps its MMR and has no derived rank.
+        let y7s1 = p.seasons.iter().find(|s| s.season_id == 25).unwrap();
+        assert_eq!(y7s1.playlists[0].mmr, Some(2436));
+        assert_eq!(y7s1.playlists[0].rank_name, None);
+        // Career line comes from the overview segment.
+        let career = p.career.expect("career");
+        assert_eq!((career.matches, career.kills), (Some(1572), Some(8112)));
+        assert_eq!(career.time_played.as_deref(), Some("789h"));
+        // Peaks: best RP is Y9S3 (3767); best K/D with 20+ matches is Y9S4 (1.33).
+        let best = p.peaks.best_rank.expect("best rank");
+        assert_eq!((best.season_id, best.value as i64, best.unit.as_str()), (35, 3767, "RP"));
+        assert_eq!(best.rank_name.as_deref(), Some("Emerald III"));
+        let kd = p.peaks.best_kd.expect("best kd");
+        assert_eq!((kd.season_id, kd.unit.as_str()), (36, "K/D"));
+        assert!((kd.value - 1.33).abs() < 0.01);
+    }
+
+    #[test]
+    fn rank_from_rp_matches_the_real_board_ranks() {
+        assert_eq!(rank_id_from_rp(3007), Some(21)); // Platinum V, real board rank
+        assert_eq!(rank_id_from_rp(3261), Some(23)); // Platinum III, real board max rank
+        assert_eq!(rank_id_from_rp(1000), None);
+        assert_eq!(rank_id_from_rp(1050), Some(1));
+        assert_eq!(rank_id_from_rp(9000), Some(36));
+    }
+
+    #[test]
+    fn peaks_ignore_tiny_samples_and_fall_back_to_mmr() {
+        let mk = |id: i64, mmr: Option<i64>, kd: f64, matches: u64| SeasonEntry {
+            season_id: id,
+            short_name: season_code(id),
+            playlists: vec![PlaylistStats {
+                playlist: "ranked".into(),
+                max_mmr: mmr,
+                kd: Some(kd),
+                matches: Some(matches),
+                ..Default::default()
+            }],
+            ..Default::default()
+        };
+        // A 2-match season with K/D 3.0 does not beat a 50-match season.
+        let peaks = compute_peaks(&[mk(40, Some(2500), 3.0, 2), mk(39, Some(2900), 1.4, 50)]);
+        assert_eq!(peaks.best_kd.map(|p| p.season_id), Some(39));
+        let rank = peaks.best_rank.expect("mmr fallback");
+        assert_eq!((rank.season_id, rank.unit.as_str(), rank.rank_name), (39, "MMR", None));
+        // Only tiny samples: the best of them is still shown.
+        let peaks = compute_peaks(&[mk(40, None, 3.0, 2), mk(39, None, 1.0, 3)]);
+        assert_eq!(peaks.best_kd.map(|p| p.season_id), Some(40));
+        assert!(peaks.best_rank.is_none());
+        assert_eq!(compute_peaks(&[]), SeasonPeaks::default());
+    }
+
+    #[test]
+    fn real_operators_keep_names_and_the_extra_columns() {
+        let ops = parse_operators(&json(REAL_OPERATORS));
+        assert_eq!(ops.len(), 5);
+        let kali = ops.iter().find(|o| o.name == "Kali").expect("Kali");
+        assert_eq!((kali.side.as_str(), kali.rounds, kali.kills, kali.deaths), ("attack", 211, 213, 128));
+        assert_eq!((kali.win_pct, kali.hs_pct), (Some(50.7), Some(34.7)));
+        assert_eq!((kali.first_bloods, kali.first_deaths, kali.matches), (Some(30), Some(15), Some(124)));
+        // Arenyze sends "Azami " with a trailing space; names are trimmed.
+        assert!(ops.iter().any(|o| o.name == "Azami" && o.side == "defense"));
+        assert!(ops.iter().any(|o| o.name.starts_with("J") && o.name.ends_with("ger")));
+    }
+
+    #[test]
+    fn operator_queries_are_validated_before_any_request() {
+        assert_eq!(normalize_operator_query("y11s3", "Ranked"), Some(("Y11S3".into(), "ranked".into())));
+        assert_eq!(normalize_operator_query(" ALL ", "all"), Some(("all".into(), "all".into())));
+        assert_eq!(normalize_operator_query("Y8S1", "quick-match").map(|q| q.1), Some("quick-match".into()));
+        for (season, mode) in [("Y11S3", "casual"), ("11S3", "ranked"), ("Y11S", "ranked"), ("Y111S3", "ranked"), ("Y11S3&x=1", "ranked"), ("", "ranked")] {
+            assert_eq!(normalize_operator_query(season, mode), None, "{season}/{mode}");
+        }
+    }
+
+    #[test]
+    fn operator_cache_lasts_fifteen_minutes() {
+        let now = DateTime::parse_from_rfc3339("2026-11-09T12:00:00Z").unwrap().with_timezone(&Utc);
+        let view = |at: &str| OperatorsView { season: "all".into(), mode: "all".into(), operators: vec![], fetched_at: at.into() };
+        assert!(ops_view_fresh(&view("2026-11-09T11:46:00Z"), now));
+        assert!(!ops_view_fresh(&view("2026-11-09T11:44:59Z"), now));
+        assert!(!ops_view_fresh(&view("garbage"), now));
     }
 
     #[test]

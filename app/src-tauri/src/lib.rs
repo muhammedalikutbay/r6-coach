@@ -228,6 +228,7 @@ pub fn run() {
             arenyze::arenyze_set_key,
             arenyze::arenyze_clear_key,
             arenyze::online_profile,
+            arenyze::online_operators,
             arenyze::arenyze_save_last_response,
             arenyze::arenyze_open_key_page,
             clips::get_clip_settings,

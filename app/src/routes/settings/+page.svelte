@@ -76,9 +76,10 @@
   }
 </script>
 
+<div class="mx-auto w-full max-w-2xl">
 <PageHeader title="Settings" />
 
-<div class="flex max-w-2xl flex-col gap-4">
+<div class="flex flex-col gap-4">
   <Card>
     <h3 class="font-semibold">Replay folder</h3>
     <p class="mt-1 mb-3 text-muted">R6 Coach reads your match replays from this folder.</p>
@@ -122,4 +123,5 @@
       <Button variant="danger" onclick={() => (confirmReset = true)} disabled={busy}>Reset database</Button>
     {/if}
   </Card>
+</div>
 </div>

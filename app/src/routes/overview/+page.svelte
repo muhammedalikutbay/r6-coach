@@ -4,7 +4,6 @@
   import EmptyState from '$lib/components/EmptyState.svelte';
   import Section from '$lib/components/Section.svelte';
   import CollapsibleSection from '$lib/v2/components/CollapsibleSection.svelte';
-  import RankHeader from '$lib/v2/components/RankHeader.svelte';
   import DeepSections from '$lib/v2/components/DeepSections.svelte';
   import StatCard from '$lib/components/StatCard.svelte';
   import Skeleton from '$lib/components/Skeleton.svelte';
@@ -16,53 +15,37 @@
   import MatchRowItem from '$lib/v2/components/MatchRowItem.svelte';
   import { filterStore } from '$lib/v2/filter.svelte';
   import { query } from '$lib/v2/api';
-  import { arenyzeStatus, onlineProfile } from '$lib/v2/arenyze';
+  import { onlineProfile, arenyzeStatus } from '$lib/v2/arenyze';
   import { refreshTick } from '$lib/v2/refresh.svelte';
   import { formatShortDate } from '$lib/v2/format';
   import { toast } from '$lib/toast.svelte';
-  import type { ArenyzeStatus, OfficialOperator, OnlineProfile, QueryResult } from '$lib/v2/types';
+  import type { OfficialOperator, OnlineProfile, QueryResult } from '$lib/v2/types';
 
   let data = $state<QueryResult | null>(null);
   let loading = $state(true);
   let failed = $state(false);
   let seq = 0;
 
-  let online = $state<ArenyzeStatus | null>(null);
+  // Official Arenyze per-operator numbers (served from the 15-minute cache). The rank header now lives on Home.
   let profile = $state<OnlineProfile | null>(null);
-  let rankError = $state<string | null>(null);
-  let rankLoading = $state(true);
-  let rankRefreshing = $state(false);
 
-  /** Rank + official numbers from Arenyze. Without `force` this is served from the 15-minute cache. */
-  async function loadRank(force: boolean) {
+  async function loadOfficial() {
     try {
-      online = await arenyzeStatus();
-      if (!online.hasKey) {
+      if (!(await arenyzeStatus()).hasKey) {
         profile = null;
-        rankError = null;
         return;
       }
-      profile = await onlineProfile(force);
-      rankError = null;
-      online = await arenyzeStatus(); // username / quota may have changed
+      profile = await onlineProfile(false);
     } catch (e) {
-      console.error('[overview] rank failed', e);
-      // Keep the last profile on screen when a refresh fails.
-      rankError = typeof e === 'string' ? e : 'Could not load your rank.';
-      if (force) toast('error', rankError);
+      // Keep the last profile when a refresh fails; the official numbers are optional here.
+      console.error('[overview] official numbers failed', e);
     }
   }
 
   $effect(() => {
     void refreshTick.value;
-    loadRank(false).finally(() => (rankLoading = false));
+    void loadOfficial();
   });
-
-  async function refreshRank() {
-    rankRefreshing = true;
-    await loadRank(true);
-    rankRefreshing = false;
-  }
 
   $effect(() => {
     const f = $state.snapshot(filterStore.value);
@@ -114,8 +97,6 @@
 </script>
 
 <PageHeader title="Overview" sub={sourceHint} />
-
-<RankHeader {profile} status={online} loading={rankLoading} refreshing={rankRefreshing} error={rankError} onrefresh={refreshRank} />
 
 {#if loading && !data}
   <div class="grid grid-cols-2 gap-3 lg:grid-cols-3 xl:grid-cols-6">

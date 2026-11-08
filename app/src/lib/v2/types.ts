@@ -133,9 +133,11 @@ export interface ArenyzeStatus {
 export interface RankPoint {
   label: string | null;
   rankPoints: number;
+  /** Rank at that point, for example 'Platinum V'. */
+  rankName?: string | null;
 }
 
-/** Official per-operator numbers of the current ranked season. */
+/** Official per-operator numbers (Operators V2) for one season and playlist. */
 export interface OfficialOperator {
   name: string;
   side: 'attack' | 'defense' | '';
@@ -143,7 +145,80 @@ export interface OfficialOperator {
   kd: number;
   kills: number;
   deaths: number;
+  /** Round win percentage, 0-100. */
+  winPct?: number | null;
+  hsPct?: number | null;
+  firstBloods?: number | null;
+  firstDeaths?: number | null;
+  matches?: number | null;
 }
+
+export type PlaylistKey = 'ranked' | 'casual' | 'unranked' | 'event' | 'warmup';
+
+/** One playlist inside one season, or the career line (`playlist: 'career'`). */
+export interface PlaylistStats {
+  playlist: PlaylistKey | 'career';
+  rankName: string | null;
+  /** Local asset key under /assets/ranks/<key>.png. */
+  rankIcon: string | null;
+  rankPoints: number | null;
+  maxRankName: string | null;
+  maxRankIcon: string | null;
+  maxRankPoints: number | null;
+  /** Matchmaking rating of the seasons before RP. */
+  mmr: number | null;
+  maxMmr: number | null;
+  kd: number | null;
+  kills: number | null;
+  deaths: number | null;
+  matches: number | null;
+  wins: number | null;
+  losses: number | null;
+  abandons: number | null;
+  /** 0-100. */
+  winPct: number | null;
+  /** Text as Arenyze sends it, for example '597h'. */
+  timePlayed: string | null;
+}
+
+export interface SeasonEntry {
+  seasonId: number;
+  /** For example 'Y11S3'. */
+  shortName: string;
+  /** For example 'Split Fire'. */
+  name: string | null;
+  /** '#rrggbb'. */
+  color: string | null;
+  playlists: PlaylistStats[];
+}
+
+export interface PeakEntry {
+  seasonId: number;
+  shortName: string;
+  name: string | null;
+  color: string | null;
+  value: number;
+  unit: 'RP' | 'MMR' | 'K/D';
+  rankName: string | null;
+  rankIcon: string | null;
+  matches: number | null;
+}
+
+export interface SeasonPeaks {
+  bestRank: PeakEntry | null;
+  bestKd: PeakEntry | null;
+}
+
+/** One operator table: a (season, playlist) pair. */
+export interface OperatorsView {
+  /** 'Y11S3' or 'all'. */
+  season: string;
+  mode: OperatorMode;
+  operators: OfficialOperator[];
+  fetchedAt: string;
+}
+
+export type OperatorMode = 'all' | 'ranked' | 'standard' | 'quick-match' | 'dual-front' | 'siege-cup';
 
 /** The tracked player's online profile. Fields Arenyze did not return are null. */
 export interface OnlineProfile {
@@ -171,6 +246,16 @@ export interface OnlineProfile {
   /** ISO UTC. */
   fetchedAt: string;
   official: { season: OfficialTotals | null; all: OfficialTotals | null };
+  /** 'PC', 'PlayStation' or 'Xbox'. */
+  platform?: string | null;
+  currentSeasonId?: number | null;
+  seasonName?: string | null;
+  seasonColor?: string | null;
+  /** Newest season first. */
+  seasons?: SeasonEntry[];
+  peaks?: SeasonPeaks;
+  /** All-time line. */
+  career?: PlaylistStats | null;
 }
 
 export interface QueryResult {

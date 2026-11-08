@@ -1,0 +1,882 @@
+{
+ "account": {
+  "level": 210,
+  "profile": {
+   "level": 210,
+   "xp": 0
+  },
+  "profilePicture": "https://example.invalid/avatar-146.png",
+  "profiles": [
+   {
+    "nameOnPlatform": "TestPlayer-01",
+    "platformType": "uplay",
+    "profileId": "00000000-0000-4000-8000-000000000001"
+   }
+  ],
+  "xp": 0
+ },
+ "banned": {
+  "banAlerts": [],
+  "isBanned": false,
+  "platform": "uplay",
+  "username": "TestPlayer-01"
+ },
+ "history": {
+  "data": {
+   "bestMatches": null,
+   "expiryDate": "0001-01-01T00:00:00+00:00",
+   "history": {
+    "data": [
+     [
+      "2026-11-07T01:02:10.812+00:00",
+      {
+       "displayName": "Rank Points",
+       "displayType": "Number",
+       "displayValue": "3,007",
+       "metadata": {
+        "color": "#44ccc2",
+        "imageUrl": "https://r6.arenyze.com/assets/img/r6_ranks_img/platinum-5.webp",
+        "rank": "Platinum 5"
+       },
+       "value": 3007
+      }
+     ],
+     [
+      "2026-11-07T00:20:58.166+00:00",
+      {
+       "displayName": "Rank Points",
+       "displayType": "Number",
+       "displayValue": "3,037",
+       "metadata": {
+        "color": "#44ccc2",
+        "imageUrl": "https://r6.arenyze.com/assets/img/r6_ranks_img/platinum-5.webp",
+        "rank": "Platinum 5"
+       },
+       "value": 3037
+      }
+     ],
+     [
+      "2026-11-06T23:53:54.722+00:00",
+      {
+       "displayName": "Rank Points",
+       "displayType": "Number",
+       "displayValue": "3,068",
+       "metadata": {
+        "color": "#44ccc2",
+        "imageUrl": "https://r6.arenyze.com/assets/img/r6_ranks_img/platinum-5.webp",
+        "rank": "Platinum 5"
+       },
+       "value": 3068
+      }
+     ],
+     [
+      "2026-11-06T23:07:39.704+00:00",
+      {
+       "displayName": "Rank Points",
+       "displayType": "Number",
+       "displayValue": "3,038",
+       "metadata": {
+        "color": "#44ccc2",
+        "imageUrl": "https://r6.arenyze.com/assets/img/r6_ranks_img/platinum-5.webp",
+        "rank": "Platinum 5"
+       },
+       "value": 3038
+      }
+     ],
+     [
+      "2026-11-06T22:36:54.135+00:00",
+      {
+       "displayName": "Rank Points",
+       "displayType": "Number",
+       "displayValue": "3,070",
+       "metadata": {
+        "color": "#44ccc2",
+        "imageUrl": "https://r6.arenyze.com/assets/img/r6_ranks_img/platinum-5.webp",
+        "rank": "Platinum 5"
+       },
+       "value": 3070
+      }
+     ],
+     [
+      "2026-11-05T20:10:59.493+00:00",
+      {
+       "displayName": "Rank Points",
+       "displayType": "Number",
+       "displayValue": "3,100",
+       "metadata": {
+        "color": "#44ccc2",
+        "imageUrl": "https://r6.arenyze.com/assets/img/r6_ranks_img/platinum-4.webp",
+        "rank": "Platinum 4"
+       },
+       "value": 3100
+      }
+     ],
+     [
+      "2026-11-05T19:34:55.71+00:00",
+      {
+       "displayName": "Rank Points",
+       "displayType": "Number",
+       "displayValue": "3,106",
+       "metadata": {
+        "color": "#44ccc2",
+        "imageUrl": "https://r6.arenyze.com/assets/img/r6_ranks_img/platinum-4.webp",
+        "rank": "Platinum 4"
+       },
+       "value": 3106
+      }
+     ],
+     [
+      "2026-11-05T19:10:10.555+00:00",
+      {
+       "displayName": "Rank Points",
+       "displayType": "Number",
+       "displayValue": "3,135",
+       "metadata": {
+        "color": "#44ccc2",
+        "imageUrl": "https://r6.arenyze.com/assets/img/r6_ranks_img/platinum-4.webp",
+        "rank": "Platinum 4"
+       },
+       "value": 3135
+      }
+     ],
+     [
+      "2026-11-05T18:51:42.825+00:00",
+      {
+       "displayName": "Rank Points",
+       "displayType": "Number",
+       "displayValue": "3,105",
+       "metadata": {
+        "color": "#44ccc2",
+        "imageUrl": "https://r6.arenyze.com/assets/img/r6_ranks_img/platinum-4.webp",
+        "rank": "Platinum 4"
+       },
+       "value": 3105
+      }
+     ],
+     [
+      "2026-11-05T18:16:49.584+00:00",
+      {
+       "displayName": "Rank Points",
+       "displayType": "Number",
+       "displayValue": "3,134",
+       "metadata": {
+        "color": "#44ccc2",
+        "imageUrl": "https://r6.arenyze.com/assets/img/r6_ranks_img/platinum-4.webp",
+        "rank": "Platinum 4"
+       },
+       "value": 3134
+      }
+     ]
+    ],
+    "metadata": {
+     "description": null,
+     "key": "RankPoints",
+     "name": "Rank Points"
+    }
+   },
+   "leaderboard": null
+  }
+ },
+ "meta": {
+  "errors": {},
+  "included": [
+   "stats",
+   "account",
+   "banned",
+   "seasons",
+   "history"
+  ],
+  "partial": false
+ },
+ "player": {
+  "nameOnPlatform": "TestPlayer-01",
+  "platformFamilies": "pc",
+  "platformType": "uplay"
+ },
+ "seasons": {
+  "data": {
+   "metadata": {
+    "battlepassLevel": 225,
+    "clearanceLevel": 210,
+    "currentSeason": 43
+   },
+   "platformInfo": {
+    "avatarUrl": "https://example.invalid/avatar-256.png",
+    "platformSlug": "ubi",
+    "platformUserHandle": "TestPlayer-01",
+    "platformUserId": "00000000-0000-4000-8000-000000000001"
+   },
+   "segments": [
+    {
+     "attributes": {
+      "gamemode": "pvp_ranked",
+      "season": 43,
+      "sessionType": "ranked"
+     },
+     "metadata": {
+      "color": "#f5d36c",
+      "name": "Split Fire",
+      "rankType": "rp",
+      "seasonName": "Split Fire",
+      "shortName": "Y11S3"
+     },
+     "stats": {
+      "deaths": {
+       "displayValue": "1,207",
+       "value": 1207
+      },
+      "kdRatio": {
+       "displayValue": "1.19",
+       "value": 1.1888980944490473
+      },
+      "kills": {
+       "displayValue": "1,435",
+       "value": 1435
+      },
+      "matchesLost": {
+       "displayValue": "154",
+       "value": 154
+      },
+      "matchesPlayed": {
+       "displayValue": "306",
+       "value": 306
+      },
+      "matchesWon": {
+       "displayValue": "152",
+       "value": 152
+      },
+      "maxRankPoints": {
+       "displayValue": "3,261",
+       "value": 3261
+      },
+      "rankPoints": {
+       "displayValue": "3,007",
+       "value": 3007
+      },
+      "timePlayed": {
+       "displayValue": "597h",
+       "value": 2149443702
+      }
+     },
+     "type": "season"
+    },
+    {
+     "attributes": {
+      "gamemode": "pvp_ranked",
+      "season": 39,
+      "sessionType": "ranked"
+     },
+     "metadata": {
+      "color": "#b43018",
+      "name": "High Stakes",
+      "rankType": "rp",
+      "seasonName": "High Stakes",
+      "shortName": "Y10S3"
+     },
+     "stats": {
+      "deaths": {
+       "displayValue": "12",
+       "value": 12
+      },
+      "kdRatio": {
+       "displayValue": "0.67",
+       "value": 0.6666666666666666
+      },
+      "kills": {
+       "displayValue": "8",
+       "value": 8
+      },
+      "matchesLost": {
+       "displayValue": "2",
+       "value": 2
+      },
+      "matchesPlayed": {
+       "displayValue": "2",
+       "value": 2
+      },
+      "matchesWon": {
+       "displayValue": "0",
+       "value": 0
+      },
+      "maxRankPoints": {
+       "displayValue": "1,000",
+       "value": 1000
+      },
+      "rankPoints": {
+       "displayValue": "1,000",
+       "value": 1000
+      },
+      "timePlayed": {
+       "displayValue": "5h 10m",
+       "value": 18616788
+      }
+     },
+     "type": "season"
+    },
+    {
+     "attributes": {
+      "gamemode": "pvp_ranked",
+      "season": 36,
+      "sessionType": "ranked"
+     },
+     "metadata": {
+      "color": "#c1922c",
+      "name": "Collision Point",
+      "rankType": "rp",
+      "seasonName": "Collision Point",
+      "shortName": "Y9S4"
+     },
+     "stats": {
+      "deaths": {
+       "displayValue": "196",
+       "value": 196
+      },
+      "kdRatio": {
+       "displayValue": "1.33",
+       "value": 1.3316326530612246
+      },
+      "kills": {
+       "displayValue": "261",
+       "value": 261
+      },
+      "matchesLost": {
+       "displayValue": "20",
+       "value": 20
+      },
+      "matchesPlayed": {
+       "displayValue": "48",
+       "value": 48
+      },
+      "matchesWon": {
+       "displayValue": "28",
+       "value": 28
+      },
+      "maxRankPoints": {
+       "displayValue": "3,383",
+       "value": 3383
+      },
+      "rankPoints": {
+       "displayValue": "3,383",
+       "value": 3383
+      }
+     },
+     "type": "season"
+    },
+    {
+     "attributes": {
+      "gamemode": "pvp_ranked",
+      "season": 35,
+      "sessionType": "ranked"
+     },
+     "metadata": {
+      "color": "#9e3cc2",
+      "name": "Twin Shells",
+      "rankType": "rp",
+      "seasonName": "Twin Shells",
+      "shortName": "Y9S3"
+     },
+     "stats": {
+      "deaths": {
+       "displayValue": "1,477",
+       "value": 1477
+      },
+      "kdRatio": {
+       "displayValue": "1.30",
+       "value": 1.2985781990521328
+      },
+      "kills": {
+       "displayValue": "1,918",
+       "value": 1918
+      },
+      "matchesLost": {
+       "displayValue": "162",
+       "value": 162
+      },
+      "matchesPlayed": {
+       "displayValue": "347",
+       "value": 347
+      },
+      "matchesWon": {
+       "displayValue": "184",
+       "value": 184
+      },
+      "maxRankPoints": {
+       "displayValue": "3,767",
+       "value": 3767
+      },
+      "rankPoints": {
+       "displayValue": "3,553",
+       "value": 3553
+      }
+     },
+     "type": "season"
+    },
+    {
+     "attributes": {
+      "gamemode": "pvp_ranked",
+      "region": "global",
+      "season": 25,
+      "sessionType": "ranked"
+     },
+     "metadata": {
+      "color": "#ffb52c",
+      "name": "Demon Veil",
+      "rankType": "mmr",
+      "seasonName": "Demon Veil",
+      "shortName": "Y7S1"
+     },
+     "stats": {
+      "deaths": {
+       "displayValue": "235",
+       "value": 235
+      },
+      "kdRatio": {
+       "displayValue": "1.17",
+       "value": 1.1702127659574468
+      },
+      "kills": {
+       "displayValue": "275",
+       "value": 275
+      },
+      "matchesLost": {
+       "displayValue": "30",
+       "value": 30
+      },
+      "matchesPlayed": {
+       "displayValue": "56",
+       "value": 56
+      },
+      "matchesWon": {
+       "displayValue": "26",
+       "value": 26
+      },
+      "maxMmr": {
+       "displayValue": "2,898",
+       "value": 2898
+      },
+      "mmr": {
+       "displayValue": "2,436",
+       "value": 2436
+      }
+     },
+     "type": "season"
+    },
+    {
+     "attributes": {},
+     "metadata": {},
+     "stats": {
+      "deaths": {
+       "displayValue": "6,337",
+       "value": 6337
+      },
+      "kdRatio": {
+       "displayValue": "1.28",
+       "value": 1.28
+      },
+      "kills": {
+       "displayValue": "8,112",
+       "value": 8112
+      },
+      "matchesLost": {
+       "displayValue": "746",
+       "value": 746
+      },
+      "matchesPlayed": {
+       "displayValue": "1,572",
+       "value": 1572
+      },
+      "matchesWon": {
+       "displayValue": "809",
+       "value": 809
+      },
+      "timePlayed": {
+       "displayValue": "789h",
+       "value": 2843639
+      }
+     },
+     "type": "overview"
+    },
+    {
+     "attributes": {
+      "gamemode": "pvp_ranked",
+      "sessionType": "ranked"
+     },
+     "metadata": {},
+     "stats": {
+      "deaths": {
+       "displayValue": "4,957",
+       "value": 4957
+      },
+      "kdRatio": {
+       "displayValue": "1.23",
+       "value": 1.23
+      },
+      "kills": {
+       "displayValue": "6,101",
+       "value": 6101
+      },
+      "matchesLost": {
+       "displayValue": "473",
+       "value": 473
+      },
+      "matchesPlayed": {
+       "displayValue": "1,180",
+       "value": 1180
+      },
+      "matchesWon": {
+       "displayValue": "605",
+       "value": 605
+      },
+      "timePlayed": {
+       "displayValue": "0s",
+       "value": 0
+      }
+     },
+     "type": "gamemode"
+    },
+    {
+     "attributes": {
+      "gamemode": "pvp_event",
+      "sessionType": "event"
+     },
+     "metadata": {},
+     "stats": {
+      "deaths": {
+       "displayValue": "19",
+       "value": 19
+      },
+      "kdRatio": {
+       "displayValue": "1.47",
+       "value": 1.47
+      },
+      "kills": {
+       "displayValue": "28",
+       "value": 28
+      },
+      "matchesLost": {
+       "displayValue": "5",
+       "value": 5
+      },
+      "matchesPlayed": {
+       "displayValue": "8",
+       "value": 8
+      },
+      "matchesWon": {
+       "displayValue": "3",
+       "value": 3
+      },
+      "timePlayed": {
+       "displayValue": "0s",
+       "value": 0
+      }
+     },
+     "type": "gamemode"
+    },
+    {
+     "attributes": {
+      "gamemode": "pvp_casual",
+      "season": 43,
+      "sessionType": "quick-match"
+     },
+     "metadata": {
+      "color": "#f5d36c",
+      "name": "Split Fire",
+      "rankType": "rp",
+      "seasonName": "Split Fire",
+      "shortName": "Y11S3"
+     },
+     "stats": {
+      "deaths": {
+       "displayValue": "9",
+       "value": 9
+      },
+      "kdRatio": {
+       "displayValue": "1.78",
+       "value": 1.7777777777777777
+      },
+      "kills": {
+       "displayValue": "16",
+       "value": 16
+      },
+      "matchesLost": {
+       "displayValue": "1",
+       "value": 1
+      },
+      "matchesPlayed": {
+       "displayValue": "5",
+       "value": 5
+      },
+      "matchesWon": {
+       "displayValue": "1",
+       "value": 1
+      },
+      "maxRankPoints": {
+       "displayValue": null,
+       "value": null
+      },
+      "rankPoints": {
+       "displayValue": null,
+       "value": null
+      },
+      "timePlayed": {
+       "displayValue": "2h 49m",
+       "value": 10178204
+      }
+     },
+     "type": "season"
+    },
+    {
+     "attributes": {
+      "gamemode": "pvp_standard",
+      "season": 43,
+      "sessionType": "standard"
+     },
+     "metadata": {
+      "color": "#f5d36c",
+      "name": "Split Fire",
+      "rankType": "rp",
+      "seasonName": "Split Fire",
+      "shortName": "Y11S3"
+     },
+     "stats": {
+      "deaths": {
+       "displayValue": "1",
+       "value": 1
+      },
+      "kdRatio": {
+       "displayValue": "7.00",
+       "value": 7
+      },
+      "kills": {
+       "displayValue": "7",
+       "value": 7
+      },
+      "matchesLost": {
+       "displayValue": "0",
+       "value": 0
+      },
+      "matchesPlayed": {
+       "displayValue": "1",
+       "value": 1
+      },
+      "matchesWon": {
+       "displayValue": "1",
+       "value": 1
+      },
+      "maxRankPoints": {
+       "displayValue": null,
+       "value": null
+      },
+      "rankPoints": {
+       "displayValue": "0",
+       "value": 0
+      },
+      "timePlayed": {
+       "displayValue": "1h 46m",
+       "value": 6412765
+      }
+     },
+     "type": "season"
+    },
+    {
+     "attributes": {
+      "gamemode": "pvp_event",
+      "season": 43,
+      "sessionType": "event"
+     },
+     "metadata": {
+      "color": "#f5d36c",
+      "name": "Split Fire",
+      "rankType": "rp",
+      "seasonName": "Split Fire",
+      "shortName": "Y11S3"
+     },
+     "stats": {
+      "deaths": {
+       "displayValue": "1",
+       "value": 1
+      },
+      "kdRatio": {
+       "displayValue": "0.00",
+       "value": 0
+      },
+      "kills": {
+       "displayValue": "0",
+       "value": 0
+      },
+      "matchesLost": {
+       "displayValue": "1",
+       "value": 1
+      },
+      "matchesPlayed": {
+       "displayValue": "1",
+       "value": 1
+      },
+      "matchesWon": {
+       "displayValue": "0",
+       "value": 0
+      },
+      "maxRankPoints": {
+       "displayValue": null,
+       "value": null
+      },
+      "rankPoints": {
+       "displayValue": null,
+       "value": null
+      },
+      "timePlayed": {
+       "displayValue": "25m 43s",
+       "value": 1543359
+      }
+     },
+     "type": "season"
+    },
+    {
+     "attributes": {
+      "gamemode": "pvp_standard",
+      "season": 35,
+      "sessionType": "standard"
+     },
+     "metadata": {
+      "color": "#9e3cc2",
+      "name": "Twin Shells",
+      "rankType": "rp",
+      "seasonName": "Twin Shells",
+      "shortName": "Y9S3"
+     },
+     "stats": {
+      "deaths": {
+       "displayValue": "44",
+       "value": 44
+      },
+      "kdRatio": {
+       "displayValue": "1.66",
+       "value": 1.6590909090909092
+      },
+      "kills": {
+       "displayValue": "73",
+       "value": 73
+      },
+      "matchesLost": {
+       "displayValue": "4",
+       "value": 4
+      },
+      "matchesPlayed": {
+       "displayValue": "13",
+       "value": 13
+      },
+      "matchesWon": {
+       "displayValue": "9",
+       "value": 9
+      },
+      "maxRankPoints": {
+       "displayValue": null,
+       "value": null
+      },
+      "rankPoints": {
+       "displayValue": "0",
+       "value": 0
+      }
+     },
+     "type": "season"
+    }
+   ]
+  }
+ },
+ "stats": {
+  "platform_families_full_profiles": [
+   {
+    "board_ids_full_profiles": [
+     {
+      "board_id": "ranked",
+      "full_profiles": [
+       {
+        "profile": {
+         "abandon": 0,
+         "deaths": 1207,
+         "kills": 1435,
+         "losses": 154,
+         "max_rank": 23,
+         "max_rank_points": 3261,
+         "rank": 21,
+         "rank_points": 3007,
+         "update_time": "0001-01-01T00:00:00+00:00",
+         "wins": 152
+        },
+        "season_id": 43,
+        "season_statistics": {
+         "deaths": 1207,
+         "kills": 1435,
+         "match_outcomes": {
+          "abandons": 0,
+          "losses": 154,
+          "wins": 152
+         }
+        }
+       }
+      ]
+     },
+     {
+      "board_id": "standard",
+      "full_profiles": [
+       {
+        "profile": {
+         "abandon": 0,
+         "deaths": 1,
+         "kills": 7,
+         "losses": 0,
+         "max_rank": 0,
+         "max_rank_points": 0,
+         "rank": 0,
+         "rank_points": 0,
+         "update_time": "0001-01-01T00:00:00+00:00",
+         "wins": 1
+        },
+        "season_id": 43,
+        "season_statistics": {
+         "deaths": 1,
+         "kills": 7,
+         "match_outcomes": {
+          "abandons": 0,
+          "losses": 0,
+          "wins": 1
+         }
+        }
+       }
+      ]
+     },
+     {
+      "board_id": "casual",
+      "full_profiles": [
+       {
+        "profile": {
+         "abandon": 3,
+         "deaths": 9,
+         "kills": 16,
+         "losses": 1,
+         "max_rank": 0,
+         "max_rank_points": 0,
+         "rank": 0,
+         "rank_points": 0,
+         "update_time": "0001-01-01T00:00:00+00:00",
+         "wins": 1
+        },
+        "season_id": 43,
+        "season_statistics": {
+         "deaths": 9,
+         "kills": 16,
+         "match_outcomes": {
+          "abandons": 3,
+          "losses": 1,
+          "wins": 1
+         }
+        }
+       }
+      ]
+     }
+    ],
+    "profile_id": "00000000-0000-4000-8000-000000000001"
+   }
+  ]
+ }
+}
