@@ -25,11 +25,10 @@
     <h3 class="text-xs font-medium tracking-wide text-muted uppercase">Current season</h3>
     {#if profile.season}
       <span
-        class="rounded-md border px-2 py-0.5 text-xs font-medium"
-        style="border-color:{profile.seasonColor ?? 'var(--border-strong)'};color:{profile.seasonColor ?? 'inherit'}"
+        class="inline-flex items-center gap-1.5 rounded-md border border-border-strong px-2 py-0.5 text-xs font-medium text-muted"
         title={profile.seasonName ?? ''}
       >
-        {profile.season}{profile.seasonName ? ` · ${profile.seasonName}` : ''}
+        <span class="size-1.5 rounded-full" style="background:{profile.seasonColor ?? 'var(--border-strong)'}"></span>{profile.season}{profile.seasonName ? ` · ${profile.seasonName}` : ''}
       </span>
     {/if}
   </div>

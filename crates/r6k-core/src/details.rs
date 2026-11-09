@@ -87,7 +87,7 @@ fn map_key_of(m: &FullMatch) -> String {
 
 fn map_name_of(key: &str) -> String {
     names::map_name_by_key(key).unwrap_or_else(|| match key.parse::<u64>() {
-        Ok(id) => format!("Map #{id}"),
+        Ok(id) => crate::names::unknown_map_name(id),
         Err(_) => pretty_slug(key),
     })
 }
@@ -278,6 +278,9 @@ pub struct WeaponUse {
     pub slot: Option<String>,
     pub kills: u32,
     pub hs_pct: f64,
+    /// Not a named item: an operator-and-slot label (`Noor primary`). Shown dimmed.
+    #[serde(default)]
+    pub unnamed: bool,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -375,6 +378,8 @@ pub struct WeaponDetail {
     pub key: String,
     pub name: String,
     pub slot: Option<String>,
+    #[serde(default)]
+    pub unnamed: bool,
     pub kills: u32,
     pub headshots: u32,
     pub hs_pct: f64,
@@ -415,6 +420,8 @@ pub struct WeaponRow {
     pub key: String,
     pub name: String,
     pub slot: Option<String>,
+    #[serde(default)]
+    pub unnamed: bool,
     pub kills: u32,
     pub headshots: u32,
     pub hs_pct: f64,
@@ -462,6 +469,13 @@ pub fn operator_list(filter: &Filter, matches: &[FullMatch]) -> Vec<OperatorRow>
     rows
 }
 
+/// Label of a kill's weapon for the operator that made it (`Noor primary` for an unknown item).
+pub fn kill_weapon_label(k: &crate::full::KillEvent, operator_id: u64) -> Option<crate::weapons::WeaponLabel> {
+    let raw = k.weapon.as_deref()?;
+    let op = names::operator_key(operator_id).map(|key| op_name(&key));
+    Some(crate::weapons::label(raw, op.as_deref()))
+}
+
 /// The tracked player's kills in a round that hit an enemy (team kills dropped).
 fn my_kills<'a>(r: &'a FullRound, me: &'a str) -> impl Iterator<Item = &'a crate::full::KillEvent> + 'a {
     let my_team = operator_of(r, me).map(|p| p.team_index);
@@ -480,6 +494,7 @@ pub fn weapon_list(filter: &Filter, matches: &[FullMatch]) -> Vec<WeaponRow> {
     #[derive(Default)]
     struct Acc {
         name: String,
+        unnamed: bool,
         slot: Option<String>,
         kills: u32,
         hs: u32,
@@ -490,10 +505,11 @@ pub fn weapon_list(filter: &Filter, matches: &[FullMatch]) -> Vec<WeaponRow> {
         for r in &m.rounds {
             let Some(p) = selected(filter, r, &m.me_profile_id) else { continue };
             for k in my_kills(r, &m.me_profile_id) {
-                let Some(name) = &k.weapon else { continue };
-                let a = by_key.entry(weapon_key(name)).or_default();
+                let Some(label) = kill_weapon_label(k, p.operator_id) else { continue };
+                let a = by_key.entry(weapon_key(&label.name)).or_default();
                 if a.name.is_empty() {
-                    a.name = name.clone();
+                    a.name = label.name;
+                    a.unnamed = label.unnamed;
                 }
                 a.slot = a.slot.clone().or_else(|| k.weapon_slot.clone());
                 a.kills += 1;
@@ -508,6 +524,7 @@ pub fn weapon_list(filter: &Filter, matches: &[FullMatch]) -> Vec<WeaponRow> {
         .map(|(key, a)| WeaponRow {
             key,
             name: a.name,
+            unnamed: a.unnamed,
             slot: a.slot,
             kills: a.kills,
             headshots: a.hs,
@@ -542,7 +559,7 @@ pub fn operator_detail(filter: &Filter, matches: &[FullMatch], key: &str) -> Ope
     let mut side: Option<TeamSide> = None;
     let mut by_side: [Tally; 2] = Default::default();
     let mut by_map: BTreeMap<String, Tally> = BTreeMap::new();
-    let mut weapons: BTreeMap<String, (String, Option<String>, u32, u32)> = BTreeMap::new();
+    let mut weapons: BTreeMap<String, (String, bool, Option<String>, u32, u32)> = BTreeMap::new();
     let mut killed: BTreeMap<String, u32> = BTreeMap::new();
     let mut killed_by: BTreeMap<String, u32> = BTreeMap::new();
     let mut events: Vec<ClipEvent> = Vec::new();
@@ -567,11 +584,13 @@ pub fn operator_detail(filter: &Filter, matches: &[FullMatch], key: &str) -> Ope
             }
             let teams = team_map(r);
             for k in my_kills(r, me) {
-                if let Some(name) = &k.weapon {
-                    let e = weapons.entry(weapon_key(name)).or_insert_with(|| (name.clone(), None, 0, 0));
-                    e.1 = e.1.clone().or_else(|| k.weapon_slot.clone());
-                    e.2 += 1;
-                    e.3 += k.headshot as u32;
+                if let Some(label) = kill_weapon_label(k, p.operator_id) {
+                    let e = weapons
+                        .entry(weapon_key(&label.name))
+                        .or_insert_with(|| (label.name.clone(), label.unnamed, None, 0, 0));
+                    e.2 = e.2.clone().or_else(|| k.weapon_slot.clone());
+                    e.3 += 1;
+                    e.4 += k.headshot as u32;
                 }
                 let victim_op = operator_of(r, &k.victim).map(|q| op_key(q.operator_id));
                 if let Some(vo) = &victim_op {
@@ -585,7 +604,7 @@ pub fn operator_detail(filter: &Filter, matches: &[FullMatch], key: &str) -> Ope
                     killer: username(m, me),
                     victim: username(m, &k.victim),
                     headshot: k.headshot,
-                    weapon: k.weapon.clone(),
+                    weapon: kill_weapon_label(k, p.operator_id).map(|l| l.display),
                     map_key: map_key.clone(),
                     operator_key: key.clone(),
                     enemy_operator_key: victim_op.unwrap_or_default(),
@@ -605,7 +624,10 @@ pub fn operator_detail(filter: &Filter, matches: &[FullMatch], key: &str) -> Ope
                     killer: if dk.killer.is_empty() { String::new() } else { username(m, &dk.killer) },
                     victim: username(m, me),
                     headshot: dk.headshot,
-                    weapon: dk.weapon.clone(),
+                    weapon: dk.weapon.as_deref().map(|raw| {
+                        let op = killer.and_then(|q| names::operator_key(q.operator_id)).map(|k| op_name(&k));
+                        crate::weapons::label(raw, op.as_deref()).display
+                    }),
                     map_key: map_key.clone(),
                     operator_key: key.clone(),
                     enemy_operator_key: enemy.map(|q| op_key(q.operator_id)).unwrap_or_default(),
@@ -665,7 +687,7 @@ pub fn operator_detail(filter: &Filter, matches: &[FullMatch], key: &str) -> Ope
     let mut weapon_rows: Vec<WeaponUse> = weapons
         .into_iter()
         .filter(|(k, _)| !k.is_empty())
-        .map(|(key, (name, slot, kills, hs))| WeaponUse { key, name, slot, kills, hs_pct: r1(pct(hs as u64, kills as u64)) })
+        .map(|(key, (name, unnamed, slot, kills, hs))| WeaponUse { key, name, unnamed, slot, kills, hs_pct: r1(pct(hs as u64, kills as u64)) })
         .collect();
     weapon_rows.sort_by(|a, b| b.kills.cmp(&a.kills).then_with(|| a.key.cmp(&b.key)));
 
@@ -709,12 +731,13 @@ pub fn weapon_detail(filter: &Filter, matches: &[FullMatch], key: &str) -> Weapo
             let my_op = op_key(p.operator_id);
             *op_rounds.entry(my_op.clone()).or_default() += 1;
             for k in my_kills(r, me) {
-                let Some(name) = &k.weapon else { continue };
-                if weapon_key(name) != key {
+                let Some(label) = kill_weapon_label(k, p.operator_id) else { continue };
+                if weapon_key(&label.name) != key {
                     continue;
                 }
                 if out.kills == 0 {
-                    out.name = name.clone();
+                    out.name = label.name.clone();
+                    out.unnamed = label.unnamed;
                 }
                 out.slot = out.slot.take().or_else(|| k.weapon_slot.clone());
                 out.kills += 1;
@@ -752,7 +775,7 @@ pub fn weapon_detail(filter: &Filter, matches: &[FullMatch], key: &str) -> Weapo
                     killer: username(m, me),
                     victim: username(m, &k.victim),
                     headshot: k.headshot,
-                    weapon: Some(name.clone()),
+                    weapon: Some(label.display.clone()),
                     map_key: map_key.clone(),
                     operator_key: my_op.clone(),
                     enemy_operator_key: victim_op,

@@ -1,5 +1,7 @@
 <script lang="ts">
   import { Swords } from '@lucide/svelte';
+  import { page as pageState } from '$app/state';
+  import { goto } from '$app/navigation';
   import PageHeader from '$lib/components/PageHeader.svelte';
   import EmptyState from '$lib/components/EmptyState.svelte';
   import Skeleton from '$lib/components/Skeleton.svelte';
@@ -21,6 +23,16 @@
   let page = $state(0);
   let hasMore = $state(false);
   let openId = $state<string | null>(null);
+
+  // /matches?match=<id> opens that match (links from the operator and weapon screens).
+  $effect(() => {
+    const id = pageState.url.searchParams.get('match');
+    if (id) openId = id;
+  });
+  function closeDetail() {
+    openId = null;
+    if (pageState.url.searchParams.has('match')) void goto('/matches', { replaceState: true, noScroll: true, keepFocus: true });
+  }
 
   // Reload from the first page whenever the global filter changes.
   $effect(() => {
@@ -135,10 +147,10 @@
 
 {#if openId}
   <!-- svelte-ignore a11y_click_events_have_key_events, a11y_no_static_element_interactions -->
-  <div class="fixed inset-0 z-40 bg-black/50" onclick={() => (openId = null)}></div>
+  <div class="fixed inset-0 z-40 bg-black/50" onclick={closeDetail}></div>
   <aside class="fixed top-0 right-0 z-50 h-full w-full max-w-[920px] border-l border-border-strong bg-surface-1 shadow-2xl">
-    <MatchDetailPanel matchId={openId} onclose={() => (openId = null)} />
+    <MatchDetailPanel matchId={openId} onclose={closeDetail} />
   </aside>
 {/if}
 
-<svelte:window onkeydown={(e) => e.key === 'Escape' && (openId = null)} />
+<svelte:window onkeydown={(e) => e.key === 'Escape' && openId && closeDetail()} />

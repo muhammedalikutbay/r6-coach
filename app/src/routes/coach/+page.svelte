@@ -62,7 +62,7 @@
   const fmtDelta = (d: number) => `${d > 0 ? '+' : ''}${Math.abs(d) >= 10 ? d.toFixed(1) : d.toFixed(2)}`;
 </script>
 
-<PageHeader title="Coach" sub="Your recent play compared with your own history.">
+<PageHeader title="Coach" sub="Compares the match range you pick here with the rest of your history. The other filters still apply.">
   {#snippet actions()}
     <div class="inline-flex rounded-lg border border-border bg-surface-1 p-0.5" role="group" aria-label="Focus">
       {#each [['last1', 'Last match'], ['last5', 'Last 5']] as [val, label] (val)}
@@ -115,9 +115,8 @@
               {/if}
               <div class="min-w-0">
                 <div class="flex items-center gap-1.5">
-                  <span class="inline-flex size-4 items-center justify-center rounded-full {k.cls}"><k.icon class="size-3" /></span>
                   <h3 class="font-semibold">{ins.title}</h3>
-                  {#if ins.kind !== 'info'}<span class="ml-auto shrink-0 rounded-full bg-surface-3 px-1.5 text-[10px] text-muted tabular-nums" title="Importance: effect x confidence x weight">{ins.score.toFixed(2)}</span>{/if}
+                  {#if ins.kind !== 'info'}<span class="ml-auto shrink-0 rounded-full bg-surface-3 px-1.5 text-[10px] text-muted tabular-nums" title="Importance score (effect x confidence x weight). Higher means it matters more.">{ins.score.toFixed(2)}</span>{/if}
                 </div>
                 <p class="mt-1 text-muted">{ins.text}</p>
                 {#if ins.evidence}<p class="mt-1.5 text-xs text-muted/80 tabular-nums">{ins.evidence}</p>{/if}

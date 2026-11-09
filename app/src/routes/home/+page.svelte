@@ -62,12 +62,12 @@
   const shown = $derived(seasons.find((s) => s.seasonId === shownId));
 </script>
 
-<PageHeader title="Home" sub={profile ? `${profile.username} · online stats from Arenyze` : 'Your rank, seasons and a quick look at your replays'} />
-
 <div class="mx-auto max-w-6xl">
+  <PageHeader title="Home" sub={profile ? `${profile.username} · online stats from Arenyze` : 'Your rank, seasons and a quick look at your replays'} />
+
   {#if loading}
     <Skeleton class="mb-4 h-20" />
-    <div class="grid gap-4 xl:grid-cols-[22rem_minmax(0,1fr)]">
+    <div class="grid gap-4 lg:grid-cols-[22rem_minmax(0,1fr)]">
       <Skeleton class="h-96" />
       <Skeleton class="h-96" />
     </div>
@@ -82,7 +82,7 @@
     <LocalSummary />
   {:else}
     <ProfileStrip {profile} {refreshing} {error} onrefresh={refresh} />
-    <div class="grid items-start gap-4 xl:grid-cols-[22rem_minmax(0,1fr)]">
+    <div class="grid items-start gap-4 lg:grid-cols-[22rem_minmax(0,1fr)]">
       <div class="flex min-w-0 flex-col gap-4">
         <CurrentSeasonCard {profile} />
         {#if profile.peaks}<SeasonPeaks peaks={profile.peaks} />{/if}

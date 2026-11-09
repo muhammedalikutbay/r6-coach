@@ -18,10 +18,10 @@
   />
 {:else}
   <div
-    class="flex shrink-0 items-center justify-center rounded-xl border border-border-strong bg-surface-2 font-bold text-muted"
+    class="flex shrink-0 items-center justify-center rounded-full border border-border bg-surface-2 font-bold text-muted/70"
     style="width:{size}px;height:{size}px;font-size:{size * 0.4}px"
     aria-hidden="true"
   >
-    {name.slice(0, 1).toUpperCase() || '?'}
+    {name.slice(0, 1).toUpperCase() || '–'}
   </div>
 {/if}

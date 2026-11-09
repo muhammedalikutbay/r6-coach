@@ -36,3 +36,21 @@ export function formatDateTime(iso: string): string {
     ? d.toLocaleString(LOCALE, { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit', hour12: false })
     : iso;
 }
+
+/** "31 Oct, 00:56" (no year; for lists that are not grouped by day) */
+export function formatShortDateTime(iso: string): string {
+  const d = toDate(iso);
+  return valid(d)
+    ? d.toLocaleString(LOCALE, { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit', hour12: false })
+    : iso;
+}
+
+/** "1 round", "2 rounds". Pass `many` for irregular plurals. */
+export function plural(n: number, one: string, many = one + 's'): string {
+  return `${n} ${n === 1 ? one : many}`;
+}
+
+/** Weapon slot as a label: "primary" -> "Primary". */
+export function slotLabel(slot: string | null | undefined): string {
+  return slot ? slot[0].toUpperCase() + slot.slice(1) : '-';
+}

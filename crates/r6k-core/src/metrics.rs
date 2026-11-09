@@ -88,18 +88,22 @@ pub struct SlotKills {
     pub secondary: u32,
     pub gadget: u32,
     pub ability: u32,
+    pub melee: u32,
+    pub explosion: u32,
     pub unknown: u32,
 }
 
 impl SlotKills {
     pub fn total(&self) -> u32 {
-        self.primary + self.secondary + self.gadget + self.ability + self.unknown
+        self.primary + self.secondary + self.gadget + self.ability + self.melee + self.explosion + self.unknown
     }
     fn merge(&mut self, o: &SlotKills) {
         self.primary += o.primary;
         self.secondary += o.secondary;
         self.gadget += o.gadget;
         self.ability += o.ability;
+        self.melee += o.melee;
+        self.explosion += o.explosion;
         self.unknown += o.unknown;
     }
 }
@@ -263,10 +267,12 @@ impl Deep {
                 Some("secondary") => self.slot_kills.secondary += 1,
                 Some("gadget") => self.slot_kills.gadget += 1,
                 Some("ability") => self.slot_kills.ability += 1,
+                Some("melee") => self.slot_kills.melee += 1,
+                Some("explosion") => self.slot_kills.explosion += 1,
                 _ => self.slot_kills.unknown += 1,
             }
-            if let Some(name) = &k.weapon {
-                let w = self.weapons.entry(name.clone()).or_default();
+            if let Some(label) = crate::details::kill_weapon_label(k, p.operator_id) {
+                let w = self.weapons.entry(label.name).or_default();
                 w.slot = w.slot.clone().or_else(|| slot.map(String::from));
                 w.kills += 1;
                 w.headshots += k.headshot as u32;
@@ -430,6 +436,10 @@ pub struct SlotView {
     pub secondary: u32,
     pub gadget: u32,
     pub ability: u32,
+    #[serde(default)]
+    pub melee: u32,
+    #[serde(default)]
+    pub explosion: u32,
     pub unknown: u32,
 }
 
@@ -531,6 +541,8 @@ impl Deep {
                 secondary: self.slot_kills.secondary,
                 gadget: self.slot_kills.gadget,
                 ability: self.slot_kills.ability,
+                melee: self.slot_kills.melee,
+                explosion: self.slot_kills.explosion,
                 unknown: self.slot_kills.unknown,
             },
             weapons,

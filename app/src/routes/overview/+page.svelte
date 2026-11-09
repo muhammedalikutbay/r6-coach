@@ -17,7 +17,7 @@
   import { query } from '$lib/v2/api';
   import { onlineProfile, arenyzeStatus } from '$lib/v2/arenyze';
   import { refreshTick } from '$lib/v2/refresh.svelte';
-  import { formatShortDate } from '$lib/v2/format';
+  import { formatShortDate, plural } from '$lib/v2/format';
   import { toast } from '$lib/toast.svelte';
   import type { OfficialOperator, OnlineProfile, QueryResult } from '$lib/v2/types';
 
@@ -114,10 +114,10 @@
 {:else if data}
   <div class="transition-opacity {loading ? 'opacity-60' : ''}">
     <div class="mb-6 grid grid-cols-2 gap-3 lg:grid-cols-3 xl:grid-cols-6">
-      <StatCard label="K/D" value={data.kpis.kd.toFixed(2)} sub="{data.kpis.rounds} rounds">
+      <StatCard label="K/D" value={data.kpis.kd.toFixed(2)} sub={plural(data.kpis.rounds, 'round')}>
         {#if data.official}<div class="text-xs text-muted tabular-nums">Official: {data.official.kd.toFixed(2)} K/D</div>{/if}
       </StatCard>
-      <StatCard label="Win %" value={pct(data.kpis.winPct)} sub="{data.kpis.matches} matches">
+      <StatCard label="Win %" value={pct(data.kpis.winPct)} sub={plural(data.kpis.matches, 'match', 'matches')}>
         {#if data.official}<div class="text-xs text-muted tabular-nums">Official: {pct(data.official.winPct)} win</div>{/if}
       </StatCard>
       <StatCard label="HS %" value={pct(data.kpis.hsPct)} />
@@ -166,11 +166,11 @@
                     {op.name}
                     {#if op.side === 'attack'}<Swords class="size-3 text-muted" />{:else}<Shield class="size-3 text-muted" />{/if}
                   </div>
-                  <div class="text-xs text-muted tabular-nums">{op.rounds} rounds · Win {op.winPct.toFixed(0)}%</div>
+                  <div class="text-xs text-muted tabular-nums">{plural(op.rounds, 'round')} · Win {op.winPct.toFixed(0)}%</div>
                   {#if officialOf(op.name, op.side)}
                     {@const off = officialOf(op.name, op.side)!}
                     <div class="text-xs text-muted tabular-nums" title="Official numbers from Arenyze, ranked, current season">
-                      Official: {off.kd.toFixed(2)} K/D · {off.rounds} rounds
+                      Official: {off.kd.toFixed(2)} K/D · {plural(off.rounds, 'round')}
                     </div>
                   {/if}
                 </div>
@@ -179,7 +179,7 @@
                   {#if op.deltaKd !== undefined}<DeltaPill value={op.deltaKd} />{/if}
                 </div>
               </div>
-              <div class="mt-2 h-1 overflow-hidden rounded-full bg-surface-3">
+              <div class="mt-2 mr-6 h-1 overflow-hidden rounded-full bg-surface-3">
                 <div class="h-full rounded-full bg-accent" style="width:{(op.rounds / maxRounds) * 100}%"></div>
               </div>
             </a>
@@ -229,10 +229,10 @@
 
     <DeepSections deep={data.deep} />
 
-    <CollapsibleSection id="recent" title="Recent matches" summary="{data.recentMatches.length} {data.recentMatches.length === 1 ? 'match' : 'matches'}">
+    <CollapsibleSection id="recent" title="Recent matches" summary={plural(data.recentMatches.length, 'match', 'matches')}>
       <div class="flex flex-col gap-2">
         {#each data.recentMatches as match (match.matchId)}
-          <MatchRowItem {match} />
+          <MatchRowItem {match} showDate />
         {/each}
       </div>
     </CollapsibleSection>

@@ -31,6 +31,8 @@
   let sortKey = $state<SortKey>('rounds');
   let sortDir = $state<1 | -1>(-1);
   let side = $state<'all' | 'attack' | 'defense'>('all');
+  const SHOWN = 10;
+  let showAll = $state(false);
 
   onMount(() => {
     // The first table is the current season's ranked one that came with the profile: no request.
@@ -86,6 +88,7 @@
     });
   });
 
+  const visible = $derived(showAll ? rows : rows.slice(0, SHOWN));
   const num = (v: number | null | undefined) => (v === null || v === undefined ? '—' : v.toLocaleString('en-GB'));
   const pct = (v: number | null | undefined) => (v === null || v === undefined ? '—' : `${v.toFixed(1)}%`);
   const COLS: { key: SortKey; label: string; right: boolean }[] = [
@@ -155,9 +158,9 @@
   {:else if rows.length === 0}
     <p class="py-8 text-center text-muted">No operator numbers for this selection.</p>
   {:else}
-    <div class="max-h-[30rem] overflow-auto rounded-lg border border-border">
+    <div class="overflow-x-auto rounded-lg border border-border">
       <table class="w-full text-sm">
-        <thead class="sticky top-0 z-10 bg-surface-1 text-xs text-muted">
+        <thead class="bg-surface-1 text-xs text-muted">
           <tr class="border-b border-border">
             {#each COLS as c (c.key)}
               <th class={cn('px-3 py-2 font-medium whitespace-nowrap', c.right ? 'text-right' : 'text-left')}>
@@ -172,7 +175,7 @@
           </tr>
         </thead>
         <tbody class="tabular-nums">
-          {#each rows as o (o.name + o.side)}
+          {#each visible as o (o.name + o.side)}
             <tr class="border-b border-border last:border-0 hover:bg-surface-2">
               <td class="px-3 py-1.5">
                 <span class="flex items-center gap-2">
@@ -192,5 +195,14 @@
         </tbody>
       </table>
     </div>
+    {#if rows.length > SHOWN}
+      <button
+        type="button"
+        onclick={() => (showAll = !showAll)}
+        class="mt-2 w-full rounded-lg py-1.5 text-xs text-muted transition-colors hover:bg-surface-2 hover:text-foreground"
+      >
+        {showAll ? 'Show fewer' : `Show all ${rows.length}`}
+      </button>
+    {/if}
   {/if}
 </Card>

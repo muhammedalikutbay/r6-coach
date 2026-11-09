@@ -19,7 +19,7 @@
           <div class="h-1.5 flex-1 overflow-hidden rounded-full bg-surface-3">
             <div class="h-full rounded-full bg-accent" style="width:{(r.count / max) * 100}%"></div>
           </div>
-          <span class="w-16 text-right text-xs text-muted tabular-nums">{r.count} {unit}</span>
+          <span class="w-16 text-right text-xs text-muted tabular-nums">{r.count} {r.count === 1 ? unit : unit + 's'}</span>
         </a>
       </li>
     {/each}

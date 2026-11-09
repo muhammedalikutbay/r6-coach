@@ -1,5 +1,6 @@
 <script lang="ts">
   import { page } from '$app/state';
+  import { goto } from '$app/navigation';
   import { Crosshair } from '@lucide/svelte';
   import EmptyState from '$lib/components/EmptyState.svelte';
   import Section from '$lib/components/Section.svelte';
@@ -13,7 +14,7 @@
   import { filterStore } from '$lib/v2/filter.svelte';
   import { weaponDetail } from '$lib/v2/api';
   import { refreshTick } from '$lib/v2/refresh.svelte';
-  import { formatDateTime } from '$lib/v2/format';
+  import { formatDateTime, plural, slotLabel } from '$lib/v2/format';
   import { toast } from '$lib/toast.svelte';
   import type { WeaponScreen } from '$lib/v2/types';
 
@@ -66,7 +67,7 @@
   backHref="/weapons"
   backLabel="All weapons"
   title={d?.name || key}
-  sub={d && d.kills > 0 ? `${d.kills} ${d.kills === 1 ? 'kill' : 'kills'}${d.slot ? ' · ' + d.slot + ' weapon' : ''}` : ''}
+  sub={d && d.kills > 0 ? `${plural(d.kills, 'kill')}${d.slot ? ' · ' + slotLabel(d.slot) : ''}` : ''}
 />
 
 {#if loading && !data}
@@ -87,9 +88,9 @@
     <div class="transition-opacity {loading ? 'opacity-60' : ''}">
       <div class="mb-6 grid grid-cols-2 gap-3 lg:grid-cols-4">
         <StatCard label="Kills" value={String(d.kills)} />
-        <StatCard label="HS %" value="{d.hsPct.toFixed(1)}%" sub="{d.headshots} headshots" />
-        <StatCard label="Kills / round" value={d.killsPerRound.toFixed(2)} sub="{d.rounds} rounds with its operators" />
-        <StatCard label="Slot" value={d.slot ? d.slot[0].toUpperCase() + d.slot.slice(1) : 'Unknown'} />
+        <StatCard label="HS %" value="{d.hsPct.toFixed(1)}%" sub={plural(d.headshots, 'headshot')} />
+        <StatCard label="Kills / round" value={d.killsPerRound.toFixed(2)} sub="{plural(d.rounds, 'round')} with its operators" />
+        <StatCard label="Slot" value={d.slot ? slotLabel(d.slot) : 'Unknown'} />
       </div>
 
       <Section title="Clips" hint="Your kills with {d.name}. Click to play">
@@ -153,7 +154,7 @@
               <div class="h-1.5 flex-1 overflow-hidden rounded-full bg-surface-3">
                 <div class="h-full rounded-full bg-accent" style="width:{(m.kills / maxMapKills) * 100}%"></div>
               </div>
-              <span class="w-16 text-right text-xs text-muted tabular-nums">{m.kills} {m.kills === 1 ? 'kill' : 'kills'}</span>
+              <span class="w-16 text-right text-xs text-muted tabular-nums">{plural(m.kills, 'kill')}</span>
             </div>
           {/each}
         </Card>
@@ -174,8 +175,11 @@
             </thead>
             <tbody class="tabular-nums">
               {#each d.recentKills as k (k.matchId + k.round + ':' + k.timeS)}
-                <tr class="border-b border-border/60 last:border-0">
-                  <td class="py-1.5 pl-3 text-muted">{formatDateTime(k.timestamp)}</td>
+                <tr
+                  class="cursor-pointer border-b border-border/60 transition-colors last:border-0 hover:bg-surface-2"
+                  onclick={() => goto('/matches?match=' + encodeURIComponent(k.matchId))}
+                >
+                  <td class="py-1.5 pl-3 text-muted"><a href="/matches?match={encodeURIComponent(k.matchId)}" class="hover:text-accent" onclick={(e) => e.stopPropagation()}>{formatDateTime(k.timestamp)}</a></td>
                   <td class="py-1.5">{k.mapName}</td>
                   <td class="py-1.5">{k.round}</td>
                   <td class="py-1.5">
@@ -187,7 +191,7 @@
                     {:else}
                       <span class="text-muted">unknown</span>
                     {/if}
-                    {#if k.headshot}<span class="ml-1.5 rounded bg-surface-3 px-1 text-[11px] font-medium text-accent">HS</span>{/if}
+                    {#if k.headshot}<span class="ml-1.5 rounded bg-surface-3 px-1 align-middle text-[11px] font-medium text-accent">HS</span>{/if}
                   </td>
                   <td class="py-1.5 pr-3 text-right">{fmtClock(k.timeS)}</td>
                 </tr>

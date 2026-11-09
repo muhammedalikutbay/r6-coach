@@ -114,20 +114,20 @@
         <tbody class="tabular-nums">
           {#each shown as r (r.key)}
             <tr class="border-b border-border/60 transition-colors last:border-0 hover:bg-surface-2">
-              <td class="py-1.5 pl-3">
+              <td class="px-3 py-1.5">
                 <a href="/operators/{encodeURIComponent(r.key)}" class="flex items-center gap-2.5 font-medium">
                   <OperatorBadge opKey={r.key} name={r.name} size={32} />
                   <span>{r.name}</span>
                   {#if r.side === 'attack'}<Swords class="size-3 text-muted" />{:else}<Shield class="size-3 text-muted" />{/if}
                 </a>
               </td>
-              <td class="py-1.5 text-right">{r.matches}</td>
-              <td class="py-1.5 text-right">{r.rounds}</td>
-              <td class="py-1.5 text-right">{r.winPct.toFixed(0)}%</td>
-              <td class="py-1.5 text-right font-semibold">{r.kd.toFixed(2)}</td>
-              <td class="py-1.5 text-right">{r.killsPerRound.toFixed(2)}</td>
-              <td class="py-1.5 text-right">{r.hsPct.toFixed(0)}%</td>
-              <td class="py-1.5 pr-3 text-right">{r.kostPct.toFixed(0)}%</td>
+              <td class="px-3 py-1.5 text-right">{r.matches}</td>
+              <td class="px-3 py-1.5 text-right">{r.rounds}</td>
+              <td class="px-3 py-1.5 text-right">{r.winPct.toFixed(0)}%</td>
+              <td class="px-3 py-1.5 text-right font-semibold">{r.kd.toFixed(2)}</td>
+              <td class="px-3 py-1.5 text-right">{r.killsPerRound.toFixed(2)}</td>
+              <td class="px-3 py-1.5 text-right">{r.hsPct.toFixed(0)}%</td>
+              <td class="px-3 py-1.5 text-right">{r.kostPct.toFixed(0)}%</td>
             </tr>
           {/each}
         </tbody>

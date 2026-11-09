@@ -14,6 +14,7 @@
   const modes: [Mode, string][] = [['all', 'All'], ['ranked', 'Ranked'], ['unranked', 'Unranked'], ['quick', 'Quick']];
   const sides: [Side, string][] = [['both', 'Both'], ['attack', 'Attack'], ['defense', 'Defense']];
 
+  let { hideRange = false }: { hideRange?: boolean } = $props();
   const v = $derived(fs.value);
   const pad = (n: number) => String(n).padStart(2, '0');
   const dateText = $derived(
@@ -24,8 +25,20 @@
   );
 </script>
 
-{#snippet seg<K extends string>(opts: [K, string][], cur: K, pick: (k: K) => void, name: string)}
-  <div class="inline-flex rounded-lg border border-border bg-surface-2 p-0.5" role="group" aria-label={name}>
+<!-- Below 1280 px the Mode and Side groups become drop-downs so the bar stays on one line. -->
+{#snippet drop<K extends string>(opts: [K, string][], cur: K, pick: (k: K) => void, name: string)}
+  <select
+    class="h-8 shrink-0 rounded-lg border border-border bg-surface-2 px-2 text-xs font-medium xl:hidden"
+    aria-label={name}
+    value={cur}
+    onchange={(e) => pick(e.currentTarget.value as K)}
+  >
+    {#each opts as [k, text] (k)}<option value={k}>{text}</option>{/each}
+  </select>
+{/snippet}
+
+{#snippet seg<K extends string>(opts: [K, string][], cur: K, pick: (k: K) => void, name: string, wide = false)}
+  <div class={cn('shrink-0 rounded-lg border border-border bg-surface-2 p-0.5', wide ? 'hidden xl:inline-flex' : 'inline-flex')} role="group" aria-label={name}>
     {#each opts as [k, text] (k)}
       <button
         type="button"
@@ -38,10 +51,12 @@
 {/snippet}
 
 <div class="flex flex-col gap-2" data-slot="filter-bar">
-  <div class="flex flex-wrap items-center gap-2">
-    {@render seg(ranges, v.range, (range) => fs.set({ range }), 'Range')}
-    {@render seg(modes, v.mode, (mode) => fs.set({ mode }), 'Mode')}
-    {@render seg(sides, v.side, (side) => fs.set({ side }), 'Side')}
+  <div class="flex flex-nowrap items-center gap-2">
+    {#if !hideRange}{@render seg(ranges, v.range, (range) => fs.set({ range }), 'Range')}{/if}
+    {@render drop(modes, v.mode, (mode) => fs.set({ mode }), 'Mode')}
+    {@render seg(modes, v.mode, (mode) => fs.set({ mode }), 'Mode', true)}
+    {@render drop(sides, v.side, (side) => fs.set({ side }), 'Side')}
+    {@render seg(sides, v.side, (side) => fs.set({ side }), 'Side', true)}
     <MultiSelect label="Operators" items={OPERATORS} selected={v.operators} ontoggle={(k) => fs.toggleOperator(k)} group={(o) => (o.side === 'attacker' ? 'Attackers' : 'Defenders')}>
       {#snippet row(o)}<OperatorBadge opKey={o.key} name={o.name} size={22} /><span class="truncate">{o.name}</span>{/snippet}
     </MultiSelect>
@@ -50,7 +65,7 @@
     </MultiSelect>
     <DateTimeFilter />
     {#if fs.active}
-      <button type="button" class="h-8 rounded-lg px-2 text-xs text-muted hover:text-foreground" onclick={() => fs.clear()}>Clear all</button>
+      <button type="button" class="h-8 shrink-0 rounded-lg px-2 text-xs whitespace-nowrap text-muted hover:text-foreground" onclick={() => fs.clear()}>Clear</button>
     {/if}
   </div>
 

@@ -23,7 +23,7 @@
               {p.rankName ?? `${n(p.value)} ${p.unit}`}
               {#if p.rankName}<span class="ml-1 font-normal text-muted tabular-nums">{n(p.value)} {p.unit}</span>{/if}
             </div>
-            <div class="truncate text-xs" style="color:{p.color ?? 'var(--muted-foreground)'}">{where(p)}</div>
+            <div class="flex items-center gap-1.5 truncate text-xs text-muted"><span class="size-1.5 shrink-0 rounded-full" style="background:{p.color ?? 'var(--border-strong)'}"></span>{where(p)}</div>
           </div>
         </div>
       {/if}
@@ -35,7 +35,7 @@
           </div>
           <div class="min-w-0">
             <div class="text-xs text-muted">Best K/D</div>
-            <div class="truncate text-xs" style="color:{p.color ?? 'var(--muted-foreground)'}">{where(p)}</div>
+            <div class="flex items-center gap-1.5 truncate text-xs text-muted"><span class="size-1.5 shrink-0 rounded-full" style="background:{p.color ?? 'var(--border-strong)'}"></span>{where(p)}</div>
             {#if p.matches}<div class="text-xs text-muted tabular-nums">{n(p.matches)} ranked matches</div>{/if}
           </div>
         </div>

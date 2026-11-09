@@ -210,7 +210,7 @@ function mockDeep(matches: number): DeepStats {
     afterSurviveWin: rate(6 * k, 8 * k),
     lostAttack: { lost: 5 * k, elimination: 2 * k, time: 2 * k, planted: 0, defused: k },
     lostDefense: { lost: 4 * k, elimination: 2 * k, time: 0, planted: 2 * k, defused: 0 },
-    slotKills: { primary: 11 * k, secondary: 2 * k, gadget: 0, ability: 0, unknown: k },
+    slotKills: { primary: 11 * k, secondary: 2 * k, gadget: 0, ability: 0, melee: 0, explosion: 0, unknown: k },
     weapons: [
       { name: 'R4-C', slot: 'primary', kills: 8 * k, hsPct: 50 },
       { name: 'MP5', slot: 'primary', kills: 3 * k, hsPct: 33.3 },

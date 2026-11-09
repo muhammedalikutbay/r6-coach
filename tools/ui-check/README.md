@@ -35,6 +35,8 @@ Note: `tauri dev` also needs the Vite dev port (1420) free.
 | `eval` | `expr`, optional `expect` | evaluate JS (promises awaited), print the result; fail if it differs from `expect` (JSON equality) |
 | `screenshot` | `path` | PNG via `Page.captureScreenshot`; relative paths go to `out/` |
 | `reload` | | reload the page and wait for `readyState = complete` |
+| `viewport` | `width`, `height` | emulate a viewport size (`width` 0 clears it) |
+| `sleep` | `ms` | wait |
 | `localStorage.clear` | | clear the page's localStorage |
 
 Screenshots and the WebView profile live in `tools/ui-check/out/`, which is gitignored.

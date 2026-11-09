@@ -1,7 +1,7 @@
 <script lang="ts">
   import '../app.css';
   import { page } from '$app/state';
-  import { goto } from '$app/navigation';
+  import { goto, afterNavigate } from '$app/navigation';
   import { onMount } from 'svelte';
   import { House, LayoutDashboard, Swords, Users, Crosshair, Brain, Settings, RefreshCw } from '@lucide/svelte';
   import { getReplayDir, refresh } from '$lib/api';
@@ -16,6 +16,12 @@
 
   let { children } = $props();
   let updating = $state(false);
+  let mainEl: HTMLElement | undefined = $state();
+
+  // The scrolling element is <main>, so SvelteKit's own scroll reset does not reach it.
+  afterNavigate((nav) => {
+    if (nav.type !== 'popstate') mainEl?.scrollTo(0, 0);
+  });
 
   // First launch: when no replay folder is known (not saved, not auto-found), go to Settings to pick one.
   onMount(async () => {
@@ -99,14 +105,14 @@
     <header class="flex flex-none items-center justify-between gap-3 border-b border-border bg-surface-1/60 px-5 py-2.5">
       <div class="min-w-0 flex-1">
         <!-- The global filter does not apply to Home (online profile) or Settings. -->
-        {#if !page.url.pathname.startsWith('/home') && !page.url.pathname.startsWith('/settings')}<FilterBar />{/if}
+        {#if !page.url.pathname.startsWith('/home') && !page.url.pathname.startsWith('/settings')}<FilterBar hideRange={page.url.pathname.startsWith('/coach')} />{/if}
       </div>
       <Button variant="primary" onclick={update} disabled={updating}>
         <RefreshCw class={cn('size-4', updating && 'animate-spin')} />
         {updating ? 'Updating…' : 'Update'}
       </Button>
     </header>
-    <main class="min-w-0 flex-1 overflow-y-auto px-5 py-5">
+    <main bind:this={mainEl} class="min-w-0 flex-1 overflow-y-auto px-5 py-5">
       {@render children()}
     </main>
   </div>

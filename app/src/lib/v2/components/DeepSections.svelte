@@ -1,6 +1,7 @@
 <script lang="ts">
   import CollapsibleSection from '$lib/v2/components/CollapsibleSection.svelte';
   import OperatorBadge from '$lib/components/OperatorBadge.svelte';
+  import { slotLabel } from '$lib/v2/format';
   import type { DeepStats, EndsView, RateView } from '$lib/v2/types';
 
   // Compact, collapsible Overview sections for the numbers that come only from replays:
@@ -9,7 +10,8 @@
   let { deep }: { deep: DeepStats } = $props();
 
   const pct = (r: RateView) => (r.n === 0 ? '–' : `${r.pct.toFixed(0)}%`);
-  const count = (r: RateView, unit: string) => `${r.x} of ${r.n} ${unit}`;
+  const SINGULAR: Record<string, string> = { rounds: 'round', deaths: 'death', chances: 'chance' };
+  const count = (r: RateView, unit: string) => `${r.x} of ${r.n} ${r.n === 1 ? (SINGULAR[unit] ?? unit) : unit}`;
   const noun = (n: number, one: string, many: string) => `${n} ${n === 1 ? one : many}`;
 
   const tiles = $derived([
@@ -51,6 +53,8 @@
         ['Secondary', deep.slotKills.secondary],
         ['Gadget', deep.slotKills.gadget],
         ['Ability', deep.slotKills.ability],
+        ['Melee', deep.slotKills.melee],
+        ['Explosion', deep.slotKills.explosion],
         ['Unknown', deep.slotKills.unknown]
       ] as [string, number][]
     ).filter(([, n]) => n > 0)
@@ -109,7 +113,7 @@
           <div class="mb-2 text-xs text-muted">Kills by slot</div>
           <div class="flex h-2 overflow-hidden rounded-full bg-surface-3">
             {#each slotRows as [label, n], i (label)}
-              <div class="h-full {['bg-accent', 'bg-good', 'bg-accent/60', 'bg-good/60', 'bg-surface-3'][i % 5]}" style="width:{(n / totalKills) * 100}%" title="{label}: {n}"></div>
+              <div class="h-full {['bg-accent', 'bg-good', 'bg-accent/60', 'bg-good/60', 'bg-muted', 'bg-muted/60', 'bg-surface-3'][i % 7]}" style="width:{(n / totalKills) * 100}%" title="{label}: {n}"></div>
             {/each}
           </div>
           <div class="mt-2 flex flex-wrap gap-x-3 gap-y-1 text-xs text-muted tabular-nums">
@@ -131,7 +135,7 @@
               <tbody>
                 {#each deep.weapons as w (w.name)}
                   <tr>
-                    <td class="py-0.5"><a class="hover:text-accent hover:underline" href={`/weapons/${w.name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '')}`}>{w.name}</a>{#if w.slot}<span class="ml-1.5 text-xs text-muted">{w.slot}</span>{/if}</td>
+                    <td class="py-0.5"><a class="hover:text-accent hover:underline" href={`/weapons/${w.name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '')}`}>{w.name}</a>{#if w.slot}<span class="ml-1.5 text-xs text-muted">{slotLabel(w.slot)}</span>{/if}</td>
                     <td class="py-0.5 text-right tabular-nums">{w.kills}</td>
                     <td class="py-0.5 text-right tabular-nums">{w.hsPct.toFixed(0)}%</td>
                   </tr>

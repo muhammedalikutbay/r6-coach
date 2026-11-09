@@ -164,7 +164,7 @@
     <div>
       <h3 class="font-semibold">Clips</h3>
       <p class="mt-1 text-muted">
-        Record the game window while you play and keep a short clip of each of your kills. Off by default. Clips are cut
+        Record the game window while you play and keep a short clip of your kills (and your deaths, if you choose that below). Off by default. Clips are cut
         when a round ends and stay on this PC.
       </p>
     </div>
@@ -253,9 +253,9 @@
       <label for="clip-offset" class="w-44 text-sm">Clip offset (s)</label>
       <input id="clip-offset" type="number" min="-30" max="30" step="0.5" class={numberCls} disabled={locked} value={settings.offsetS} onchange={(e) => save({ offsetS: num(e, settings.offsetS) })} />
       <span class="text-xs text-muted">
-        The clip is centred on the kill time plus this offset (negative = earlier). The default of -10 gave the best match
-        in testing: the window is centred 10 s before the kill time the replay reports. If a clip shows only what happens
-        after the kill, make the offset more negative; if it ends before the kill, make it less negative.
+        The clip is centred on the kill time plus this offset (negative = earlier). -10 s is the default, and your own
+        PC may need a different value. If a clip shows only what happens after the kill, make the offset more negative;
+        if it ends before the kill, make it less negative.
       </span>
     </div>
 

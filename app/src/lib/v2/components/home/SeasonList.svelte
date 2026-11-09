@@ -39,9 +39,7 @@
           </span>
           {#if r}
             <span class="flex items-center gap-2 text-right">
-              {#if r.maxRankName || r.rankName}
-                <RankIcon icon={r.maxRankIcon ?? r.rankIcon} name={r.maxRankName ?? r.rankName ?? ''} size={26} />
-              {/if}
+              <RankIcon icon={r.maxRankIcon ?? r.rankIcon} name={r.maxRankName ?? r.rankName ?? ''} size={26} />
               <span class="text-xs tabular-nums">
                 {#if r.maxRankPoints ?? r.rankPoints}
                   <span class="block font-medium">{n((r.maxRankPoints ?? r.rankPoints) as number)} RP</span>

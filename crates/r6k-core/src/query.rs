@@ -302,7 +302,7 @@ fn map_key_of(m: &FullMatch) -> String {
 }
 fn map_name_of(key: &str) -> String {
     names::map_name_by_key(key).unwrap_or_else(|| match key.parse::<u64>() {
-        Ok(id) => format!("Map #{id}"),
+        Ok(id) => crate::names::unknown_map_name(id),
         Err(_) => pretty_slug(key),
     })
 }
@@ -848,7 +848,7 @@ pub fn match_detail(m: &FullMatch) -> MatchDetail {
                         victim_operator: victim.map_or_else(|| "unknown".into(), |p| op_key(p.operator_id)),
                         headshot: k.headshot,
                         killer_team: rel(killer_team),
-                        weapon: k.weapon.clone(),
+                        weapon: killer.and_then(|p| crate::details::kill_weapon_label(k, p.operator_id)).map(|l| l.display).or_else(|| k.weapon.as_deref().map(|w| crate::weapons::label(w, None).display)),
                         weapon_slot: k.weapon_slot.clone(),
                     }
                 })

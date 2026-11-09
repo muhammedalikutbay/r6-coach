@@ -146,7 +146,7 @@ fn map_key_of(m: &FullMatch) -> String {
 }
 fn map_name(key: &str) -> String {
     names::map_name_by_key(key).unwrap_or_else(|| match key.parse::<u64>() {
-        Ok(id) => format!("Map #{id}"),
+        Ok(id) => crate::names::unknown_map_name(id),
         Err(_) => key.to_string(),
     })
 }

@@ -4,7 +4,8 @@
   import MapThumb from '$lib/components/MapThumb.svelte';
   import Skeleton from '$lib/components/Skeleton.svelte';
   import { cn } from '$lib/utils';
-  import { formatDateTime } from '$lib/v2/format';
+  import { formatDateTime, plural, slotLabel } from '$lib/v2/format';
+  import { operatorName } from '$lib/v2/catalog';
   import * as api from '$lib/v2/api';
   import * as clipApi from '$lib/v2/clips';
   import ClipPlayer from '$lib/v2/components/ClipPlayer.svelte';
@@ -98,7 +99,12 @@
   }
 
   const fmtTime = (s: number) => `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, '0')}`;
-  const opName = (k: string) => k;
+  const opName = (k: string) => operatorName(k);
+  /** "Nitro Cell (Bandit)" -> base "Nitro Cell", variant "(Bandit)". */
+  function splitVariant(w: string): { base: string; variant: string } {
+    const m = /^(.*?) (\(.+\))$/.exec(w);
+    return m ? { base: m[1], variant: m[2] } : { base: w, variant: '' };
+  }
 </script>
 
 <div class="flex h-full flex-col">
@@ -149,13 +155,13 @@
         {#each detail.teams as team, ti (ti)}
           <div class="mb-6">
             <div class={cn('mb-2 text-sm font-semibold', ti === 0 ? 'text-good' : 'text-bad')}>
-              {ti === 0 ? 'Your team' : 'Opponents'} · {ti === 0 ? m.scoreUs : m.scoreThem}
+              {ti === 0 ? 'Your team' : 'Opponents'} · {plural(ti === 0 ? m.scoreUs : m.scoreThem, 'round')} won
             </div>
             <div class="overflow-x-auto rounded-lg border border-border">
-              <table class="w-full min-w-[760px] text-sm">
+              <table class="w-full min-w-[760px] table-fixed text-sm">
                 <thead class="bg-surface-2 text-xs text-muted">
                   <tr>
-                    <th class="px-3 py-2 text-left font-medium">Player</th>
+                    <th class="w-40 px-3 py-2 text-left font-medium">Player</th>
                     <th class="px-2 py-2 text-left font-medium">Operators</th>
                     <th class="px-2 py-2 font-medium">K</th>
                     <th class="px-2 py-2 font-medium">D</th>
@@ -266,7 +272,10 @@
                   {#if k.headshot}<Crosshair class="size-3.5 text-accent" aria-label="Headshot" />{:else}<Skull class="size-3.5 text-muted" />{/if}
                   <OperatorBadge opKey={k.victimOperator} name={opName(k.victimOperator)} size={22} />
                   <span class={cn(k.killerTeam === 0 ? 'text-bad' : 'text-good')}>{k.victim}</span>
-                  {#if k.weapon}<span class="ml-auto text-xs text-muted" title={k.weaponSlot ?? undefined}>{k.weapon}</span>{/if}
+                  {#if k.weapon}
+                    {@const w = splitVariant(k.weapon)}
+                    <span class="ml-auto text-xs text-muted" title={k.weaponSlot ? slotLabel(k.weaponSlot) : undefined}>{w.base}{#if w.variant}<span class="ml-1 text-[11px] opacity-70">{w.variant}</span>{/if}</span>
+                  {/if}
                   {#if clip}
                     <button
                       type="button"

@@ -25,7 +25,7 @@
     <h3 class="text-xs font-medium tracking-wide text-muted uppercase">
       Season overview
       {#if season}
-        <span class="ml-1 normal-case" style="color:{season.color ?? 'inherit'}">
+        <span class="ml-1 normal-case">
           {season.shortName}{season.name ? ` · ${season.name}` : ''}{isCurrent ? ' (current)' : ''}
         </span>
       {/if}

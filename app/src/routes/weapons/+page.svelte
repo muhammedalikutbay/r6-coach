@@ -10,6 +10,8 @@
   import { weaponList } from '$lib/v2/api';
   import { refreshTick } from '$lib/v2/refresh.svelte';
   import { toast } from '$lib/toast.svelte';
+  import { slotLabel, plural } from '$lib/v2/format';
+  import { cn } from '$lib/utils';
   import type { WeaponListRow } from '$lib/v2/types';
 
   let rows = $state<WeaponListRow[] | null>(null);
@@ -63,7 +65,7 @@
 
   const shown = $derived.by(() => {
     const q = search.trim().toLowerCase();
-    const list = (rows ?? []).filter((r) => !q || r.name.toLowerCase().includes(q) || (r.slot ?? '').includes(q));
+    const list = (rows ?? []).filter((r) => !q || r.name.toLowerCase().includes(q) || (r.slot ?? '').includes(q.toLowerCase()));
     const dir = desc ? -1 : 1;
     return list.sort((a, b) => {
       const x = value(a, sortKey);
@@ -75,7 +77,7 @@
   const totalKills = $derived(Math.max(1, (rows ?? []).reduce((s, r) => s + r.kills, 0)));
 </script>
 
-<PageHeader title="Weapons" sub={rows ? `${rows.length} ${rows.length === 1 ? 'weapon' : 'weapons'} with kills` : ''}>
+<PageHeader title="Weapons" sub={rows ? `${plural(rows.length, 'weapon')} with kills` : ''}>
   {#snippet actions()}<ListTools bind:value={search} placeholder="Search weapons" />{/snippet}
 </PageHeader>
 
@@ -102,20 +104,20 @@
             <SortHead label="Kills" col="kills" {sortKey} {desc} onsort={sortBy} />
             <SortHead label="HS %" col="hsPct" {sortKey} {desc} onsort={sortBy} />
             <SortHead label="Operators" col="operators" {sortKey} {desc} onsort={sortBy} />
-            <th class="w-40 py-2 pr-3 text-left font-medium">Share of kills</th>
+            <th class="w-44 px-3 py-2 text-left font-medium">Share of kills</th>
           </tr>
         </thead>
         <tbody class="tabular-nums">
           {#each shown as r (r.key)}
             <tr class="border-b border-border/60 transition-colors last:border-0 hover:bg-surface-2">
-              <td class="py-2 pl-3">
-                <a href="/weapons/{encodeURIComponent(r.key)}" class="font-medium">{r.name}</a>
+              <td class="px-3 py-2">
+                <a href="/weapons/{encodeURIComponent(r.key)}" class={cn('font-medium', r.unnamed && 'font-normal text-muted italic')}>{r.name}</a>
               </td>
-              <td class="py-2 text-muted">{r.slot ?? '-'}</td>
-              <td class="py-2 text-right font-semibold">{r.kills}</td>
-              <td class="py-2 text-right">{r.hsPct.toFixed(0)}%</td>
-              <td class="py-2 text-right">{r.operators}</td>
-              <td class="py-2 pr-3 pl-4">
+              <td class="px-3 py-2 text-muted">{slotLabel(r.slot)}</td>
+              <td class="px-3 py-2 text-right font-semibold">{r.kills}</td>
+              <td class="px-3 py-2 text-right">{r.hsPct.toFixed(0)}%</td>
+              <td class="px-3 py-2 text-right">{r.operators}</td>
+              <td class="px-3 py-2">
                 <div class="h-1.5 overflow-hidden rounded-full bg-surface-3">
                   <div class="h-full rounded-full bg-accent" style="width:{(r.kills / totalKills) * 100}%"></div>
                 </div>

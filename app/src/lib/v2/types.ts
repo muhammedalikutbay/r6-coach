@@ -487,6 +487,8 @@ export interface SlotView {
   secondary: number;
   gadget: number;
   ability: number;
+  melee: number;
+  explosion: number;
   unknown: number;
 }
 
@@ -562,6 +564,8 @@ export interface DetailMapRow {
 export interface DetailWeaponUse {
   key: string;
   name: string;
+  /** Not a named item (an operator-and-slot label such as "Noor primary"). */
+  unnamed?: boolean;
   slot: string | null;
   kills: number;
   hsPct: number;
@@ -639,6 +643,7 @@ export interface WeaponRecentKill {
 export interface WeaponDetail {
   key: string;
   name: string;
+  unnamed?: boolean;
   slot: string | null;
   kills: number;
   headshots: number;
@@ -670,6 +675,7 @@ export interface OperatorListRow {
 export interface WeaponListRow {
   key: string;
   name: string;
+  unnamed?: boolean;
   slot: string | null;
   kills: number;
   headshots: number;

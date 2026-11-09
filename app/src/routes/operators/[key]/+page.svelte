@@ -16,7 +16,7 @@
   import { filterStore } from '$lib/v2/filter.svelte';
   import { operatorDetail } from '$lib/v2/api';
   import { refreshTick } from '$lib/v2/refresh.svelte';
-  import { formatShortDate, formatDateTime } from '$lib/v2/format';
+  import { formatShortDate, formatDateTime, plural, slotLabel } from '$lib/v2/format';
   import { toast } from '$lib/toast.svelte';
   import { cn } from '$lib/utils';
   import type { OperatorScreen } from '$lib/v2/types';
@@ -68,7 +68,7 @@
   backHref="/operators"
   backLabel="All operators"
   {title}
-  sub={s && s.rounds > 0 ? `${s.rounds} ${s.rounds === 1 ? 'round' : 'rounds'} in ${s.matches} ${s.matches === 1 ? 'match' : 'matches'}` : ''}
+  sub={s && s.rounds > 0 ? `${plural(s.rounds, 'round')} in ${plural(s.matches, 'match', 'matches')}` : ''}
 >
   {#snippet lead()}<OperatorBadge opKey={key} name={title} size={56} />{/snippet}
   {#snippet chips()}
@@ -100,16 +100,24 @@
   <EmptyState title="Could not load data" text="Try changing the filter or press Update." icon={Users} />
 {:else if d && s}
   {#if s.rounds === 0}
-    <EmptyState title="No rounds with {title} for this filter" text="Loosen the filter to see this operator's stats." icon={Users}>
+    <EmptyState
+      title={operatorName(key) === key ? 'Unknown operator' : `No rounds with ${title} for this filter`}
+      text={operatorName(key) === key ? 'There is no operator with this name.' : "Loosen the filter to see this operator's stats."}
+      icon={Users}
+    >
+      {#if operatorName(key) === key}
+        <a href="/operators" class="rounded-lg bg-accent px-3 py-1.5 text-sm font-medium text-accent-foreground">All operators</a>
+      {:else}
       <button class="rounded-lg bg-accent px-3 py-1.5 text-sm font-medium text-accent-foreground" onclick={() => filterStore.clear()}>
         Clear filter
       </button>
+      {/if}
     </EmptyState>
   {:else}
     <div class="transition-opacity {loading ? 'opacity-60' : ''}">
       <div class="mb-6 grid grid-cols-2 gap-3 lg:grid-cols-4">
-        <StatCard label="K/D" value={s.kd.toFixed(2)} sub="{s.kills} kills · {s.deaths} deaths" />
-        <StatCard label="Round win %" value={pct(s.winPct)} sub="{s.roundsWon} of {s.rounds} rounds" />
+        <StatCard label="K/D" value={s.kd.toFixed(2)} sub="{plural(s.kills, 'kill')} · {plural(s.deaths, 'death')}" />
+        <StatCard label="Round win %" value={pct(s.winPct)} sub="{s.roundsWon} of {plural(s.rounds, 'round')}" />
         <StatCard label="Kills / round" value={s.killsPerRound.toFixed(2)} />
         <StatCard label="HS %" value={pct(s.hsPct)} />
         <StatCard label="First kill / death" value="{s.firstKills} / {s.firstDeaths}" sub="opening duels" />
@@ -175,8 +183,8 @@
                   {#each d.weapons as w (w.key)}
                     <tr>
                       <td class="py-0.5">
-                        <a href="/weapons/{encodeURIComponent(w.key)}" class="hover:text-accent">{w.name}</a>
-                        {#if w.slot}<span class="ml-1.5 text-xs text-muted">{w.slot}</span>{/if}
+                        <a href="/weapons/{encodeURIComponent(w.key)}" class={cn('hover:text-accent', w.unnamed && 'text-muted italic')}>{w.name}</a>
+                        {#if w.slot}<span class="ml-1.5 text-xs text-muted">{slotLabel(w.slot)}</span>{/if}
                       </td>
                       <td class="py-0.5 text-right">{w.kills}</td>
                       <td class="py-0.5 text-right">{w.hsPct.toFixed(0)}%</td>
@@ -197,7 +205,7 @@
                 <MapThumb mapKey={m.key} name={m.name} class="rounded-none" />
                 <div class="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/80 to-transparent p-2">
                   <div class="text-sm font-semibold text-white">{m.name}</div>
-                  <div class="text-xs text-white/70 tabular-nums">{m.rounds} {m.rounds === 1 ? 'round' : 'rounds'}</div>
+                  <div class="text-xs text-white/70 tabular-nums">{plural(m.rounds, 'round')}</div>
                 </div>
               </div>
               <div class="flex items-center justify-between p-2.5 text-xs tabular-nums">
@@ -212,19 +220,21 @@
 
       <div class="grid grid-cols-1 gap-6 lg:grid-cols-2">
         <Section title="Most killed" hint="Enemy operators {title} took down most">
-          <Card><RivalList rows={d.mostKilled} unit="kills" empty="No kills with known enemy operators." /></Card>
+          <Card><RivalList rows={d.mostKilled} unit="kill" empty="No kills with known enemy operators." /></Card>
         </Section>
         <Section title="Killed by" hint="Enemy operators that took {title} down most">
-          <Card><RivalList rows={d.mostKilledBy} unit="deaths" empty="No deaths to an enemy operator." /></Card>
+          <Card><RivalList rows={d.mostKilledBy} unit="death" empty="No deaths to an enemy operator." /></Card>
         </Section>
       </div>
 
       <Section title="Matches" hint="Matches played with {title}, newest first">
         <div class="flex flex-col gap-2">
           {#each d.matches as m (m.matchId)}
-            <div
+            <a
+              href="/matches?match={encodeURIComponent(m.matchId)}"
+              title="Open this match"
               class={cn(
-                'flex items-center gap-4 rounded-lg border border-l-4 border-border bg-surface-1 py-2 pr-4 pl-2',
+                'flex items-center gap-4 rounded-lg border border-l-4 border-border bg-surface-1 py-2 pr-4 pl-2 transition-colors hover:bg-surface-2',
                 m.won ? 'border-l-good' : 'border-l-bad'
               )}
             >
@@ -239,9 +249,9 @@
               </div>
               <div class="w-20 text-center">
                 <div class="font-semibold tabular-nums">{m.kills}/{m.deaths}</div>
-                <div class="text-xs text-muted">{m.rounds} {m.rounds === 1 ? 'round' : 'rounds'}</div>
+                <div class="text-xs text-muted">{plural(m.rounds, 'round')}</div>
               </div>
-            </div>
+            </a>
           {/each}
         </div>
       </Section>

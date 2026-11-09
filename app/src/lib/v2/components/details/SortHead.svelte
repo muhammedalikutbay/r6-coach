@@ -14,7 +14,7 @@
   const active = $derived(sortKey === col);
 </script>
 
-<th class={cn('py-2 font-medium', align === 'right' ? 'text-right' : 'text-left')} aria-sort={active ? (desc ? 'descending' : 'ascending') : 'none'}>
+<th class={cn('px-3 py-2 font-medium whitespace-nowrap', align === 'right' ? 'text-right' : 'text-left')} aria-sort={active ? (desc ? 'descending' : 'ascending') : 'none'}>
   <button
     type="button"
     onclick={() => onsort(col)}

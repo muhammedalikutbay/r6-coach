@@ -78,9 +78,118 @@ pub fn generic_kill_source(asset: u64) -> Option<(&'static str, &'static str)> {
     GENERIC_KILLS.iter().find(|g| g.0 == asset).map(|g| (g.1, g.2))
 }
 
+/// A weapon name as the screens show it, with the stats grouping that goes with it.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct WeaponLabel {
+    /// Name without an operator variant (`Nitro Cell`, not `Nitro Cell (Bandit)`): the stats row.
+    pub name: String,
+    /// Full display name; keeps the variant (`Nitro Cell (Bandit)`) for the kill feed.
+    pub display: String,
+    /// The item is not in the tables, so the name is an operator-and-slot label (`Noor primary`).
+    pub unnamed: bool,
+}
+
+/// Title-cases a stored weapon name. The source table is mostly upper case (`416-C CARBINE`).
+/// Words with a digit, short words (up to three letters: `EMP`, `SAW`, `MPX`) and words that are
+/// already mixed case (`Mk`, `9mm`) stay as they are; every other upper case word gets a capital
+/// first letter, also inside hyphens and parentheses.
+pub fn title_case(raw: &str) -> String {
+    fn word(w: &str) -> String {
+        let letters: Vec<char> = w.chars().filter(|c| c.is_alphabetic()).collect();
+        let has_lower = letters.iter().any(|c| c.is_lowercase());
+        if letters.len() <= 3 || has_lower || w.chars().any(|c| c.is_ascii_digit()) || w.contains('.') {
+            return w.to_string();
+        }
+        let mut out = String::new();
+        let mut prev_letter = false;
+        for c in w.chars() {
+            if prev_letter {
+                out.extend(c.to_lowercase());
+            } else {
+                out.extend(c.to_uppercase());
+            }
+            prev_letter = c.is_alphabetic();
+        }
+        out
+    }
+    raw.split_whitespace()
+        .map(|tok| {
+            // Split a token at hyphens and parentheses, keeping the separators.
+            let mut out = String::new();
+            let mut cur = String::new();
+            for c in tok.chars() {
+                if c == '-' || c == '(' || c == ')' {
+                    out.push_str(&word(&cur));
+                    cur.clear();
+                    out.push(c);
+                } else {
+                    cur.push(c);
+                }
+            }
+            out.push_str(&word(&cur));
+            out
+        })
+        .collect::<Vec<_>>()
+        .join(" ")
+}
+
+/// Name without a trailing operator variant: `Nitro Cell (Bandit)` gives `Nitro Cell`.
+pub fn base_name(name: &str) -> &str {
+    match name.rfind(" (") {
+        Some(i) if name.ends_with(')') => name[..i].trim_end(),
+        _ => name,
+    }
+}
+
+/// Label of a stored kill weapon.
+///
+/// * `Unknown primary` / `Unknown gadget` ... (an item the tables do not know) becomes
+///   `<Operator> primary` when `operator` is a known operator name; nothing is made up.
+/// * Known names are title-cased and the operator variant is split off into [`WeaponLabel::name`].
+pub fn label(raw: &str, operator: Option<&str>) -> WeaponLabel {
+    if let Some(slot) = raw.strip_prefix("Unknown ") {
+        return match operator {
+            Some(op) if !op.is_empty() && slot != "weapon" => {
+                let n = format!("{op} {slot}");
+                WeaponLabel { name: n.clone(), display: n, unnamed: true }
+            }
+            _ => WeaponLabel { name: raw.to_string(), display: raw.to_string(), unnamed: true },
+        };
+    }
+    let display = title_case(raw);
+    WeaponLabel { name: base_name(&display).to_string(), display, unnamed: false }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn names_are_title_cased_and_variants_merge() {
+        assert_eq!(title_case("416-C CARBINE"), "416-C Carbine");
+        assert_eq!(title_case("IMPACT GRENADE"), "Impact Grenade");
+        assert_eq!(title_case("SUPERNOVA"), "Supernova");
+        assert_eq!(title_case("Mk 14 EBR"), "Mk 14 EBR");
+        assert_eq!(title_case("R4-C"), "R4-C");
+        assert_eq!(title_case("SPEC-IO ELECTRO-SENSOR"), "Spec-IO Electro-Sensor");
+        assert_eq!(title_case("S.E.L.M.A."), "S.E.L.M.A.");
+        assert_eq!(title_case("9x19VSN"), "9x19VSN");
+        assert_eq!(title_case("Bailiff 410"), "Bailiff 410");
+        let a = label("NITRO CELL (BANDIT)", Some("Bandit"));
+        let b = label("NITRO CELL", None);
+        assert_eq!(a.display, "Nitro Cell (Bandit)");
+        assert_eq!((a.name.as_str(), b.name.as_str()), ("Nitro Cell", "Nitro Cell"));
+    }
+
+    #[test]
+    fn unknown_items_are_named_by_operator_and_slot() {
+        let l = label("Unknown primary", Some("Noor"));
+        assert_eq!((l.name.as_str(), l.unnamed), ("Noor primary", true));
+        assert_eq!(label("Unknown gadget", Some("Wamai")).name, "Wamai gadget");
+        assert_eq!(label("Unknown primary", None).name, "Unknown primary");
+        assert_eq!(label("Unknown weapon", Some("Noor")).name, "Unknown weapon");
+        assert!(!label("Melee", Some("Noor")).unnamed);
+    }
 
     #[test]
     fn table_loads() {

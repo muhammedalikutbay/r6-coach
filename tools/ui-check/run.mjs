@@ -136,6 +136,16 @@ async function runStep(cdp, step) {
       }
       throw new Error('page did not finish reloading');
     }
+    case 'viewport': {
+      // width 0 clears the override
+      if (!step.width) await cdp.send('Emulation.clearDeviceMetricsOverride');
+      else await cdp.send('Emulation.setDeviceMetricsOverride', { width: step.width, height: step.height, deviceScaleFactor: 1, mobile: false });
+      await sleep(400);
+      return `viewport ${step.width ?? 'default'}x${step.height ?? ''}`;
+    }
+    case 'sleep':
+      await sleep(step.ms ?? 500);
+      return `slept ${step.ms ?? 500} ms`;
     case 'localStorage.clear':
       await cdp.eval('localStorage.clear()');
       return 'localStorage cleared';
