@@ -2,7 +2,9 @@
 //!
 //! The recorder writes `seg-<start>.part` while a segment is open and renames it to
 //! `seg-<start>-<end>.mp4` (wall-clock Unix ms) when the segment is finished. Only finished
-//! segments are ever read or cut, so the file name alone tells which wall-clock span a file covers.
+//! segments are ever read or cut. `start` is the arrival time of the first frame and `end` that of
+//! the last one, so the file name tells which wall-clock span a file covers; the `.clock` file next
+//! to it (see `clock`) stamps every single frame.
 
 use std::path::{Path, PathBuf};
 
@@ -21,6 +23,13 @@ pub struct Segment {
     pub path: PathBuf,
 }
 
+impl Segment {
+    /// The per-frame wall-clock stamps of this segment (may not exist for old segments).
+    pub fn clock_path(&self) -> PathBuf {
+        self.path.with_extension("clock")
+    }
+}
+
 pub fn part_name(start_ms: i64) -> String {
     format!("seg-{start_ms}.part")
 }
@@ -29,9 +38,16 @@ pub fn segment_name(start_ms: i64, end_ms: i64) -> String {
     format!("seg-{start_ms}-{end_ms}.mp4")
 }
 
+pub fn clock_name(start_ms: i64, end_ms: i64) -> String {
+    format!("seg-{start_ms}-{end_ms}.clock")
+}
+
 /// `(start, end)` from a finished segment's file name.
 pub fn parse_segment_name(name: &str) -> Option<(i64, i64)> {
-    let body = name.strip_prefix("seg-")?.strip_suffix(".mp4")?;
+    parse_span(name.strip_prefix("seg-")?.strip_suffix(".mp4")?)
+}
+
+fn parse_span(body: &str) -> Option<(i64, i64)> {
     let (a, b) = body.split_once('-')?;
     let (start, end) = (a.parse::<i64>().ok()?, b.parse::<i64>().ok()?);
     (end >= start).then_some((start, end))
@@ -79,7 +95,8 @@ pub fn prune(dir: &Path, now_ms: i64, keep_ms: i64, active_start_ms: Option<i64>
     let mut deleted = 0;
     for e in rd.flatten() {
         let name = e.file_name().to_string_lossy().into_owned();
-        let stale = if let Some((_, end)) = parse_segment_name(&name) {
+        let clock_span = name.strip_prefix("seg-").and_then(|n| n.strip_suffix(".clock")).and_then(parse_span);
+        let stale = if let Some((_, end)) = parse_segment_name(&name).or(clock_span) {
             now_ms - end > keep_ms
         } else if let Some(start) = name.strip_prefix("seg-").and_then(|n| n.strip_suffix(".part")).and_then(|n| n.parse::<i64>().ok()) {
             Some(start) != active_start_ms && now_ms - start > STALE_PART_MS
@@ -147,15 +164,17 @@ mod tests {
         let now = 100_000_000;
         let old = segment_name(now - 20 * 60_000, now - 19 * 60_000);
         let fresh = segment_name(now - 5 * 60_000, now - 4 * 60_000);
+        let old_clock = clock_name(now - 20 * 60_000, now - 19 * 60_000);
+        let fresh_clock = clock_name(now - 5 * 60_000, now - 4 * 60_000);
         let stale_part = part_name(now - 30 * 60_000);
         let active_part = part_name(now - 20 * 60_000);
-        for n in [&old, &fresh, &stale_part, &active_part, &"notes.txt".to_string()] {
+        for n in [&old, &fresh, &old_clock, &fresh_clock, &stale_part, &active_part, &"notes.txt".to_string()] {
             std::fs::write(t.path().join(n), b"x").unwrap();
         }
-        assert_eq!(prune(t.path(), now, KEEP_MS, Some(now - 20 * 60_000)), 2);
+        assert_eq!(prune(t.path(), now, KEEP_MS, Some(now - 20 * 60_000)), 3);
         let left: Vec<String> = std::fs::read_dir(t.path()).unwrap().flatten().map(|e| e.file_name().to_string_lossy().into_owned()).collect();
-        assert!(left.contains(&fresh) && left.contains(&active_part) && left.contains(&"notes.txt".to_string()));
-        assert!(!left.contains(&old) && !left.contains(&stale_part));
+        assert!(left.contains(&fresh) && left.contains(&fresh_clock) && left.contains(&active_part) && left.contains(&"notes.txt".to_string()));
+        assert!(!left.contains(&old) && !left.contains(&old_clock) && !left.contains(&stale_part));
         assert_eq!(list_segments(t.path()).len(), 1);
     }
 }

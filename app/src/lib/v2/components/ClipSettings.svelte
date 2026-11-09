@@ -14,8 +14,12 @@
   let busy = $state(false);
   let confirmDelete = $state(false);
 
+  /** Recording is off: every clip setting is greyed out until the switch is turned on. */
+  const off = $derived(!settings.enabled);
+  const locked = $derived(!loaded || busy || off);
+
   const selectCls =
-    'h-9 rounded-lg border border-border-strong bg-surface-2 px-2 text-sm text-foreground outline-none focus:border-accent';
+    'h-9 rounded-lg border border-border-strong bg-surface-2 px-2 text-sm text-foreground outline-none focus:border-accent disabled:cursor-not-allowed disabled:opacity-60';
   const numberCls = cn(selectCls, 'w-20');
 
   const KEEP = [
@@ -119,6 +123,24 @@
     }
   }
 
+  const audioText = $derived.by(() => {
+    if (!settings.recordAudio) return 'Clips are silent.';
+    const a = status?.recording.audio;
+    if (!settings.enabled || status?.recording.state !== 'recording') {
+      return "Only the sound of Rainbow Six Siege is recorded, not Discord, music or other apps.";
+    }
+    switch (a) {
+      case 'game':
+        return "Recording the game's sound only (not Discord or other apps).";
+      case 'system':
+        return 'This Windows cannot separate the game sound, so all sound the PC plays is recorded.';
+      case 'failed':
+        return 'The sound could not be started; clips are silent. Look at the Windows sound settings and try again.';
+      default:
+        return 'Starting the sound capture.';
+    }
+  });
+
   const stateText = $derived.by(() => {
     const r = status?.recording;
     if (!settings.enabled) return 'Off';
@@ -181,17 +203,20 @@
     </div>
   {/if}
 
-  <div class="mt-4 space-y-4 border-t border-border pt-4">
+  <div class={cn('mt-4 space-y-4 border-t border-border pt-4 transition-opacity', off && 'opacity-50')} aria-disabled={off}>
+    {#if off}
+      <p class="text-xs text-muted">Turn the switch on to change these settings.</p>
+    {/if}
     <div class="flex flex-wrap items-center gap-3">
       <span class="w-44 text-sm">Make clips of</span>
       <div class="inline-flex overflow-hidden rounded-lg border border-border-strong">
         {#each KINDS as k (k.v)}
           <button
             type="button"
-            disabled={!loaded || busy}
+            disabled={locked}
             onclick={() => save({ kinds: k.v })}
             class={cn(
-              'h-9 px-4 text-sm transition disabled:opacity-50',
+              'h-9 px-4 text-sm transition disabled:cursor-not-allowed disabled:opacity-60',
               settings.kinds === k.v ? 'bg-accent font-semibold text-accent-foreground' : 'bg-surface-2 hover:bg-surface-3'
             )}>{k.label}</button
           >
@@ -201,7 +226,7 @@
 
     <div class="flex flex-wrap items-center gap-3">
       <label for="clip-keep" class="w-44 text-sm">Keep clips for</label>
-      <select id="clip-keep" class={selectCls} disabled={!loaded || busy} value={settings.keepMatches} onchange={(e) => save({ keepMatches: Number(e.currentTarget.value) })}>
+      <select id="clip-keep" class={selectCls} disabled={locked} value={settings.keepMatches} onchange={(e) => save({ keepMatches: Number(e.currentTarget.value) })}>
         {#each KEEP as o (o.v)}<option value={o.v}>{o.label}</option>{/each}
       </select>
       <span class="text-xs text-muted">Starred clips are never deleted.</span>
@@ -209,7 +234,7 @@
 
     <div class="flex flex-wrap items-center gap-3">
       <label for="clip-cap" class="w-44 text-sm">Disk limit</label>
-      <select id="clip-cap" class={selectCls} disabled={!loaded || busy} value={settings.diskCapGb} onchange={(e) => save({ diskCapGb: Number(e.currentTarget.value) })}>
+      <select id="clip-cap" class={selectCls} disabled={locked} value={settings.diskCapGb} onchange={(e) => save({ diskCapGb: Number(e.currentTarget.value) })}>
         {#each CAPS as o (o.v)}<option value={o.v}>{o.label}</option>{/each}
         {#if !CAPS.some((o) => o.v === settings.diskCapGb)}<option value={settings.diskCapGb}>{settings.diskCapGb} GB</option>{/if}
       </select>
@@ -218,16 +243,39 @@
 
     <div class="flex flex-wrap items-center gap-3">
       <span class="w-44 text-sm">Clip length</span>
-      <input type="number" min="2" max="20" step="1" class={numberCls} disabled={!loaded || busy} value={settings.beforeS} onchange={(e) => save({ beforeS: num(e, settings.beforeS) })} aria-label="Seconds before" />
-      <span class="text-xs text-muted">s before the kill,</span>
-      <input type="number" min="0" max="10" step="1" class={numberCls} disabled={!loaded || busy} value={settings.afterS} onchange={(e) => save({ afterS: num(e, settings.afterS) })} aria-label="Seconds after" />
+      <input type="number" min="2" max="20" step="1" class={numberCls} disabled={locked} value={settings.beforeS} onchange={(e) => save({ beforeS: num(e, settings.beforeS) })} aria-label="Seconds before" />
+      <span class="text-xs text-muted">s before,</span>
+      <input type="number" min="0" max="10" step="1" class={numberCls} disabled={locked} value={settings.afterS} onchange={(e) => save({ afterS: num(e, settings.afterS) })} aria-label="Seconds after" />
       <span class="text-xs text-muted">s after</span>
     </div>
 
     <div class="flex flex-wrap items-center gap-3">
       <label for="clip-offset" class="w-44 text-sm">Clip offset (s)</label>
-      <input id="clip-offset" type="number" min="-30" max="30" step="0.5" class={numberCls} disabled={!loaded || busy} value={settings.offsetS} onchange={(e) => save({ offsetS: num(e, settings.offsetS) })} />
-      <span class="text-xs text-muted">Moves every clip in time. Use it if clips start too early (+) or too late (-).</span>
+      <input id="clip-offset" type="number" min="-30" max="30" step="0.5" class={numberCls} disabled={locked} value={settings.offsetS} onchange={(e) => save({ offsetS: num(e, settings.offsetS) })} />
+      <span class="text-xs text-muted">
+        The clip is centred on the kill time plus this offset (negative = earlier). The default of -10 gave the best match
+        in testing: the window is centred 10 s before the kill time the replay reports. If a clip shows only what happens
+        after the kill, make the offset more negative; if it ends before the kill, make it less negative.
+      </span>
+    </div>
+
+    <div class="flex flex-wrap items-center gap-3">
+      <span class="w-44 text-sm" id="clip-audio-label">Record game audio</span>
+      <button
+        type="button"
+        role="switch"
+        aria-checked={settings.recordAudio}
+        aria-labelledby="clip-audio-label"
+        disabled={locked}
+        onclick={() => save({ recordAudio: !settings.recordAudio })}
+        class={cn(
+          'relative h-6 w-11 flex-none rounded-full border transition disabled:cursor-not-allowed disabled:opacity-60',
+          settings.recordAudio ? 'border-accent bg-accent' : 'border-border-strong bg-surface-3'
+        )}
+      >
+        <span class={cn('absolute top-0.5 size-4.5 rounded-full bg-white transition-all', settings.recordAudio ? 'left-[22px]' : 'left-0.5')}></span>
+      </button>
+      <span class="text-xs text-muted">{audioText}</span>
     </div>
   </div>
 

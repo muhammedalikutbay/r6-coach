@@ -6,18 +6,20 @@ import { toast } from '$lib/toast.svelte';
 
 const IN_TAURI = typeof window !== 'undefined' && '__TAURI_INTERNALS__' in window;
 
+// Same as `ClipSettings::default()` in Rust: a 5 s + 5 s window centred 10 s before the kill time.
 export const DEFAULT_CLIP_SETTINGS: ClipSettings = {
   enabled: false,
   kinds: 'kills',
   keepMatches: 10,
   diskCapGb: 0,
-  offsetS: 0,
-  beforeS: 6,
-  afterS: 2
+  offsetS: -10,
+  beforeS: 5,
+  afterS: 5,
+  recordAudio: true
 };
 
 const MOCK_STATUS: ClipsStatus = {
-  recording: { state: 'off', gameRunning: false, blackFrames: false, message: '' },
+  recording: { state: 'off', gameRunning: false, blackFrames: false, message: '', audio: 'off' },
   bufferBytes: 0,
   clipsBytes: 0,
   clipsCount: 0,
@@ -63,6 +65,32 @@ export async function clipUrl(path: string): Promise<string> {
   if (!IN_TAURI) return path;
   const { convertFileSrc } = await import('@tauri-apps/api/core');
   return convertFileSrc(path);
+}
+
+/**
+ * A `blob:` URL of the clip, read through the backend. Fallback for when the webview refuses to
+ * stream the file through the asset protocol. The caller must `URL.revokeObjectURL` it.
+ */
+export async function clipBlobUrl(id: number): Promise<string> {
+  if (!IN_TAURI) throw new Error('Clips are only available in the app.');
+  const { invoke } = await import('@tauri-apps/api/core');
+  const bytes = await invoke<ArrayBuffer>('read_clip_file', { id });
+  return URL.createObjectURL(new Blob([bytes], { type: 'video/mp4' }));
+}
+
+/** Plays the clip in the default video player of the PC. */
+export const openClipExternal = (id: number) => call<void>('open_clip_external', { id }, () => undefined);
+
+/** Human text for the `MediaError` of a `<video>` element. */
+export function videoErrorText(err: MediaError | null): string {
+  if (!err) return 'unknown error';
+  const names: Record<number, string> = {
+    1: 'MEDIA_ERR_ABORTED',
+    2: 'MEDIA_ERR_NETWORK',
+    3: 'MEDIA_ERR_DECODE',
+    4: 'MEDIA_ERR_SRC_NOT_SUPPORTED'
+  };
+  return `${names[err.code] ?? 'code ' + err.code} (${err.code})${err.message ? ': ' + err.message : ''}`;
 }
 
 async function listen<T>(event: string, onEvent: (p: T) => void): Promise<() => void> {

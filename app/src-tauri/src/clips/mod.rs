@@ -2,7 +2,9 @@
 //! short clips around the tracked player's kills and deaths whenever a round's `.rec` arrives.
 //!
 //! * `recorder`: Windows Graphics Capture of the game window into one-minute segments (temp folder).
+//! * `audio`: the game's sound (process loopback), muxed into the same segments.
 //! * `buffer`: names, listing and pruning of those segments.
+//! * `clock`: wall-clock stamp of every recorded frame (the cutter works on the wall clock).
 //! * `timing`: round clock (from the `.rec`) to wall clock.
 //! * `cutter`: stream-copy cut of a wall-clock window out of the segments into an MP4.
 //! * `retention`: last N matches, disk cap, starred clips.
@@ -10,7 +12,9 @@
 //!
 //! Everything is off by default; nothing is recorded until the user turns it on in Settings.
 
+pub(crate) mod audio;
 pub(crate) mod buffer;
+pub(crate) mod clock;
 pub(crate) mod cutter;
 pub(crate) mod db;
 pub(crate) mod recorder;
@@ -63,17 +67,34 @@ pub struct ClipSettings {
     pub keep_matches: u32,
     /// Disk cap for all clips in GB; 0 = none.
     pub disk_cap_gb: f64,
-    /// Seconds added to every event time to correct a systematic timing error (may be negative).
+    /// Seconds added to the kill time before the clip window is placed (may be negative: earlier).
     pub offset_s: f64,
-    /// Clip window: seconds before the event ...
+    /// Clip window: seconds before the (offset) kill time ...
     pub before_s: f64,
     /// ... and after it.
     pub after_s: f64,
+    /// Record the game's sound into the clips (the game process only, not Discord and the like).
+    pub record_audio: bool,
 }
+
+/// Defaults of a new install. The window is centred on the kill time moved 10 s earlier: the
+/// round clock of the replay runs about 10 s ahead of what was recorded.
+pub const DEFAULT_BEFORE_S: f64 = 5.0;
+pub const DEFAULT_AFTER_S: f64 = 5.0;
+pub const DEFAULT_OFFSET_S: f64 = -10.0;
 
 impl Default for ClipSettings {
     fn default() -> Self {
-        Self { enabled: false, kinds: ClipKinds::Kills, keep_matches: 10, disk_cap_gb: 0.0, offset_s: 0.0, before_s: 6.0, after_s: 2.0 }
+        Self {
+            enabled: false,
+            kinds: ClipKinds::Kills,
+            keep_matches: 10,
+            disk_cap_gb: 0.0,
+            offset_s: DEFAULT_OFFSET_S,
+            before_s: DEFAULT_BEFORE_S,
+            after_s: DEFAULT_AFTER_S,
+            record_audio: true,
+        }
     }
 }
 
@@ -83,9 +104,9 @@ impl ClipSettings {
         let clamp = |v: f64, lo: f64, hi: f64, d: f64| if v.is_finite() { v.clamp(lo, hi) } else { d };
         self.keep_matches = self.keep_matches.min(1000);
         self.disk_cap_gb = clamp(self.disk_cap_gb, 0.0, 2000.0, 0.0);
-        self.offset_s = clamp(self.offset_s, -30.0, 30.0, 0.0);
-        self.before_s = clamp(self.before_s, 2.0, 20.0, 6.0);
-        self.after_s = clamp(self.after_s, 0.0, 10.0, 2.0);
+        self.offset_s = clamp(self.offset_s, -30.0, 30.0, DEFAULT_OFFSET_S);
+        self.before_s = clamp(self.before_s, 2.0, 20.0, DEFAULT_BEFORE_S);
+        self.after_s = clamp(self.after_s, 0.0, 10.0, DEFAULT_AFTER_S);
         self
     }
 
@@ -150,7 +171,7 @@ pub fn cut_round(plan: &RoundPlan, targets: &[Target], settings: &ClipSettings, 
             }
         }
         let sel = buffer::select_for_window(segments, start, end);
-        match cutter::cut(&sel, start, end, &out) {
+        match cutter::cut(&sel, start, end, centre, &out) {
             Ok(c) => {
                 let size = std::fs::metadata(&out).map(|m| m.len()).unwrap_or(0);
                 clips.push(CutClip { target: t.clone(), path: out, size, lead_ms: c.lead_ms, duration_ms: c.duration_ms });
@@ -244,10 +265,14 @@ impl ClipsState {
 }
 
 /// Creates the recorder and the cutting thread. Call once at start-up, after the database is open.
-pub fn init(app: &AppHandle, initial: ClipSettings) -> tauri::Result<ClipsState> {
-    let local = app.path().app_local_data_dir()?;
+pub fn init(app: &AppHandle, initial: ClipSettings, local: &Path) -> tauri::Result<ClipsState> {
     let (buffer_dir, clips_dir) = (local.join("clipbuffer"), local.join("clips"));
     std::fs::create_dir_all(&clips_dir)?;
+    // The asset protocol (video playback) may read the clips folder wherever it is: the default
+    // scope in tauri.conf.json only knows the regular one, not an `R6COACH_DATA_DIR` folder.
+    if let Err(e) = app.asset_protocol_scope().allow_directory(&clips_dir, true) {
+        log::warn!("clips: cannot allow the clips folder in the asset scope: {e}");
+    }
     if !initial.enabled {
         // Leftovers of an earlier run (a crash while recording).
         buffer::clear(&buffer_dir);
@@ -467,6 +492,33 @@ pub fn open_clips_folder(state: tauri::State<ClipsState>) -> Cmd<()> {
     reveal(&state.clips_dir)
 }
 
+/// The bytes of a clip. The in-app player falls back to this (a Blob URL) when the webview cannot
+/// stream the file through the asset protocol.
+#[tauri::command]
+pub async fn read_clip_file(db: tauri::State<'_, store::Db>, id: i64) -> Cmd<tauri::ipc::Response> {
+    let path = db::get(&*lock(&db)?, id).map_err(|e| e.to_string())?.ok_or("clip not found")?.path;
+    let bytes = tauri::async_runtime::spawn_blocking(move || std::fs::read(&path).map_err(|e| format!("cannot read the clip {path}: {e}")))
+        .await
+        .map_err(|e| format!("read task failed: {e}"))??;
+    Ok(tauri::ipc::Response::new(bytes))
+}
+
+/// Plays a clip in the default video player of the PC (last resort when the in-app player fails).
+#[tauri::command]
+pub fn open_clip_external(db: tauri::State<store::Db>, id: i64) -> Cmd<()> {
+    let row = db::get(&*lock(&db)?, id).map_err(|e| e.to_string())?.ok_or("clip not found")?;
+    let path = Path::new(&row.path);
+    if !path.is_file() {
+        return Err("The clip file is gone.".into());
+    }
+    // Explorer opens a file with its default program; it reports exit code 1 even when it worked.
+    std::process::Command::new("explorer.exe")
+        .arg(row.path.replace('/', "\\"))
+        .spawn()
+        .map(|_| ())
+        .map_err(|e| format!("cannot open the default player: {e}"))
+}
+
 /// Opens Explorer on a folder, or on the folder with a file selected.
 fn reveal(path: &Path) -> Cmd<()> {
     let mut cmd = std::process::Command::new("explorer.exe");
@@ -503,6 +555,11 @@ mod tests {
             .collect()
     }
 
+    /// The settings the timing tests were written for: a 6 s + 2 s window right at the kill.
+    fn classic(kinds: ClipKinds) -> ClipSettings {
+        ClipSettings { kinds, offset_s: 0.0, before_s: 6.0, after_s: 2.0, ..Default::default() }
+    }
+
     fn plan() -> RoundPlan {
         RoundPlan {
             match_id: "match/1".into(),
@@ -521,7 +578,7 @@ mod tests {
         // 150 s of recording ending at the round end.
         let segs = make_segments(&t.path().join("buf"), round_end - 150_000, 5);
         let clips_dir = t.path().join("clips");
-        let settings = ClipSettings { kinds: ClipKinds::Both, ..Default::default() };
+        let settings = classic(ClipKinds::Both);
         let targets = timing::targets(&plan(), Anchor::RoundEnd(round_end));
         assert_eq!(targets.len(), 2);
         // Kill at 120 -> 90 s before the end; death at 60 -> 30 s before the end.
@@ -547,7 +604,7 @@ mod tests {
         let round_end = 6_000_000i64;
         let segs = make_segments(&t.path().join("buf"), round_end - 150_000, 5);
         let targets = timing::targets(&plan(), Anchor::RoundEnd(round_end));
-        let plain = ClipSettings { kinds: ClipKinds::Kills, ..Default::default() };
+        let plain = classic(ClipKinds::Kills);
         let shifted = ClipSettings { offset_s: 4.0, ..plain.clone() };
         let (a, _) = cut_round(&plan(), &targets[..1], &plain, &segs, &t.path().join("a"));
         let (b, _) = cut_round(&plan(), &targets[..1], &shifted, &segs, &t.path().join("b"));
@@ -569,7 +626,7 @@ mod tests {
         synthetic_segment(&p, 9, 30, 600, 30, 0xab);
         let segs = vec![Segment { start_ms: start, end_ms: round_end, path: p }];
         let targets = timing::targets(&plan(), Anchor::RoundEnd(round_end));
-        let settings = ClipSettings { kinds: ClipKinds::Both, ..Default::default() };
+        let settings = classic(ClipKinds::Both);
         let (clips, skipped) = cut_round(&plan(), &targets, &settings, &segs, &t.path().join("clips"));
         assert!(clips.is_empty());
         assert_eq!(skipped.len(), 2);
@@ -638,12 +695,27 @@ mod tests {
     #[test]
     fn settings_are_clamped_and_default_to_off() {
         let d = ClipSettings::default();
-        assert!(!d.enabled);
-        assert_eq!((d.keep_matches, d.before_s, d.after_s, d.offset_s), (10, 6.0, 2.0, 0.0));
+        assert!(!d.enabled && d.record_audio);
+        // New installs: a 5 s + 5 s window centred 10 s before the kill time.
+        assert_eq!((d.keep_matches, d.before_s, d.after_s, d.offset_s), (10, 5.0, 5.0, -10.0));
         let wild = ClipSettings { keep_matches: 99999, disk_cap_gb: f64::NAN, offset_s: 500.0, before_s: 0.0, after_s: 99.0, ..Default::default() }.normalized();
         assert_eq!((wild.keep_matches, wild.disk_cap_gb, wild.offset_s, wild.before_s, wild.after_s), (1000, 0.0, 30.0, 2.0, 10.0));
+        let nan = ClipSettings { offset_s: f64::NAN, before_s: f64::NAN, after_s: f64::NAN, ..Default::default() }.normalized();
+        assert_eq!((nan.offset_s, nan.before_s, nan.after_s), (-10.0, 5.0, 5.0));
         let parsed: ClipSettings = serde_json::from_str(r#"{"enabled":true,"kinds":"both","keepMatches":5}"#).unwrap();
-        assert!(parsed.enabled && parsed.kinds == ClipKinds::Both && parsed.keep_matches == 5 && parsed.before_s == 6.0);
+        assert!(parsed.enabled && parsed.kinds == ClipKinds::Both && parsed.keep_matches == 5 && parsed.before_s == 5.0 && parsed.record_audio);
+    }
+
+    /// A user who already tuned the window (10 s before, 0 s after, offset -5) keeps it: their
+    /// stored settings carry all three values, so the new defaults never touch them. Settings saved
+    /// before the sound option existed get it switched on.
+    #[test]
+    fn stored_settings_keep_their_values_and_old_ones_gain_the_sound_option() {
+        let conn = store::open_in_memory().unwrap();
+        let old = r#"{"enabled":true,"kinds":"kills","keepMatches":10,"diskCapGb":0.0,"offsetS":-5.0,"beforeS":10.0,"afterS":0.0}"#;
+        store::set_setting(&conn, KEY_SETTINGS, old).unwrap();
+        let s = load_settings(&conn);
+        assert_eq!((s.before_s, s.after_s, s.offset_s, s.record_audio), (10.0, 0.0, -5.0, true));
     }
 
     #[test]
@@ -683,5 +755,114 @@ mod tests {
         assert_eq!(left, vec!["m1".to_string(), "m3".to_string()]);
         assert!(!t.path().join("m2").exists());
         assert!(t.path().join("m1").join("c.mp4").is_file());
+    }
+
+    /// Makes a data folder for a real-app run: records the self-minimizing test window (with sound),
+    /// cuts clips at fake kill times and puts them into a copy of the sample database, so that
+    /// `R6COACH_DATA_DIR=<folder>` shows playable clips in the match view. Needs a desktop session.
+    ///
+    /// ```text
+    /// $env:R6K_FIXTURE_DIR = "<folder>"; $env:R6K_SAMPLE_DB = "<copy of r6koc-sample.db>"
+    /// cargo test -p r6koc-app --lib fixture_recorded_clips -- --ignored --nocapture
+    /// ```
+    #[cfg(windows)]
+    #[test]
+    #[ignore]
+    fn fixture_recorded_clips() {
+        use super::recorder::tests::spawn_test_window;
+        use std::time::Duration;
+
+        let dir = PathBuf::from(std::env::var("R6K_FIXTURE_DIR").expect("set R6K_FIXTURE_DIR to the folder the app will use"));
+        std::fs::create_dir_all(&dir).unwrap();
+        let db_path = dir.join("r6koc.db");
+        if let Ok(sample) = std::env::var("R6K_SAMPLE_DB") {
+            std::fs::copy(&sample, &db_path).expect("copy the sample database");
+        }
+        let conn = store::open(&db_path).unwrap();
+        // The app run must not look at the real replay folder or at Windows credentials.
+        let replays = dir.join("replays");
+        std::fs::create_dir_all(&replays).unwrap();
+        store::set_setting(&conn, store::KEY_REPLAY_DIR, &replays.to_string_lossy()).unwrap();
+        store::set_setting(&conn, "arenyze_legacy_cleaned", "1").unwrap();
+
+        // Real kills of the tracked player: the clips must match kill-feed rows to show up.
+        let mut kills: Vec<(String, u32, i64, String, String)> = Vec::new();
+        for m in store::load_full_matches(&conn).unwrap().iter().rev() {
+            for r in &m.rounds {
+                for k in r.kills.iter().filter(|k| k.killer == m.me_profile_id) {
+                    let name = |id: &str| m.player(id).map(|p| p.username.clone()).unwrap_or_else(|| id.to_string());
+                    kills.push((m.match_id.clone(), r.number, k.time_s, name(&k.killer), name(&k.victim)));
+                }
+            }
+            if kills.len() >= 4 {
+                break;
+            }
+            kills.clear();
+        }
+        assert!(kills.len() >= 4, "the sample database needs a match with four kills of the tracked player");
+
+        let work = dir.join("rawbuffer");
+        let _ = std::fs::remove_dir_all(&work);
+        std::fs::create_dir_all(&work).unwrap();
+        let (mut child, t0) = spawn_test_window(&dir, 9, 6, true);
+        let settings = Arc::new(Mutex::new(ClipSettings { enabled: true, record_audio: true, ..Default::default() }));
+        let rec = recorder::Recorder::start(
+            work.clone(),
+            settings,
+            Box::new(|w| w.title == "R6K-CLIP-TEST"),
+            recorder::RecorderConfig { segment_secs: 12, poll: Duration::from_millis(500), fps: std::env::var("R6K_FPS").ok().and_then(|v| v.parse().ok()).unwrap_or(recorder::CLIP_FPS) },
+            Arc::new(|e| println!("event: {e:?}")),
+        );
+        std::thread::sleep(Duration::from_secs(34));
+        let status = rec.status();
+        println!("status: {status:?}");
+        rec.flush();
+        let segs = rec.with_buffer(|d| buffer::list_segments(d));
+        for s in &segs {
+            println!("segment {:.2}..{:.2} s  {}", (s.start_ms - t0) as f64 / 1000.0, (s.end_ms - t0) as f64 / 1000.0, s.path.display());
+        }
+
+        // Kills at fake times: before the minimized stretch (9..15 s), inside it, and after it.
+        let offsets_s = [5.0f64, 12.0, 17.5, 26.0];
+        let clips_settings = ClipSettings { kinds: ClipKinds::Kills, before_s: 2.0, after_s: 2.0, offset_s: 0.0, ..Default::default() };
+        let clips_dir = dir.join("clips");
+        let mut expected = Vec::new();
+        for ((match_id, round, time_s, killer, victim), off) in kills.iter().zip(offsets_s) {
+            let plan = RoundPlan { match_id: match_id.clone(), round: *round, start_time_ms: 0, me_username: killer.clone(), events: vec![], ended_on_last_event: true };
+            let target = timing::Target { kind: TargetKind::Kill, time_s: *time_s, killer: killer.clone(), victim: victim.clone(), wall_ms: t0 + (off * 1000.0) as i64 };
+            let (cut, skipped) = cut_round(&plan, &[target.clone()], &clips_settings, &segs, &clips_dir);
+            println!("kill at {off} s: {} clip(s), skipped {skipped:?}", cut.len());
+            for c in cut {
+                let path = c.path.to_string_lossy().into_owned();
+                db::insert(
+                    &conn,
+                    &db::NewClip {
+                        match_id,
+                        round: *round,
+                        kind: "kill",
+                        time_s: *time_s,
+                        killer,
+                        victim,
+                        path: &path,
+                        size: c.size,
+                        start_ms: c.lead_ms,
+                        duration_ms: c.duration_ms,
+                        created_ms: recorder::now_ms(),
+                    },
+                )
+                .unwrap();
+                let origin = target.wall_ms - 2000 - c.lead_ms;
+                expected.push(serde_json::json!({
+                    "matchId": match_id, "round": round, "timeS": time_s, "path": path,
+                    "killAtElapsedS": off, "originElapsedS": (origin - t0) as f64 / 1000.0, "originWallMs": origin,
+                    "leadMs": c.lead_ms, "durationMs": c.duration_ms
+                }));
+            }
+        }
+        std::fs::write(dir.join("expected.json"), serde_json::to_string_pretty(&expected).unwrap()).unwrap();
+        rec.shutdown();
+        let _ = child.kill();
+        let _ = child.wait();
+        assert!(expected.len() >= 2, "expected clips before and after the minimized stretch");
     }
 }

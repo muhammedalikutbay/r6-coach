@@ -375,15 +375,20 @@ export interface ClipSettings {
   keepMatches: number;
   /** Disk cap for all clips in GB; 0 = none. */
   diskCapGb: number;
-  /** Seconds added to every event time to correct a systematic timing error. */
+  /** Seconds added to the kill time before the window is placed (negative = earlier). */
   offsetS: number;
-  /** Clip window: seconds before the event ... */
+  /** Clip window: seconds before the (offset) kill time ... */
   beforeS: number;
   /** ... and after it. */
   afterS: number;
+  /** Record the game's sound into the clips. */
+  recordAudio: boolean;
 }
 
 export type RecState = 'off' | 'waiting' | 'recording' | 'minimized' | 'error';
+
+/** Where the sound of the current recording comes from. */
+export type RecAudio = 'off' | 'game' | 'system' | 'failed';
 
 export interface RecStatus {
   state: RecState;
@@ -391,6 +396,7 @@ export interface RecStatus {
   /** The capture is black: the game is probably in exclusive fullscreen. */
   blackFrames: boolean;
   message: string;
+  audio: RecAudio;
 }
 
 export interface ClipsStatus {

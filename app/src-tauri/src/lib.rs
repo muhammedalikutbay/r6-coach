@@ -186,24 +186,69 @@ fn reset_database(db: tauri::State<store::Db>) -> Cmd<()> {
     store::reset(&*lock(&db)?).map_err(|e| e.to_string())
 }
 
+/// Environment variable that keeps all app data (database, clips, clip buffer, WebView2 data) in
+/// one folder instead of `%APPDATA%` / `%LOCALAPPDATA%`. Used for safe test runs of the real app.
+pub const ENV_DATA_DIR: &str = "R6COACH_DATA_DIR";
+
+/// The two app folders. Without the override they are the regular Tauri folders (settings and
+/// database in the roaming one, clips, buffer and WebView2 data in the local one); with it both
+/// are the override folder.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub(crate) struct AppDirs {
+    pub data: PathBuf,
+    pub local: PathBuf,
+    pub overridden: bool,
+}
+
+/// Pure part of the folder choice: `override_value` is the raw environment value.
+pub(crate) fn choose_dirs(override_value: Option<&std::ffi::OsStr>, default_data: PathBuf, default_local: PathBuf) -> AppDirs {
+    let custom = override_value.map(|v| v.to_string_lossy().trim().to_string()).filter(|v| !v.is_empty());
+    match custom {
+        Some(v) => {
+            let p = PathBuf::from(v);
+            // A relative path would follow the working directory; pin it down once.
+            let p = std::path::absolute(&p).unwrap_or(p);
+            AppDirs { data: p.clone(), local: p, overridden: true }
+        }
+        None => AppDirs { data: default_data, local: default_local, overridden: false },
+    }
+}
+
+fn app_dirs(app: &tauri::AppHandle) -> tauri::Result<AppDirs> {
+    let value = std::env::var_os(ENV_DATA_DIR);
+    if value.as_ref().is_some_and(|v| !v.to_string_lossy().trim().is_empty()) {
+        // Do not even resolve the real folders: nothing may touch them in an isolated run.
+        let dirs = choose_dirs(value.as_deref(), PathBuf::new(), PathBuf::new());
+        log::info!("{ENV_DATA_DIR} is set: all app data goes to {}", dirs.data.display());
+        return Ok(dirs);
+    }
+    Ok(choose_dirs(None, app.path().app_data_dir()?, app.path().app_local_data_dir()?))
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     if let Err(e) = tauri::Builder::default()
         .plugin(tauri_plugin_dialog::init())
         .setup(|app| {
-            let dir = app.path().app_data_dir()?;
-            std::fs::create_dir_all(&dir)?;
-            let conn = store::open(&dir.join("r6koc.db"))?;
+            let dirs = app_dirs(app.handle())?;
+            std::fs::create_dir_all(&dirs.data)?;
+            std::fs::create_dir_all(&dirs.local)?;
+            let conn = store::open(&dirs.data.join("r6koc.db"))?;
             // Remove what the old Ubisoft sign-in left behind (once).
             arenyze::cleanup_legacy(&conn);
             let clip_settings = clips::load_settings(&conn);
             app.manage(store::Db(Mutex::new(conn)));
             // Kill clips (v4): off by default; the recorder thread idles until the user turns it on.
-            app.manage(clips::init(app.handle(), clip_settings)?);
+            app.manage(clips::init(app.handle(), clip_settings, &dirs.local)?);
             let w = watcher::start(app.handle());
             app.manage(w);
             // Arenyze state; no network call until the user has entered a key and asks for rank.
             app.manage(arenyze::ArenyzeState::new());
+            // The window is created here (`"create": false` in tauri.conf.json) so that its
+            // WebView2 data folder can follow the override, and only after the state is managed.
+            // Without the override the folder is the one Tauri would have used anyway.
+            let cfg = app.config().app.windows.first().cloned().ok_or("no window in tauri.conf.json")?;
+            tauri::WebviewWindowBuilder::from_config(app.handle(), &cfg)?.data_directory(dirs.local.clone()).build()?;
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
@@ -240,11 +285,50 @@ pub fn run() {
             clips::set_clip_starred,
             clips::delete_all_clips,
             clips::show_clip_in_folder,
-            clips::open_clips_folder
+            clips::open_clips_folder,
+            clips::read_clip_file,
+            clips::open_clip_external
         ])
         .run(tauri::generate_context!())
     {
         eprintln!("error while running tauri application: {e}");
+    }
+}
+
+#[cfg(test)]
+mod dir_tests {
+    use super::*;
+    use std::ffi::OsStr;
+
+    fn regular() -> (PathBuf, PathBuf) {
+        (PathBuf::from(r"C:\Users\x\AppData\Roaming\com.kutbay.r6koc"), PathBuf::from(r"C:\Users\x\AppData\Local\com.kutbay.r6koc"))
+    }
+
+    #[test]
+    fn without_the_variable_the_regular_folders_are_used() {
+        let (data, local) = regular();
+        for value in [None, Some(OsStr::new("")), Some(OsStr::new("   "))] {
+            let d = choose_dirs(value, data.clone(), local.clone());
+            assert_eq!(d, AppDirs { data: data.clone(), local: local.clone(), overridden: false });
+        }
+    }
+
+    #[test]
+    fn the_variable_moves_everything_into_one_folder() {
+        let (data, local) = regular();
+        let t = tempfile::tempdir().unwrap();
+        let d = choose_dirs(Some(t.path().as_os_str()), data, local);
+        assert!(d.overridden);
+        assert_eq!(d.data, t.path());
+        assert_eq!(d.local, t.path());
+    }
+
+    #[test]
+    fn a_relative_folder_is_pinned_to_the_working_directory() {
+        let (data, local) = regular();
+        let d = choose_dirs(Some(OsStr::new("scratch-data")), data, local);
+        assert!(d.data.is_absolute(), "{}", d.data.display());
+        assert!(d.data.ends_with("scratch-data"));
     }
 }
 
