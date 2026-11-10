@@ -20,7 +20,7 @@ Design notes (Turkish) live in the Obsidian vault: `C:\Users\Kutbay\Desktop\Obsi
 - `tracker\` — one-time Tracker Network JSON captured by the user in his browser (see `_manifest.json`).
 - `tools\r6-dissect\` — upstream r6-dissect v0.24.0 Windows build (reference only).
 Only derived, player-only data (e.g. `data/baseline.json`) and anonymized test fixtures may go into the repo.
-The app never sends requests to Tracker Network or Ubisoft. Since v4 (user decision, 2026-11-07) it may call the Arenyze API (docs/arenyze-api.md) only for the tracked player's own profile, and only with the user's own API key (Windows Credential Manager, never logged, never embedded).
+The app never sends requests to Tracker Network or Ubisoft. Since v4 (user decision, 2026-11-07) it may call the Arenyze API (docs/arenyze-api.md) only for the tracked player's own profile, and only with the user's own API key (Windows Credential Manager, never logged, never embedded). Since v6 (user decision, 2026-11-10) the Home panel may also load the one profile image URL that Arenyze returns (`account.profilePicture`, on `avatars.ubisoft.com`); no other Ubisoft request.
 
 ## Rules
 - Everything in English: code, identifiers, comments, UI text, advice text, the birthday welcome. (User decision, 2026-11-01.) Beads issues and vault notes stay Turkish.
