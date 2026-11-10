@@ -32,11 +32,11 @@
 
 <svelte:window onclick={onWindowClick} onkeydown={(e) => e.key === 'Escape' && (open = false)} />
 
-<div class="relative" bind:this={root}>
+<div class="relative shrink-0" bind:this={root}>
   <button
     type="button"
     class={cn(
-      'inline-flex h-8 items-center gap-1.5 rounded-lg border border-border bg-surface-2 px-2.5 text-xs font-medium transition hover:bg-surface-3',
+      'inline-flex h-8 items-center gap-1.5 whitespace-nowrap rounded-lg border border-border bg-surface-2 px-2.5 text-xs font-medium transition hover:bg-surface-3',
       selected.length > 0 && 'border-accent/60 text-accent'
     )}
     aria-expanded={open}

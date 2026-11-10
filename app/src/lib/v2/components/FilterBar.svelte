@@ -26,9 +26,10 @@
 </script>
 
 <!-- Below 1280 px the Mode and Side groups become drop-downs so the bar stays on one line. -->
-{#snippet drop<K extends string>(opts: [K, string][], cur: K, pick: (k: K) => void, name: string)}
+<!-- Below 1024 px the Range group becomes a drop-down too (minimum window width is 900 px). -->
+{#snippet drop<K extends string>(opts: [K, string][], cur: K, pick: (k: K) => void, name: string, hide = 'xl:hidden')}
   <select
-    class="h-8 shrink-0 rounded-lg border border-border bg-surface-2 px-2 text-xs font-medium xl:hidden"
+    class={cn('h-8 shrink-0 rounded-lg border border-border bg-surface-2 px-2 text-xs font-medium', hide)}
     aria-label={name}
     value={cur}
     onchange={(e) => pick(e.currentTarget.value as K)}
@@ -37,8 +38,8 @@
   </select>
 {/snippet}
 
-{#snippet seg<K extends string>(opts: [K, string][], cur: K, pick: (k: K) => void, name: string, wide = false)}
-  <div class={cn('shrink-0 rounded-lg border border-border bg-surface-2 p-0.5', wide ? 'hidden xl:inline-flex' : 'inline-flex')} role="group" aria-label={name}>
+{#snippet seg<K extends string>(opts: [K, string][], cur: K, pick: (k: K) => void, name: string, show = 'hidden xl:inline-flex')}
+  <div class={cn('shrink-0 rounded-lg border border-border bg-surface-2 p-0.5', show)} role="group" aria-label={name}>
     {#each opts as [k, text] (k)}
       <button
         type="button"
@@ -52,11 +53,14 @@
 
 <div class="flex flex-col gap-2" data-slot="filter-bar">
   <div class="flex flex-nowrap items-center gap-2">
-    {#if !hideRange}{@render seg(ranges, v.range, (range) => fs.set({ range }), 'Range')}{/if}
+    {#if !hideRange}
+      {@render drop(ranges, v.range, (range) => fs.set({ range }), 'Range', 'lg:hidden')}
+      {@render seg(ranges, v.range, (range) => fs.set({ range }), 'Range', 'hidden lg:inline-flex')}
+    {/if}
     {@render drop(modes, v.mode, (mode) => fs.set({ mode }), 'Mode')}
-    {@render seg(modes, v.mode, (mode) => fs.set({ mode }), 'Mode', true)}
+    {@render seg(modes, v.mode, (mode) => fs.set({ mode }), 'Mode')}
     {@render drop(sides, v.side, (side) => fs.set({ side }), 'Side')}
-    {@render seg(sides, v.side, (side) => fs.set({ side }), 'Side', true)}
+    {@render seg(sides, v.side, (side) => fs.set({ side }), 'Side')}
     <MultiSelect label="Operators" items={OPERATORS} selected={v.operators} ontoggle={(k) => fs.toggleOperator(k)} group={(o) => (o.side === 'attacker' ? 'Attackers' : 'Defenders')}>
       {#snippet row(o)}<OperatorBadge opKey={o.key} name={o.name} size={22} /><span class="truncate">{o.name}</span>{/snippet}
     </MultiSelect>
