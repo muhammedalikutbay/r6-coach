@@ -1,72 +1,469 @@
 {
-  "_note": "Primary and secondary weapons per operator (Y11 loadouts, written by hand: the replays and r6-dissect do not store loadouts). Weapon names slug to the keys of data/weapons.json. A test checks every name against that table. Kill data adds operators that this list misses.",
-  "sledge": ["L85A2", "M590A1", "P226 MK 25", "SMG-11"],
-  "thatcher": ["AR33", "L85A2", "M590A1", "P226 MK 25"],
-  "ash": ["R4-C", "G36C", "5.7 USG", "M45 MEUSOC"],
-  "thermite": ["556XI", "M1014", "5.7 USG", "M45 MEUSOC"],
-  "twitch": ["F2", "417", "SG-CQB", "P9", "LFP586"],
-  "montagne": ["P9", "LFP586"],
-  "glaz": ["OTs-03", "PRB92", "GSH-18"],
-  "fuze": ["6P41", "AK-12", "PMM", "GSH-18"],
-  "blitz": ["P12"],
-  "iq": ["AUG A2", "G8A1", "552 COMMANDO", "P12"],
-  "buck": ["C8-SFW", "CAMRS", "MK1 9mm"],
-  "blackbeard": ["MK17 CQB", "SR-25", "D-50"],
-  "capitao": ["PARA-308", "PRB92"],
-  "hibana": ["TYPE-89", "SUPERNOVA", "P229", "BEARING 9"],
-  "jackal": ["C7E", "PDW9", "ITA12L", "USP40", "ITA12S"],
-  "ying": ["T-95 LSW", "SIX12", "Q-929"],
-  "zofia": ["LMG-E", "M762", "RG15"],
-  "dokkaebi": ["Mk 14 EBR", "BOSG.12.2", "SMG-12", "5.7 USG"],
-  "lion": ["V308", "417", "SG-CQB", "P9", "LFP586"],
-  "finka": ["SPEAR .308", "6P41", "SASG-12", "PMM", "GSH-18"],
-  "maverick": ["M4", "AR-15.50", "1911 TACOPS"],
-  "nomad": ["AK-74M", "ARX200", ".44 Mag Semi-Auto"],
-  "gridlock": ["F90", "M249 SAW", "SUPER SHORTY", "SDP 9mm"],
-  "nokk": ["FMG-9", "SIX12 SD", "5.7 USG"],
-  "amaru": ["G8A1", "SUPERNOVA", "SMG-11"],
-  "kali": ["CSRX300", "SPSMG9", "C75 Auto"],
-  "iana": ["ARX200", "G36C", "GONNE-6"],
-  "ace": ["AK-12", "M1014", "P9"],
-  "zero": ["SC3000K", "MP7", "5.7 USG", "GONNE-6"],
-  "flores": ["AR33", "GSH-18"],
-  "osa": ["556XI", "PDW9", "PMM"],
-  "sens": ["POF9", "417"],
-  "grim": ["552 COMMANDO", "SG-CQB", "P229"],
-  "brava": ["PARA-308", "CAMRS", "KERATOS .357"],
-  "ram": ["R4-C", "LMG-E", "MK1 9mm"],
-  "deimos": ["AK-74M", "GSH-18"],
-  "thunderbird": ["SPEAR .308", "Q-929"],
-  "kapkan": ["9x19VSN", "SASG-12", "PMM", "GSH-18"],
-  "tachanka": ["DP28", "9x19VSN", "GSH-18"],
-  "smoke": ["SMG-11", "M590A1", "P226 MK 25"],
-  "mute": ["MP5K", "M590A1", "P226 MK 25", "SMG-11"],
-  "castle": ["UMP45", "M1014", "5.7 USG", ".44 Mag Semi-Auto", "M45 MEUSOC"],
-  "pulse": ["UMP45", "M1014", "5.7 USG", "M45 MEUSOC"],
-  "doc": ["MP5", "P90", "SG-CQB", "P9", "LFP586"],
-  "rook": ["MP5", "P90", "SG-CQB", "P9", "LFP586"],
-  "jager": ["416-C CARBINE", "M870", "P12"],
-  "bandit": ["MP7", "M870", "P12"],
-  "frost": ["9mm C1", "SUPER 90", "MK1 9mm"],
-  "valkyrie": ["MPX", "SPAS-12", "D-50"],
-  "caveira": ["M12", "SPAS-15", "LUISON"],
-  "echo": ["MP5SD", "SUPERNOVA", "P229", "BAILIFF 410"],
-  "mira": ["VECTOR .45 ACP", "ITA12L", "USP40"],
-  "lesion": ["SIX12 SD", "T-5 SMG", "Q-929"],
-  "ela": ["SCORPION EVO 3 A1", "FO-12", "RG15"],
-  "vigil": ["K1A", "C75 Auto"],
-  "maestro": ["ALDA 556", "ACS12", "BAILIFF 410"],
-  "alibi": ["MX4 Storm", "ACS12", "KERATOS .357", "BAILIFF 410"],
-  "clash": ["SUPER SHORTY", "SPSMG9"],
-  "warden": ["MPX", "M590A1", "5.7 USG"],
-  "goyo": ["TCSG12", "P229"],
-  "wamai": ["AUG A2", "KERATOS .357"],
-  "oryx": ["T-5 SMG", "SPAS-12", "BAILIFF 410"],
-  "melusi": ["MP5", "SUPERNOVA", "BAILIFF 410"],
-  "aruni": ["P10 RONI", "PRB92"],
-  "kaid": ["AUG A3", "TCSG12", "LFP586"],
-  "mozzie": ["COMMANDO 9", "P10 RONI", "SDP 9mm"],
-  "thorn": ["UZK50GI", "M870", "1911 TACOPS"],
-  "azami": ["9x19VSN", "ACS12", "D-50"],
-  "fenrir": ["MP7", "SASG-12", "5.7 USG"]
+  "_note": "Primary and secondary weapons per operator, taken from the official Ubisoft operator pages (https://www.ubisoft.com/en-ca/game/rainbow-six/siege/game-info/operators/<operator>), checked 2026-11-10. Weapon names match the values of data/weapons.json. Blackbeard has only his primaries (his page lists no secondary).",
+  "ace": [
+    "AK-12",
+    "M1014",
+    "P9"
+  ],
+  "alibi": [
+    "Mx4 Storm",
+    "ACS12",
+    "KERATOS .357",
+    "Bailiff 410"
+  ],
+  "amaru": [
+    "G8A1",
+    "SUPERNOVA",
+    "GONNE-6",
+    "SMG-11",
+    "ITA12S"
+  ],
+  "aruni": [
+    "P10 RONI",
+    "Mk 14 EBR",
+    "PRB92"
+  ],
+  "ash": [
+    "G36C",
+    "R4-C",
+    "5.7 USG",
+    "M45 MEUSOC"
+  ],
+  "azami": [
+    "9x19VSN",
+    "ACS12",
+    "D-50"
+  ],
+  "bandit": [
+    "MP7",
+    "M870",
+    "P12",
+    "KERATOS .357"
+  ],
+  "blackbeard": [
+    "MK17 CQB",
+    "SR-25"
+  ],
+  "blitz": [
+    "P12"
+  ],
+  "brava": [
+    "PARA-308",
+    "CAMRS",
+    "USP40",
+    "SUPER SHORTY"
+  ],
+  "buck": [
+    "C8-SFW",
+    "CAMRS",
+    "MK1 9mm"
+  ],
+  "capitao": [
+    "M249",
+    "PARA-308",
+    "PMR90A2",
+    "GONNE-6",
+    "PRB92"
+  ],
+  "castle": [
+    "UMP45",
+    "M1014",
+    "5.7 USG",
+    "SUPER SHORTY",
+    "M45 MEUSOC"
+  ],
+  "caveira": [
+    "M12",
+    "SPAS-15",
+    "LUISON"
+  ],
+  "clash": [
+    "P-10C",
+    "SPSMG9",
+    "SUPER SHORTY"
+  ],
+  "deimos": [
+    "AK-74M",
+    "M590A1",
+    ".44 Vendetta"
+  ],
+  "denari": [
+    "SCORPION EVO 3 A1",
+    "FMG-9",
+    "Glaive-12",
+    "P226 MK 25"
+  ],
+  "doc": [
+    "MP5",
+    "P90",
+    "SG-CQB",
+    "P9",
+    "LFP586",
+    "Bailiff 410"
+  ],
+  "dokkaebi": [
+    "BOSG.12.2",
+    "Mk 14 EBR",
+    "XK23",
+    "C75 Auto",
+    "GONNE-6",
+    "SMG-12"
+  ],
+  "echo": [
+    "MP5SD",
+    "SUPERNOVA",
+    "BEARING 9",
+    "P229"
+  ],
+  "ela": [
+    "SCORPION EVO 3 A1",
+    "FO-12",
+    "RG15"
+  ],
+  "fenrir": [
+    "MP7",
+    "SASG-12",
+    "5.7 USG"
+  ],
+  "finka": [
+    "6P41",
+    "SASG-12",
+    "SPEAR .308",
+    "GSH-18",
+    "PMM"
+  ],
+  "flores": [
+    "AR33",
+    "SR-25",
+    "T-95 LSW",
+    "GSH-18"
+  ],
+  "frost": [
+    "SUPER 90",
+    "9mm C1",
+    "MK1 9mm",
+    "ITA12S"
+  ],
+  "fuze": [
+    "AK-12",
+    "6P41",
+    "PMM",
+    "GSH-18"
+  ],
+  "glaz": [
+    "OTs-03",
+    "PMM",
+    "GONNE-6",
+    "BEARING 9"
+  ],
+  "goyo": [
+    "VECTOR .45 ACP",
+    "TCSG12",
+    "P229"
+  ],
+  "gridlock": [
+    "F90",
+    "M249 SAW",
+    "SUPER SHORTY",
+    "SDP 9mm"
+  ],
+  "grim": [
+    "552 COMMANDO",
+    "SG-CQB",
+    "Bailiff 410",
+    "P229"
+  ],
+  "hibana": [
+    "SUPERNOVA",
+    "TYPE-89",
+    "PMR90A2",
+    "BEARING 9",
+    "P229"
+  ],
+  "iana": [
+    "ARX200",
+    "G36C",
+    "GONNE-6",
+    "MK1 9mm"
+  ],
+  "iq": [
+    "AUG A2",
+    "552 COMMANDO",
+    "G8A1",
+    "P12"
+  ],
+  "jackal": [
+    "C7E",
+    "PDW9",
+    "ITA12L",
+    "USP40",
+    "ITA12S"
+  ],
+  "jager": [
+    "M870",
+    "416-C CARBINE",
+    "P12",
+    "P-10C"
+  ],
+  "kaid": [
+    "AUG A3",
+    "TCSG12",
+    ".44 Mag Semi-Auto",
+    "LFP586"
+  ],
+  "kali": [
+    "CSRX300",
+    "SPSMG9",
+    "C75 Auto",
+    "P226 MK 25"
+  ],
+  "kapkan": [
+    "9x19VSN",
+    "SASG-12",
+    "PMM",
+    "GSH-18"
+  ],
+  "lesion": [
+    "SIX12 SD",
+    "T-5 SMG",
+    "Q-929"
+  ],
+  "lion": [
+    "417",
+    "SG-CQB",
+    "V308",
+    "LFP586",
+    "P9"
+  ],
+  "maestro": [
+    "ALDA 556",
+    "ACS12",
+    "KERATOS .357",
+    "Bailiff 410"
+  ],
+  "maverick": [
+    "AR-15.50",
+    "M4",
+    "1911 TACOPS",
+    "C75 Auto",
+    "Reaper MK2"
+  ],
+  "melusi": [
+    "MP5",
+    "SUPER 90",
+    "ITA12S",
+    "RG15"
+  ],
+  "mira": [
+    "VECTOR .45 ACP",
+    "ITA12L",
+    "USP40",
+    "ITA12S"
+  ],
+  "montagne": [
+    "P9",
+    "LFP586"
+  ],
+  "mozzie": [
+    "COMMANDO 9",
+    "P10 RONI",
+    "SDP 9mm",
+    "SUPER SHORTY"
+  ],
+  "mute": [
+    "MP5K",
+    "M590A1",
+    "P226 MK 25",
+    "SMG-11"
+  ],
+  "nokk": [
+    "FMG-9",
+    "SIX12 SD",
+    "PMR90A2",
+    "5.7 USG",
+    "D-50"
+  ],
+  "nomad": [
+    "AK-74M",
+    "ARX200",
+    "PRB92",
+    ".44 Mag Semi-Auto"
+  ],
+  "noor": [
+    "COMMANDO 9",
+    "ALDA 556",
+    "1911 TACOPS",
+    "Bailiff 410"
+  ],
+  "oryx": [
+    "SPAS-12",
+    "T-5 SMG",
+    "Bailiff 410",
+    "Reaper MK2",
+    "USP40"
+  ],
+  "osa": [
+    "556XI",
+    "PDW9",
+    "PMM"
+  ],
+  "pulse": [
+    "UMP45",
+    "M1014",
+    "5.7 USG",
+    "M45 MEUSOC",
+    "Reaper MK2"
+  ],
+  "ram": [
+    "LMG-E",
+    "R4-C",
+    "MK1 9mm"
+  ],
+  "rauora": [
+    "417",
+    "M249",
+    "XK23",
+    "Reaper MK2",
+    "GSH-18"
+  ],
+  "rook": [
+    "MP5",
+    "P90",
+    "SG-CQB",
+    "Reaper MK2",
+    "P9",
+    "LFP586"
+  ],
+  "sens": [
+    "417",
+    "POF9",
+    "XK23",
+    "SDP 9mm"
+  ],
+  "sentry": [
+    "COMMANDO 9",
+    "M870",
+    "TCSG12",
+    "C75 Auto",
+    "SUPER SHORTY"
+  ],
+  "skopos": [
+    "PCX-33",
+    "P229"
+  ],
+  "sledge": [
+    "L85A2",
+    "M590A1",
+    "P226 MK 25",
+    "Reaper MK2"
+  ],
+  "smoke": [
+    "M590A1",
+    "FMG-9",
+    "P226 MK 25",
+    "SMG-11"
+  ],
+  "solidsnake": [
+    "F2",
+    "PMR90A2",
+    "TACIT .45"
+  ],
+  "solis": [
+    "ITA12L",
+    "P90",
+    "SMG-11"
+  ],
+  "striker": [
+    "M4",
+    "M249",
+    "SR-25",
+    "5.7 USG",
+    "ITA12S"
+  ],
+  "tachanka": [
+    "9x19VSN",
+    "PMM",
+    "GSH-18",
+    "BEARING 9"
+  ],
+  "thatcher": [
+    "AR33",
+    "L85A2",
+    "M590A1",
+    "PMR90A2",
+    "P226 MK 25"
+  ],
+  "thermite": [
+    "556XI",
+    "M1014",
+    "5.7 USG",
+    "M45 MEUSOC",
+    "ITA12S"
+  ],
+  "thorn": [
+    "UZK50GI",
+    "M870",
+    "1911 TACOPS",
+    "C75 Auto"
+  ],
+  "thunderbird": [
+    "SPAS-15",
+    "SPEAR .308",
+    "BEARING 9",
+    "Q-929",
+    "ITA12S"
+  ],
+  "tubarao": [
+    "MPX",
+    "AR-15.50",
+    "P226 MK 25"
+  ],
+  "twitch": [
+    "F2",
+    "417",
+    "SG-CQB",
+    "P9",
+    "LFP586"
+  ],
+  "valkyrie": [
+    "MPX",
+    "SPAS-12",
+    "D-50"
+  ],
+  "vigil": [
+    "K1A",
+    "BOSG.12.2",
+    "C75 Auto",
+    "SMG-12"
+  ],
+  "wamai": [
+    "AUG A2",
+    "MP5K",
+    "SUPER SHORTY",
+    "P12",
+    "KERATOS .357"
+  ],
+  "warden": [
+    "M590A1",
+    "MPX",
+    "P-10C",
+    "SMG-12"
+  ],
+  "ying": [
+    "T-95 LSW",
+    "SIX12",
+    "Q-929",
+    "Reaper MK2"
+  ],
+  "zero": [
+    "MP7",
+    "SC3000K",
+    "5.7 USG",
+    "GONNE-6"
+  ],
+  "zofia": [
+    "LMG-E",
+    "M762",
+    "RG15"
+  ]
 }
