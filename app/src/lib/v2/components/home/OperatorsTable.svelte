@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { onMount } from 'svelte';
+  import { onMount, untrack } from 'svelte';
   import { ChevronDown, ChevronUp, LoaderCircle } from '@lucide/svelte';
   import Card from '$lib/components/ui/Card.svelte';
   import OperatorBadge from '$lib/components/OperatorBadge.svelte';
@@ -13,14 +13,24 @@
   } from '$lib/v2/arenyze';
   import type { OfficialOperator, OperatorMode, SeasonEntry } from '$lib/v2/types';
 
-  let { seasons, currentSeason }: {
+  let { seasons, currentSeason, followSeason = null }: {
     seasons: SeasonEntry[];
+    /** Short name of the season picked in the Seasons list (null = the current one). The table follows it. */
+    followSeason?: string | null;
     /** Short name of the current season (for example Y11S3); the first table is for it. */
     currentSeason: string | null;
   } = $props();
 
-  const seasonOptions = $derived(operatorSeasonOptions(seasons));
   let season = $state('all');
+  const baseOptions = $derived(operatorSeasonOptions(seasons));
+  // A season picked in the Seasons list may be older than Arenyze can answer (before Y8): keep it selectable so the select shows it.
+  const seasonOptions = $derived(
+    baseOptions.some((o) => o.value === season)
+      ? baseOptions
+      : [...baseOptions, { value: season, label: `${season} (no operator data)` }]
+  );
+  /** Seasons before Y8 are not served by the operators call: show the empty state without a request. */
+  const answerable = (s: string) => baseOptions.some((o) => o.value === s);
   let mode = $state<OperatorMode>('ranked');
   let ops = $state<OfficialOperator[] | null>(null);
   let loading = $state(false);
@@ -38,6 +48,28 @@
     // The first table is the current season's ranked one that came with the profile: no request.
     season = currentSeason ?? 'all';
     ops = cachedOperators(season, mode)?.operators ?? null;
+  });
+
+  // Picking a season in the Seasons list switches this table to it; the selector can still be changed afterwards.
+  let followed = untrack(() => followSeason);
+  $effect(() => {
+    const target = followSeason;
+    if (target === followed) return;
+    followed = target;
+    untrack(() => {
+      const next = target ?? currentSeason ?? 'all';
+      if (next === season) return;
+      season = next;
+      if (!answerable(next)) {
+        seq++;
+        ops = [];
+        error = null;
+        loading = false;
+        return;
+      }
+      ops = cachedOperators(next, mode)?.operators ?? null;
+      void load();
+    });
   });
 
   /** Runs only from a selector or the load button, never by itself. */
@@ -59,6 +91,13 @@
 
   function pickSeason(v: string) {
     season = v;
+    if (!answerable(v)) {
+      seq++;
+      ops = [];
+      error = null;
+      loading = false;
+      return;
+    }
     void load();
   }
   function pickMode(v: OperatorMode) {
@@ -143,7 +182,9 @@
     <p class="mb-2 text-xs text-accent">{error}</p>
   {/if}
 
-  {#if ops === null}
+  {#if loading && ops === null}
+    <div class="flex items-center justify-center gap-2 py-8 text-muted"><LoaderCircle class="size-4 animate-spin" /> Loading operators…</div>
+  {:else if ops === null}
     <div class="flex flex-col items-center gap-2 py-8 text-center text-muted">
       <p>Operator stats load when you ask for them (one Arenyze call, kept for 15 minutes).</p>
       <button
@@ -156,7 +197,9 @@
       </button>
     </div>
   {:else if rows.length === 0}
-    <p class="py-8 text-center text-muted">No operator numbers for this selection.</p>
+    <p class="py-8 text-center text-muted">
+      {answerable(season) ? 'No operator numbers for this selection.' : 'Operator stats are only available from Y8 on.'}
+    </p>
   {:else}
     <div class="overflow-x-auto rounded-lg border border-border">
       <table class="w-full text-sm">

@@ -77,11 +77,11 @@ pub struct ClipSettings {
     pub record_audio: bool,
 }
 
-/// Defaults of a new install. The window is centred on the kill time moved 10 s earlier: the
-/// round clock of the replay runs about 10 s ahead of what was recorded.
-pub const DEFAULT_BEFORE_S: f64 = 5.0;
-pub const DEFAULT_AFTER_S: f64 = 5.0;
-pub const DEFAULT_OFFSET_S: f64 = -10.0;
+/// Recommended defaults (new installs; values a user already saved are never overwritten): the
+/// window is centred on the kill time moved 5 s earlier, 10 s before and none after.
+pub const DEFAULT_BEFORE_S: f64 = 10.0;
+pub const DEFAULT_AFTER_S: f64 = 0.0;
+pub const DEFAULT_OFFSET_S: f64 = -5.0;
 
 impl Default for ClipSettings {
     fn default() -> Self {
@@ -696,14 +696,14 @@ mod tests {
     fn settings_are_clamped_and_default_to_off() {
         let d = ClipSettings::default();
         assert!(!d.enabled && d.record_audio);
-        // New installs: a 5 s + 5 s window centred 10 s before the kill time.
-        assert_eq!((d.keep_matches, d.before_s, d.after_s, d.offset_s), (10, 5.0, 5.0, -10.0));
+        // New installs: 10 s before, 0 s after, offset -5 s.
+        assert_eq!((d.keep_matches, d.before_s, d.after_s, d.offset_s), (10, 10.0, 0.0, -5.0));
         let wild = ClipSettings { keep_matches: 99999, disk_cap_gb: f64::NAN, offset_s: 500.0, before_s: 0.0, after_s: 99.0, ..Default::default() }.normalized();
         assert_eq!((wild.keep_matches, wild.disk_cap_gb, wild.offset_s, wild.before_s, wild.after_s), (1000, 0.0, 30.0, 2.0, 10.0));
         let nan = ClipSettings { offset_s: f64::NAN, before_s: f64::NAN, after_s: f64::NAN, ..Default::default() }.normalized();
-        assert_eq!((nan.offset_s, nan.before_s, nan.after_s), (-10.0, 5.0, 5.0));
+        assert_eq!((nan.offset_s, nan.before_s, nan.after_s), (-5.0, 10.0, 0.0));
         let parsed: ClipSettings = serde_json::from_str(r#"{"enabled":true,"kinds":"both","keepMatches":5}"#).unwrap();
-        assert!(parsed.enabled && parsed.kinds == ClipKinds::Both && parsed.keep_matches == 5 && parsed.before_s == 5.0 && parsed.record_audio);
+        assert!(parsed.enabled && parsed.kinds == ClipKinds::Both && parsed.keep_matches == 5 && parsed.before_s == 10.0 && parsed.record_audio);
     }
 
     /// A user who already tuned the window (10 s before, 0 s after, offset -5) keeps it: their

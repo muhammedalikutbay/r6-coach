@@ -7,7 +7,12 @@
   // Compact, collapsible Overview sections for the numbers that come only from replays:
   // round impact, weapons, timing, rivals and clutches. Counts always sit next to percentages
   // so a small sample is easy to spot.
-  let { deep }: { deep: DeepStats } = $props();
+  let { deep, only }: {
+    deep: DeepStats;
+    /** Section ids to show (impact, weapons, timing, rivals); all of them when omitted. */
+    only?: string[];
+  } = $props();
+  const show = (id: string) => !only || only.includes(id);
 
   const pct = (r: RateView) => (r.n === 0 ? '–' : `${r.pct.toFixed(0)}%`);
   const SINGULAR: Record<string, string> = { rounds: 'round', deaths: 'death', chances: 'chance' };
@@ -73,7 +78,7 @@
 </script>
 
 {#if deep.rounds > 0}
-  <CollapsibleSection id="impact" title="Round impact" hint="Opening duels, trades and how rounds end" summary="KOST {pct(deep.kost)} · duels {pct(deep.entry)}">
+  {#if show('impact')}<CollapsibleSection id="impact" title="Round impact" hint="Opening duels, trades and how rounds end" summary="KOST {pct(deep.kost)} · duels {pct(deep.entry)}">
     <div class="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-5">
       {#each tiles as t (t.label)}
         <div class="rounded-xl border border-border bg-surface-1 p-3" title={t.hint}>
@@ -102,9 +107,9 @@
         </div>
       {/each}
     </div>
-  </CollapsibleSection>
+  </CollapsibleSection>{/if}
 
-  <CollapsibleSection id="weapons" title="Weapons" hint="Your kills by weapon slot and weapon" summary={deep.weapons[0] ? `${deep.weapons[0].name} · ${noun(deep.weapons[0].kills, 'kill', 'kills')}` : 'no weapon data'}>
+  {#if show('weapons')}<CollapsibleSection id="weapons" title="Weapons" hint="Your kills by weapon slot and weapon" summary={deep.weapons[0] ? `${deep.weapons[0].name} · ${noun(deep.weapons[0].kills, 'kill', 'kills')}` : 'no weapon data'}>
     {#if slotRows.length === 0}
       <p class="text-muted">No kills in this filter.</p>
     {:else}
@@ -146,9 +151,9 @@
         </div>
       </div>
     {/if}
-  </CollapsibleSection>
+  </CollapsibleSection>{/if}
 
-  <CollapsibleSection id="timing" title="Timing" hint="Early and late in the round" summary="early deaths {pct(deep.earlyDeath)}">
+  {#if show('timing')}<CollapsibleSection id="timing" title="Timing" hint="Early and late in the round" summary="early deaths {pct(deep.earlyDeath)}">
     <div class="grid grid-cols-2 gap-2 lg:grid-cols-4">
       {#each timing as t (t.label)}
         <div class="rounded-xl border border-border bg-surface-1 p-3">
@@ -158,9 +163,9 @@
         </div>
       {/each}
     </div>
-  </CollapsibleSection>
+  </CollapsibleSection>{/if}
 
-  <CollapsibleSection id="rivals" title="Rivals" hint="Enemy operators that killed you, and your clutches" summary={deep.rivals[0] ? `${deep.rivals[0].name} · ${noun(deep.rivals[0].deaths, 'death', 'deaths')}` : 'no repeat killers'}>
+  {#if show('rivals')}<CollapsibleSection id="rivals" title="Rivals" hint="Enemy operators that killed you, and your clutches" summary={deep.rivals[0] ? `${deep.rivals[0].name} · ${noun(deep.rivals[0].deaths, 'death', 'deaths')}` : 'no repeat killers'}>
     <div class="grid grid-cols-1 gap-3 lg:grid-cols-2">
       <div class="rounded-xl border border-border bg-surface-1 p-3">
         <div class="mb-2 text-xs text-muted">Enemy operators that killed you at least twice</div>
@@ -196,5 +201,5 @@
         {/if}
       </div>
     </div>
-  </CollapsibleSection>
+  </CollapsibleSection>{/if}
 {/if}

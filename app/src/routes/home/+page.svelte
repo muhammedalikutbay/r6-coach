@@ -94,7 +94,7 @@
         {#key shownId}
           <SeasonOverview season={shown} isCurrent={shownId === currentId} />
         {/key}
-        <OperatorsTable {seasons} currentSeason={profile.season} />
+        <OperatorsTable {seasons} currentSeason={profile.season} followSeason={pickedSeason === null ? null : (shown?.shortName ?? null)} />
       </div>
     </div>
   {/if}

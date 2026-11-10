@@ -12,17 +12,32 @@
     onrefresh: () => void;
   } = $props();
 
-  // The Ubisoft avatar URL is not loaded: the app only talks to the Arenyze API (v4 network rule).
+  // The profile photo is the one image the user allowed from Ubisoft (v6 decision); if it is missing or fails, the initial shows.
+  let imgFailed = $state(false);
+  $effect(() => {
+    void profile.profilePictureUrl;
+    imgFailed = false;
+  });
   const initial = $derived(profile.username.trim().slice(0, 1).toUpperCase() || '?');
 </script>
 
 <Card class="mb-4">
   <div class="flex flex-wrap items-center gap-x-4 gap-y-3">
     <div
-      class="flex size-14 shrink-0 items-center justify-center rounded-full border border-border-strong bg-surface-3 text-xl font-bold text-accent"
-      aria-hidden="true"
+      class="flex size-14 shrink-0 items-center overflow-hidden justify-center rounded-full border border-border-strong bg-surface-3 text-xl font-bold text-accent"
+      aria-hidden={profile.profilePictureUrl && !imgFailed ? undefined : 'true'}
     >
-      {initial}
+      {#if profile.profilePictureUrl && !imgFailed}
+        <img
+          src={profile.profilePictureUrl}
+          alt="{profile.username} profile photo"
+          class="size-full object-cover"
+          referrerpolicy="no-referrer"
+          onerror={() => (imgFailed = true)}
+        />
+      {:else}
+        {initial}
+      {/if}
     </div>
     <div class="min-w-0">
       <h2 class="truncate text-xl font-bold">{profile.username}</h2>

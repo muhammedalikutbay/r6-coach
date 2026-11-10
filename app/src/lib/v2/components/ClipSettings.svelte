@@ -16,7 +16,9 @@
 
   /** Recording is off: every clip setting is greyed out until the switch is turned on. */
   const off = $derived(!settings.enabled);
-  const locked = $derived(!loaded || busy || off);
+  /** The recorder is capturing the game window: the settings stay as they are until the game stops. */
+  const recording = $derived(settings.enabled && status?.recording.state === 'recording');
+  const locked = $derived(!loaded || busy || off || recording);
 
   const selectCls =
     'h-9 rounded-lg border border-border-strong bg-surface-2 px-2 text-sm text-foreground outline-none focus:border-accent disabled:cursor-not-allowed disabled:opacity-60';
@@ -94,6 +96,12 @@
     } finally {
       busy = false;
     }
+  }
+
+  /** The recommended window: 10 s before, 0 s after, offset -5 s. */
+  function useRecommended() {
+    const d = clips.DEFAULT_CLIP_SETTINGS;
+    void save({ beforeS: d.beforeS, afterS: d.afterS, offsetS: d.offsetS });
   }
 
   const num = (e: Event, fallback: number) => {
@@ -206,6 +214,8 @@
   <div class={cn('mt-4 space-y-4 border-t border-border pt-4 transition-opacity', off && 'opacity-50')} aria-disabled={off}>
     {#if off}
       <p class="text-xs text-muted">Turn the switch on to change these settings.</p>
+    {:else if recording}
+      <p class="text-xs text-muted">Clip settings are locked while the game is being recorded.</p>
     {/if}
     <div class="flex flex-wrap items-center gap-3">
       <span class="w-44 text-sm">Make clips of</span>
@@ -247,13 +257,14 @@
       <span class="text-xs text-muted">s before,</span>
       <input type="number" min="0" max="10" step="1" class={numberCls} disabled={locked} value={settings.afterS} onchange={(e) => save({ afterS: num(e, settings.afterS) })} aria-label="Seconds after" />
       <span class="text-xs text-muted">s after</span>
+      <Button size="sm" onclick={useRecommended} disabled={locked} title="10 s before, 0 s after, offset -5 s">Use recommended</Button>
     </div>
 
     <div class="flex flex-wrap items-center gap-3">
       <label for="clip-offset" class="w-44 text-sm">Clip offset (s)</label>
       <input id="clip-offset" type="number" min="-30" max="30" step="0.5" class={numberCls} disabled={locked} value={settings.offsetS} onchange={(e) => save({ offsetS: num(e, settings.offsetS) })} />
       <span class="text-xs text-muted">
-        The clip is centred on the kill time plus this offset (negative = earlier). -10 s is the default, and your own
+        The clip is centred on the kill time plus this offset (negative = earlier). -5 s is the recommended value, and your own
         PC may need a different value. If a clip shows only what happens after the kill, make the offset more negative;
         if it ends before the kill, make it less negative.
       </span>

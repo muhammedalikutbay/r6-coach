@@ -6,15 +6,15 @@ import { toast } from '$lib/toast.svelte';
 
 const IN_TAURI = typeof window !== 'undefined' && '__TAURI_INTERNALS__' in window;
 
-// Same as `ClipSettings::default()` in Rust: a 5 s + 5 s window centred 10 s before the kill time.
+// Same as `ClipSettings::default()` in Rust: 10 s before, 0 s after, offset -5 s (the recommended values).
 export const DEFAULT_CLIP_SETTINGS: ClipSettings = {
   enabled: false,
   kinds: 'kills',
   keepMatches: 10,
   diskCapGb: 0,
-  offsetS: -10,
-  beforeS: 5,
-  afterS: 5,
+  offsetS: -5,
+  beforeS: 10,
+  afterS: 0,
   recordAudio: true
 };
 

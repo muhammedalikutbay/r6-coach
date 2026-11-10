@@ -227,7 +227,7 @@
       {/if}
     </CollapsibleSection>
 
-    <DeepSections deep={data.deep} />
+    <DeepSections deep={data.deep} only={['weapons']} />
 
     <CollapsibleSection id="recent" title="Recent matches" summary={plural(data.recentMatches.length, 'match', 'matches')}>
       <div class="flex flex-col gap-2">
