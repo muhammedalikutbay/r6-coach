@@ -154,7 +154,7 @@
     if (e.key === 'Escape') onclose();
     else if ((e.key === 'ArrowLeft' || e.key === 'ArrowRight') && !e.altKey && !e.ctrlKey && !e.metaKey && !e.shiftKey) {
       const t = e.target as HTMLElement | null;
-      if (t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.tagName === 'SELECT')) return;
+      if (t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.tagName === 'SELECT' || t.tagName === 'VIDEO')) return;
       if (!canStep) return;
       e.preventDefault();
       step(e.key === 'ArrowLeft' ? -1 : 1);
@@ -165,7 +165,7 @@
 <svelte:window onkeydown={onKey} />
 
 <!-- svelte-ignore a11y_click_events_have_key_events, a11y_no_static_element_interactions -->
-<div class="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-6" onclick={onclose}>
+<div class="fixed inset-x-0 top-[var(--titlebar-h)] bottom-0 z-50 flex items-center justify-center bg-black/70 p-6" onclick={onclose}>
   <div
     class="flex max-h-full w-full max-w-3xl flex-col overflow-hidden rounded-xl border border-border bg-surface-1 shadow-2xl"
     role="dialog"

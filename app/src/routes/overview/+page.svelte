@@ -2,7 +2,6 @@
   import { LayoutDashboard, Swords, Shield, Funnel } from '@lucide/svelte';
   import PageHeader from '$lib/components/PageHeader.svelte';
   import EmptyState from '$lib/components/EmptyState.svelte';
-  import Section from '$lib/components/Section.svelte';
   import CollapsibleSection from '$lib/v2/components/CollapsibleSection.svelte';
   import DeepSections from '$lib/v2/components/DeepSections.svelte';
   import StatCard from '$lib/components/StatCard.svelte';
@@ -126,7 +125,7 @@
       <StatCard label="Clutch %" value={pct(data.kpis.clutchPct)} />
     </div>
 
-    <Section title="K/D trend" hint="Per match, oldest to newest">
+    <CollapsibleSection id="kd-trend" title="K/D trend" hint="Per match, oldest to newest">
       <Card>
         {#if trend.length < 2}
           <p class="py-6 text-center text-muted">Not enough matches for a trend yet.</p>
@@ -134,7 +133,7 @@
           <LineChart points={trend} reference={data.kpis.kd} />
         {/if}
       </Card>
-    </Section>
+    </CollapsibleSection>
 
     <CollapsibleSection id="operators" title="Operators" hint="Click an operator for its screen; the funnel adds it to the filter" summary="{data.operators.length} {data.operators.length === 1 ? 'operator' : 'operators'}">
       <div class="mb-3 flex gap-4 text-xs">

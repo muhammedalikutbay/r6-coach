@@ -178,11 +178,24 @@
               {ti === 0 ? 'Your team' : 'Opponents'} · {plural(ti === 0 ? m.scoreUs : m.scoreThem, 'round')} won
             </div>
             <div class="overflow-x-auto rounded-lg border border-border">
-              <table class="w-full text-sm">
+              <table class="w-full min-w-[760px] table-fixed text-sm">
+                <!-- Same fixed widths for both teams so the columns line up. -->
+                <colgroup>
+                  <col style="width:10rem" />
+                  <col />
+                  <col style="width:2.75rem" />
+                  <col style="width:2.75rem" />
+                  <col style="width:3.5rem" />
+                  <col style="width:2.75rem" />
+                  <col style="width:2.75rem" />
+                  <col style="width:3.5rem" />
+                  <col style="width:3.5rem" />
+                  <col style="width:3.75rem" />
+                </colgroup>
                 <thead class="bg-surface-2 text-xs text-muted">
                   <tr>
-                    <th class="w-40 px-3 py-2 text-left font-medium">Player</th>
-                    <th class="w-full px-2 py-2 text-left font-medium">Operators</th>
+                    <th class="px-3 py-2 text-left font-medium">Player</th>
+                    <th class="px-2 py-2 text-left font-medium">Operators</th>
                     <th class="px-2 py-2 font-medium">K</th>
                     <th class="px-2 py-2 font-medium">D</th>
                     <th class="px-2 py-2 font-medium">HS%</th>
@@ -196,7 +209,7 @@
                 <tbody>
                   {#each team as p (p.username)}
                     <tr class={cn('border-t border-border text-center', p.isMe && 'bg-accent/10')}>
-                      <td class={cn('px-3 py-2 text-left font-semibold whitespace-nowrap', p.isMe && 'text-accent')}>{p.username}</td>
+                      <td class={cn('px-3 py-2 text-left font-semibold whitespace-nowrap', 'truncate', p.isMe && 'text-accent')} title={p.username}>{p.username}</td>
                       <td class="px-2 py-2">
                         <div class="flex flex-wrap gap-0.5">
                           {#each p.operatorsByRound as op, i (i)}

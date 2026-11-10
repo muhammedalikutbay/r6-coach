@@ -147,8 +147,8 @@
 
 {#if openId}
   <!-- svelte-ignore a11y_click_events_have_key_events, a11y_no_static_element_interactions -->
-  <div class="fixed inset-0 z-40 bg-black/50" onclick={closeDetail}></div>
-  <aside class="fixed top-0 right-0 z-50 h-full w-full max-w-[920px] border-l border-border-strong bg-surface-1 shadow-2xl">
+  <div class="fixed inset-x-0 top-[var(--titlebar-h)] bottom-0 z-40 bg-black/50" onclick={closeDetail}></div>
+  <aside class="fixed top-[var(--titlebar-h)] right-0 bottom-0 z-50 w-full max-w-[920px] border-l border-border-strong bg-surface-1 shadow-2xl">
     <MatchDetailPanel matchId={openId} onclose={closeDetail} />
   </aside>
 {/if}

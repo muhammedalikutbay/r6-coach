@@ -685,6 +685,8 @@ export interface WeaponListRow {
   operators: number;
   /** Operators that carry the weapon in their loadout. */
   loadoutOperators?: string[];
+  /** Operators the player got a kill with it as (a subset of `loadoutOperators`). */
+  usedOperators?: string[];
 }
 
 /** A recorded clip that belongs to a kill or death shown on a detail screen. */

@@ -3,13 +3,15 @@
   import { ArrowDown, ArrowUp } from '@lucide/svelte';
   import { cn } from '$lib/utils';
 
-  let { label, col, sortKey, desc, onsort, align = 'right' }: {
+  let { label, col, sortKey, desc, onsort, align = 'right', title }: {
     label: string;
     col: string;
     sortKey: string;
     desc: boolean;
     onsort: (col: string) => void;
     align?: 'left' | 'right';
+    /** Tooltip that explains the column. */
+    title?: string;
   } = $props();
   const active = $derived(sortKey === col);
 </script>
@@ -18,6 +20,7 @@
   <button
     type="button"
     onclick={() => onsort(col)}
+    {title}
     class={cn('inline-flex items-center gap-1 transition-colors hover:text-foreground', active && 'text-foreground')}
   >
     {label}

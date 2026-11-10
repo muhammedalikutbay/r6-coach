@@ -73,6 +73,7 @@
   {#snippet chips()}
     {#if (d?.loadoutOperators ?? []).length > 0}
       <div class="flex max-w-md flex-wrap items-center justify-end gap-1" aria-label="Operators that carry {d?.name}">
+        <span class="mr-1 text-xs text-muted">Carried by</span>
         {#each d?.loadoutOperators ?? [] as ok (ok)}
           <a
             href="/operators/{encodeURIComponent(ok)}"
@@ -202,12 +203,14 @@
                     <span class="inline-flex items-center gap-1.5"><OperatorBadge opKey={k.operatorKey} name={k.operatorName} size={22} />{k.operatorName}</span>
                   </td>
                   <td class="py-1.5">
-                    {#if k.victimOperatorKey}
-                      <span class="inline-flex items-center gap-1.5"><OperatorBadge opKey={k.victimOperatorKey} name={k.victimOperatorName} size={22} />{k.victimOperatorName}</span>
-                    {:else}
-                      <span class="text-muted">unknown</span>
-                    {/if}
-                    {#if k.headshot}<span class="ml-1.5 rounded bg-surface-3 px-1 align-middle text-[11px] font-medium text-accent">HS</span>{/if}
+                    <span class="inline-flex items-center gap-1.5">
+                      {#if k.victimOperatorKey}
+                        <OperatorBadge opKey={k.victimOperatorKey} name={k.victimOperatorName} size={22} />{k.victimOperatorName}
+                      {:else}
+                        <span class="text-muted">unknown</span>
+                      {/if}
+                      {#if k.headshot}<span class="rounded bg-surface-3 px-1 text-[11px] leading-4 font-medium text-accent">HS</span>{/if}
+                    </span>
                   </td>
                   <td class="py-1.5 pr-3 text-right">{fmtClock(k.timeS)}</td>
                 </tr>

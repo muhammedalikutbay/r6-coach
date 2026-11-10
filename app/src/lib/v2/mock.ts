@@ -473,7 +473,8 @@ export function mockWeaponList(_f: Filter): WeaponListRow[] {
     headshots: w.hs,
     hsPct: r1((100 * w.hs) / w.kills),
     operators: w.ops,
-    loadoutOperators: MOCK_OPERATORS.slice(0, w.ops + 2).map((o) => o.key)
+    loadoutOperators: MOCK_OPERATORS.slice(0, w.ops + 2).map((o) => o.key),
+    usedOperators: MOCK_OPERATORS.slice(0, w.ops).map((o) => o.key)
   }));
 }
 

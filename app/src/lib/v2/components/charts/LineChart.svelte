@@ -40,7 +40,8 @@
   const hp = $derived(hover !== null ? points[hover] : null);
 </script>
 
-<div class="relative" style="height:{height}px">
+<div class="relative pl-11" style="height:{height}px">
+  <div class="relative size-full">
   <!-- svelte-ignore a11y_no_static_element_interactions -->
   <div class="size-full" onpointermove={onMove} onpointerleave={() => (hover = null)}>
     <svg viewBox="0 0 {W} {H}" preserveAspectRatio="none" class="size-full overflow-visible" role="img" aria-label="Trend chart">
@@ -65,6 +66,8 @@
       <span class="text-muted"> · {hp.label}</span>
     </div>
   {/if}
-  <span class="pointer-events-none absolute top-0 left-0 text-[10px] text-muted tabular-nums">{format(bounds.hi)}</span>
-  <span class="pointer-events-none absolute bottom-0 left-0 text-[10px] text-muted tabular-nums">{format(bounds.lo)}</span>
+  </div>
+  <!-- Axis labels live in the left gutter so they never sit on the line. -->
+  <span class="pointer-events-none absolute top-0 left-0 w-10 pr-1 text-right text-[10px] text-muted tabular-nums">{format(bounds.hi)}</span>
+  <span class="pointer-events-none absolute bottom-0 left-0 w-10 pr-1 text-right text-[10px] text-muted tabular-nums">{format(bounds.lo)}</span>
 </div>

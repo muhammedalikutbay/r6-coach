@@ -45,7 +45,7 @@
 <div class="flex h-8 flex-none select-none items-stretch border-b border-border bg-surface-1" role="toolbar" aria-label="Window">
   <!-- Double-click on the drag region toggles maximize (handled by Tauri). -->
   <div data-tauri-drag-region class="flex min-w-0 flex-1 items-center gap-2 pl-3">
-    <img src="/app-icon.png" alt="" class="pointer-events-none size-4 select-none" draggable="false" />
+    <img src="/app-icon-32.png" alt="" class="pointer-events-none size-4 select-none" draggable="false" />
     <span class="pointer-events-none text-xs font-semibold tracking-wide text-foreground/90">R6 Coach</span>
   </div>
   <button type="button" class="{btn} hover:bg-surface-3 hover:text-foreground" aria-label="Minimize" onclick={run('minimize')}>

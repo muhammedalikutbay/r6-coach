@@ -113,7 +113,7 @@
     {#if slotRows.length === 0}
       <p class="text-muted">No kills in this filter.</p>
     {:else}
-      <div class="grid grid-cols-1 gap-3 lg:grid-cols-2">
+      <div class="grid grid-cols-1 items-start gap-3 lg:grid-cols-2">
         <div class="rounded-xl border border-border bg-surface-1 p-3">
           <div class="mb-2 text-xs text-muted">Kills by slot</div>
           <div class="flex h-2 overflow-hidden rounded-full bg-surface-3">

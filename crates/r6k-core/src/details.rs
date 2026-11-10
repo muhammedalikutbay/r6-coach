@@ -468,6 +468,9 @@ pub struct WeaponRow {
     /// Operators that carry it in their loadout.
     #[serde(default)]
     pub loadout_operators: Vec<String>,
+    /// Operators the tracked player got a kill with it as (a subset of `loadout_operators`).
+    #[serde(default)]
+    pub used_operators: Vec<String>,
 }
 
 // ---------------------------------------------------------------- lists
@@ -564,6 +567,7 @@ pub fn weapon_list(filter: &Filter, matches: &[FullMatch]) -> Vec<WeaponRow> {
         .filter(|(key, _)| !key.is_empty())
         .map(|(key, a)| WeaponRow {
             loadout_operators: loadout_operators(&key, &a.ops),
+            used_operators: a.ops.iter().cloned().collect(),
             key,
             name: a.name,
             unnamed: a.unnamed,

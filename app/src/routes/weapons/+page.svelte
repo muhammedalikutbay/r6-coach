@@ -48,6 +48,7 @@
       });
   });
 
+  const usedBy = (r: WeaponListRow, ok: string) => (r.usedOperators ?? []).includes(ok);
   const open = (key: string) => goto('/weapons/' + encodeURIComponent(key));
   /** Enter on the row opens it; Enter on an inner link or button keeps its own action. */
   function rowKey(e: KeyboardEvent, key: string) {
@@ -112,8 +113,8 @@
             <SortHead label="Slot" col="slot" {sortKey} {desc} onsort={sortBy} align="left" />
             <SortHead label="Kills" col="kills" {sortKey} {desc} onsort={sortBy} />
             <SortHead label="HS %" col="hsPct" {sortKey} {desc} onsort={sortBy} />
-            <SortHead label="Operators" col="operators" {sortKey} {desc} onsort={sortBy} />
-            <th class="px-3 py-2 text-left font-medium">Carried by</th>
+            <SortHead label="Used by" col="operators" {sortKey} {desc} onsort={sortBy} title="How many different operators got a kill with it. The icons under Carried by show which ones" />
+            <th class="px-3 py-2 text-left font-medium" title="Operators that can carry it. Full color: you got kills with it as that operator">Carried by</th>
             <th class="w-44 px-3 py-2 text-left font-medium">Share of kills</th>
           </tr>
         </thead>
@@ -137,9 +138,9 @@
                   {#each r.loadoutOperators ?? [] as ok (ok)}
                     <a
                       href="/operators/{encodeURIComponent(ok)}"
-                      title={operatorName(ok)}
+                      title={usedBy(r, ok) ? operatorName(ok) : `${operatorName(ok)} (no kills with it yet)`}
                       aria-label={operatorName(ok)}
-                      class="rounded-full transition-transform hover:scale-110 focus-visible:outline-2 focus-visible:outline-accent"
+                      class={cn('rounded-full transition hover:scale-110 hover:opacity-100 focus-visible:outline-2 focus-visible:outline-accent', !usedBy(r, ok) && 'opacity-40')}
                       onclick={(e) => e.stopPropagation()}
                     ><OperatorBadge opKey={ok} name={operatorName(ok)} size={22} /></a>
                   {/each}

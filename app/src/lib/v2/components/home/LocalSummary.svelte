@@ -69,19 +69,32 @@
     {#if top.length > 0}
       <Card class="mt-3">
         <h3 class="mb-2 text-xs font-medium tracking-wide text-muted uppercase">Most played operators</h3>
-        <ul class="flex flex-col gap-1.5">
+        <div class="mb-1 flex items-center gap-3 px-2 text-xs text-muted">
+          <span class="w-[30px]"></span>
+          <span class="min-w-0 flex-1">Operator</span>
+          <span class="w-8">Side</span>
+          <span class="w-20 text-right">Rounds</span>
+          <span class="w-14 text-right">Win %</span>
+          <span class="w-12 text-right">K/D</span>
+        </div>
+        <ul class="flex flex-col gap-0.5">
           {#each top as o (o.key + o.side)}
-            <li class="flex items-center gap-3 text-sm">
-              <OperatorBadge opKey={o.key} name={o.name} size={30} />
-              <span class="min-w-0 flex-1 truncate font-medium">{o.name}</span>
-              <span class="text-xs text-muted">{o.side === 'attack' ? 'ATK' : 'DEF'}</span>
-              <span class="w-20 text-right text-xs text-muted tabular-nums">{o.rounds} rounds</span>
-              <span class="w-14 text-right tabular-nums">{o.winPct.toFixed(0)}%</span>
-              <span class="w-12 text-right tabular-nums">{o.kd.toFixed(2)}</span>
+            <li>
+              <a
+                href="/operators/{encodeURIComponent(o.key)}"
+                title="Open the {o.name} screen"
+                class="flex items-center gap-3 rounded-lg px-2 py-1 text-sm transition-colors hover:bg-surface-2 focus-visible:bg-surface-2"
+              >
+                <OperatorBadge opKey={o.key} name={o.name} size={30} />
+                <span class="min-w-0 flex-1 truncate font-medium">{o.name}</span>
+                <span class="w-8 text-xs text-muted">{o.side === 'attack' ? 'ATK' : 'DEF'}</span>
+                <span class="w-20 text-right text-xs text-muted tabular-nums">{o.rounds}</span>
+                <span class="w-14 text-right tabular-nums">{o.winPct.toFixed(0)}%</span>
+                <span class="w-12 text-right tabular-nums">{o.kd.toFixed(2)}</span>
+              </a>
             </li>
           {/each}
         </ul>
-        <p class="mt-2 text-right text-xs text-muted">win % · K/D</p>
       </Card>
     {/if}
   {/if}

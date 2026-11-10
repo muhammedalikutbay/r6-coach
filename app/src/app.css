@@ -16,6 +16,8 @@
   --good: #3ecf8e;
   --bad: #ef5b5b;
   --radius: 0.75rem;
+  /* Height of the custom title bar; every full-window overlay starts below it. */
+  --titlebar-h: 2rem;
 }
 
 @theme inline {
