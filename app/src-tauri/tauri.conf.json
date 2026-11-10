@@ -14,6 +14,7 @@
       {
         "title": "R6 Coach",
         "create": false,
+        "decorations": false,
         "width": 1100,
         "height": 720,
         "minWidth": 900,

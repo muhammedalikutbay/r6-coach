@@ -248,7 +248,7 @@ pub fn run() {
             // WebView2 data folder can follow the override, and only after the state is managed.
             // Without the override the folder is the one Tauri would have used anyway.
             let cfg = app.config().app.windows.first().cloned().ok_or("no window in tauri.conf.json")?;
-            tauri::WebviewWindowBuilder::from_config(app.handle(), &cfg)?.data_directory(dirs.local.clone()).build()?;
+            tauri::WebviewWindowBuilder::from_config(app.handle(), &cfg)?.decorations(false).data_directory(dirs.local.clone()).build()?;
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![

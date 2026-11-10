@@ -9,7 +9,8 @@
   import { cn } from '$lib/utils';
   import { onReplaysUpdated, refreshTick } from '$lib/v2/refresh.svelte';
   import { watchClipWarnings } from '$lib/v2/clips';
-  import WelcomeScreen from '$lib/WelcomeScreen.svelte';
+  import WelcomeScreen from '$lib/v2/components/WelcomeScreen.svelte';
+  import TitleBar from '$lib/v2/components/TitleBar.svelte';
   import Toaster from '$lib/components/Toaster.svelte';
   import FilterBar from '$lib/v2/components/FilterBar.svelte';
   import Button from '$lib/components/ui/Button.svelte';
@@ -82,7 +83,9 @@
   }
 </script>
 
-<div class="flex h-screen min-w-0">
+<div class="flex h-screen min-w-0 flex-col">
+<TitleBar />
+<div class="flex min-h-0 min-w-0 flex-1">
   <nav class="flex w-[76px] flex-none flex-col items-stretch gap-1 border-r border-border bg-surface-1 px-2 py-3">
     <div class="mb-3 text-center text-[11px] font-extrabold tracking-wider text-accent">R6 COACH</div>
     {#each tabs as t (t.href)}
@@ -116,6 +119,7 @@
       {@render children()}
     </main>
   </div>
+</div>
 </div>
 <WelcomeScreen />
 <Toaster />
