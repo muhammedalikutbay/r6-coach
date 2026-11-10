@@ -31,9 +31,18 @@
       "2F Consul Office, 2F Meeting Room",
       "B Cafeteria, B Garage"
     ],
+    "emeraldplains": [
+      "1F Dining, 1F Kitchen",
+      "2F Administration, 2F CEO Office"
+    ],
     "fortress": [
       "2F Bathroom, 2F Commander's Office",
       "2F Dormitory, 2F Games Room"
+    ],
+    "house": [
+      "1F TV Room, 1F Music Room",
+      "2F Car Room, 2F Pink Room",
+      "2F Master Bedroom, 2F Car Room"
     ],
     "kafedostoyevsky": [
       "1F Kitchen Service, 1F Kitchen Cooking",
@@ -58,6 +67,10 @@
       "1F Green Bedroom, 1F Red Bedroom",
       "2F Laundry, 2F Piano Room",
       "2F Party Room, 2F Office"
+    ],
+    "themepark": [
+      "1F Armory, 1F Throne Room",
+      "1F Lab, 1F Storage"
     ],
     "villa": [
       "2F Aviator Room, 2F Games Room",

@@ -813,6 +813,7 @@
   "442272916696": { "name": "STUN GRENADE", "kind": "gadget" },
   "445433462931": { "name": "XK23", "kind": "weapon", "source": "inferred" },
   "445433462944": { "name": "XK23", "kind": "weapon", "source": "inferred" },
+  "449477444912": { "name": "TACIT .45", "kind": "weapon", "source": "inferred" },
   "448889836649": { "name": "CLAYMORE", "kind": "gadget" },
   "448889836698": { "name": "DEPLOYABLE SHIELD", "kind": "gadget" },
   "448889836705": { "name": "FRAG GRENADE", "kind": "gadget" }

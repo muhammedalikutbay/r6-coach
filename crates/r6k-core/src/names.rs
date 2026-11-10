@@ -278,12 +278,12 @@ mod tests {
     fn unknown_ids_fall_back() {
         assert_eq!(operator_name(1), "Unknown operator (1)");
         assert_eq!(map_name(2), "Unknown map (2)");
-        assert_eq!(map_name(441842102525), "Unknown map (\u{2026}2525)");
+        assert_eq!(map_name(123456789012), "Unknown map (\u{2026}9012)");
         assert_eq!(
             operator_name_by_key("444310693746000").as_deref(),
             Some("Unknown operator (\u{2026}6000)")
         );
-        assert_eq!(map_name_by_key("441842102525").as_deref(), Some("Unknown map (\u{2026}2525)"));
+        assert_eq!(map_name_by_key("123456789012").as_deref(), Some("Unknown map (\u{2026}9012)"));
         assert_eq!(map_name_by_key("chalet").as_deref(), Some("Chalet"));
     }
 
