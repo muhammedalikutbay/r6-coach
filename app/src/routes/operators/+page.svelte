@@ -1,5 +1,6 @@
 <script lang="ts">
   import { Users, Swords, Shield } from '@lucide/svelte';
+  import { goto } from '$app/navigation';
   import PageHeader from '$lib/components/PageHeader.svelte';
   import EmptyState from '$lib/components/EmptyState.svelte';
   import Skeleton from '$lib/components/Skeleton.svelte';
@@ -43,6 +44,12 @@
         if (mine === seq) loading = false;
       });
   });
+
+  const open = (key: string) => goto('/operators/' + encodeURIComponent(key));
+  /** Enter on the row opens it; Enter on an inner link or button keeps its own action. */
+  function rowKey(e: KeyboardEvent, key: string) {
+    if (e.key === 'Enter' && e.target === e.currentTarget) open(key);
+  }
 
   function sortBy(col: string) {
     if (sortKey === col) desc = !desc;
@@ -113,9 +120,14 @@
         </thead>
         <tbody class="tabular-nums">
           {#each shown as r (r.key)}
-            <tr class="border-b border-border/60 transition-colors last:border-0 hover:bg-surface-2">
+            <tr
+              class="cursor-pointer border-b border-border/60 transition-colors last:border-0 hover:bg-surface-2 focus-visible:bg-surface-2 focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-accent"
+              tabindex="0"
+              onclick={() => open(r.key)}
+              onkeydown={(e) => rowKey(e, r.key)}
+            >
               <td class="px-3 py-1.5">
-                <a href="/operators/{encodeURIComponent(r.key)}" class="flex items-center gap-2.5 font-medium">
+                <a href="/operators/{encodeURIComponent(r.key)}" class="flex items-center gap-2.5 font-medium" onclick={(e) => e.stopPropagation()}>
                   <OperatorBadge opKey={r.key} name={r.name} size={32} />
                   <span>{r.name}</span>
                   {#if r.side === 'attack'}<Swords class="size-3 text-muted" />{:else}<Shield class="size-3 text-muted" />{/if}

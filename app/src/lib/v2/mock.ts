@@ -472,7 +472,8 @@ export function mockWeaponList(_f: Filter): WeaponListRow[] {
     kills: w.kills,
     headshots: w.hs,
     hsPct: r1((100 * w.hs) / w.kills),
-    operators: w.ops
+    operators: w.ops,
+    loadoutOperators: MOCK_OPERATORS.slice(0, w.ops + 2).map((o) => o.key)
   }));
 }
 
@@ -612,6 +613,7 @@ export function mockWeaponScreen(_f: Filter, key: string): WeaponScreen {
         kills: Math.max(1, Math.round(w.kills / (i + 1.5))),
         hsPct: r1(20 + i * 5)
       })),
+      loadoutOperators: MOCK_OPERATORS.slice(0, w.ops + 2).map((o) => o.key),
       maps: MOCK_MAPS.slice(0, 4).map((m, i) => ({ key: m.key, name: m.name, kills: Math.max(1, Math.round(w.kills / (i + 2))) })),
       timing: { early: Math.round(w.kills * 0.3), mid: Math.round(w.kills * 0.5), late: Math.round(w.kills * 0.2) },
       recentKills: ALL_MATCHES.slice(0, 6).map((m, i) => ({

@@ -652,6 +652,8 @@ export interface WeaponDetail {
   rounds: number;
   killsPerRound: number;
   operators: WeaponOperatorRow[];
+  /** Operators that carry the weapon in their loadout, not only the ones with kills. */
+  loadoutOperators?: string[];
   maps: WeaponMapRow[];
   timing: WeaponTiming;
   recentKills: WeaponRecentKill[];
@@ -681,6 +683,8 @@ export interface WeaponListRow {
   headshots: number;
   hsPct: number;
   operators: number;
+  /** Operators that carry the weapon in their loadout. */
+  loadoutOperators?: string[];
 }
 
 /** A recorded clip that belongs to a kill or death shown on a detail screen. */

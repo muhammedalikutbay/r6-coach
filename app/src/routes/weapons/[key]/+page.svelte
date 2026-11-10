@@ -15,6 +15,7 @@
   import { weaponDetail } from '$lib/v2/api';
   import { refreshTick } from '$lib/v2/refresh.svelte';
   import { formatDateTime, plural, slotLabel } from '$lib/v2/format';
+  import { operatorName } from '$lib/v2/catalog';
   import { toast } from '$lib/toast.svelte';
   import type { WeaponScreen } from '$lib/v2/types';
 
@@ -68,7 +69,22 @@
   backLabel="All weapons"
   title={d?.name || key}
   sub={d && d.kills > 0 ? `${plural(d.kills, 'kill')}${d.slot ? ' · ' + slotLabel(d.slot) : ''}` : ''}
-/>
+>
+  {#snippet chips()}
+    {#if (d?.loadoutOperators ?? []).length > 0}
+      <div class="flex max-w-md flex-wrap items-center justify-end gap-1" aria-label="Operators that carry {d?.name}">
+        {#each d?.loadoutOperators ?? [] as ok (ok)}
+          <a
+            href="/operators/{encodeURIComponent(ok)}"
+            title={operatorName(ok)}
+            aria-label={operatorName(ok)}
+            class="rounded-full transition-transform hover:scale-110 focus-visible:outline-2 focus-visible:outline-accent"
+          ><OperatorBadge opKey={ok} name={operatorName(ok)} size={28} /></a>
+        {/each}
+      </div>
+    {/if}
+  {/snippet}
+</DetailHeader>
 
 {#if loading && !data}
   <div class="grid grid-cols-2 gap-3 lg:grid-cols-4">

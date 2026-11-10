@@ -16,6 +16,9 @@ use crate::names;
 use crate::query::{apply, selected, Filter, TeamSide, TrendPoint, TREND_WINDOW};
 use serde::{Deserialize, Serialize};
 use std::collections::{BTreeMap, BTreeSet, HashMap};
+use std::sync::OnceLock;
+
+const LOADOUTS_JSON: &str = include_str!("../data/operator-loadouts.json");
 
 /// Matches listed on an operator screen.
 pub const MAX_MATCHES: usize = 30;
@@ -23,6 +26,38 @@ pub const MAX_MATCHES: usize = 30;
 pub const MAX_RIVALS: usize = 8;
 /// Recent kills listed on a weapon screen.
 pub const MAX_RECENT_KILLS: usize = 20;
+
+// ---------------------------------------------------------------- loadouts
+
+/// Weapon key -> operator keys that carry it (primary or secondary), from `data/operator-loadouts.json`.
+fn loadout_table() -> &'static HashMap<String, BTreeSet<String>> {
+    static T: OnceLock<HashMap<String, BTreeSet<String>>> = OnceLock::new();
+    T.get_or_init(|| {
+        let mut out: HashMap<String, BTreeSet<String>> = HashMap::new();
+        match serde_json::from_str::<HashMap<String, serde_json::Value>>(LOADOUTS_JSON) {
+            Ok(m) => {
+                for (op, v) in m {
+                    let Ok(list) = serde_json::from_value::<Vec<String>>(v) else { continue };
+                    for w in list {
+                        out.entry(weapon_key(&w)).or_default().insert(op.clone());
+                    }
+                }
+            }
+            Err(e) => log::error!("embedded operator loadout table is invalid: {e}"),
+        }
+        out
+    })
+}
+
+/// Operator keys that carry the weapon in their loadout, plus `seen` (operators that got a kill with
+/// it, in case the static table misses one). Sorted by operator name.
+pub fn loadout_operators(weapon: &str, seen: &BTreeSet<String>) -> Vec<String> {
+    let mut keys: BTreeSet<String> = loadout_table().get(&weapon_key(weapon)).cloned().unwrap_or_default();
+    keys.extend(seen.iter().cloned());
+    let mut v: Vec<String> = keys.into_iter().collect();
+    v.sort_by_key(|k| op_name(k));
+    v
+}
 
 // ---------------------------------------------------------------- small helpers
 
@@ -387,6 +422,9 @@ pub struct WeaponDetail {
     pub rounds: u32,
     pub kills_per_round: f64,
     pub operators: Vec<WeaponOperator>,
+    /// Operators that carry the weapon in their loadout (not only the ones that got kills).
+    #[serde(default)]
+    pub loadout_operators: Vec<String>,
     pub maps: Vec<WeaponMap>,
     pub timing: KillTiming,
     /// Newest first.
@@ -427,6 +465,9 @@ pub struct WeaponRow {
     pub hs_pct: f64,
     /// Different operators that got a kill with it.
     pub operators: u32,
+    /// Operators that carry it in their loadout.
+    #[serde(default)]
+    pub loadout_operators: Vec<String>,
 }
 
 // ---------------------------------------------------------------- lists
@@ -522,6 +563,7 @@ pub fn weapon_list(filter: &Filter, matches: &[FullMatch]) -> Vec<WeaponRow> {
         .into_iter()
         .filter(|(key, _)| !key.is_empty())
         .map(|(key, a)| WeaponRow {
+            loadout_operators: loadout_operators(&key, &a.ops),
             key,
             name: a.name,
             unnamed: a.unnamed,
@@ -793,6 +835,8 @@ pub fn weapon_detail(filter: &Filter, matches: &[FullMatch], key: &str) -> Weapo
         .map(|(key, (kills, hs))| WeaponOperator { name: op_name(&key), key, kills, hs_pct: r1(pct(hs as u64, kills as u64)) })
         .collect();
     out.operators.sort_by(|a, b| b.kills.cmp(&a.kills).then_with(|| a.key.cmp(&b.key)));
+    let seen: BTreeSet<String> = out.operators.iter().map(|o| o.key.clone()).collect();
+    out.loadout_operators = loadout_operators(&key, &seen);
 
     out.maps = maps.into_iter().map(|(key, kills)| WeaponMap { name: map_name_of(&key), key, kills }).collect();
     out.maps.sort_by(|a, b| b.kills.cmp(&a.kills).then_with(|| a.key.cmp(&b.key)));
@@ -953,6 +997,25 @@ mod tests {
         assert_eq!(d.recent_kills.len(), 1);
         assert_eq!(d.events.len(), 1);
         assert_eq!(d.events[0].weapon.as_deref(), Some("R4-C"));
+    }
+
+    #[test]
+    fn loadout_table_is_valid_and_complete() {
+        assert!(!loadout_table().is_empty());
+        // Every weapon in the table is a real weapon name of data/weapons.json.
+        let raw: HashMap<String, serde_json::Value> = serde_json::from_str(include_str!("../../../data/weapons.json")).unwrap();
+        let known: BTreeSet<String> = raw.values().filter_map(|v| v["name"].as_str()).map(weapon_key).collect();
+        let missing: Vec<&String> = loadout_table().keys().filter(|k| !known.contains(*k)).collect();
+        assert!(missing.is_empty(), "unknown weapons in operator-loadouts.json: {missing:?}");
+        for op in loadout_table().values().flatten() {
+            assert!(names::operator_name_by_key(op).is_some(), "unknown operator {op}");
+        }
+        let r4c = loadout_operators("R4-C", &BTreeSet::new());
+        assert!(r4c.contains(&"ash".to_string()) && r4c.contains(&"ram".to_string()));
+        // Observed operators are added.
+        let with_seen = loadout_operators("r4-c", &BTreeSet::from(["zzz-unknown".to_string()]));
+        assert!(with_seen.contains(&"zzz-unknown".to_string()));
+        assert!(loadout_operators("no-such-gun", &BTreeSet::new()).is_empty());
     }
 
     #[test]

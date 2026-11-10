@@ -17,6 +17,8 @@
 
   const fmtTime = (s: number) => `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, '0')}`;
   const isStarred = (c: ClipRow) => starOverride[c.id] ?? c.starred;
+  // The player steps through the strip in its order, with the stars changed meanwhile.
+  const playList = $derived(clips.map((dc) => ({ ...dc.clip, starred: isStarred(dc.clip) })));
 
   function changed(c: ClipRow) {
     starOverride = { ...starOverride, [c.id]: c.starred };
@@ -73,5 +75,5 @@
 {/if}
 
 {#if playing}
-  <ClipPlayer clip={playing} onclose={() => (playing = null)} onchange={changed} />
+  <ClipPlayer clip={playing} list={playList} onclose={() => (playing = null)} onchange={changed} onselect={(c) => (playing = c)} />
 {/if}

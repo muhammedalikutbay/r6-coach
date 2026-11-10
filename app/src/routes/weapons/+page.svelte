@@ -1,5 +1,8 @@
 <script lang="ts">
   import { Crosshair } from '@lucide/svelte';
+  import { goto } from '$app/navigation';
+  import OperatorBadge from '$lib/components/OperatorBadge.svelte';
+  import { operatorName } from '$lib/v2/catalog';
   import PageHeader from '$lib/components/PageHeader.svelte';
   import EmptyState from '$lib/components/EmptyState.svelte';
   import Skeleton from '$lib/components/Skeleton.svelte';
@@ -44,6 +47,12 @@
         if (mine === seq) loading = false;
       });
   });
+
+  const open = (key: string) => goto('/weapons/' + encodeURIComponent(key));
+  /** Enter on the row opens it; Enter on an inner link or button keeps its own action. */
+  function rowKey(e: KeyboardEvent, key: string) {
+    if (e.key === 'Enter' && e.target === e.currentTarget) open(key);
+  }
 
   function sortBy(col: string) {
     if (sortKey === col) desc = !desc;
@@ -96,7 +105,7 @@
     {#if shown.length === 0}
       <p class="px-4 py-8 text-center text-muted">No weapon matches "{search}".</p>
     {:else}
-      <table class="w-full min-w-[560px] text-left text-sm">
+      <table class="w-full min-w-[720px] text-left text-sm">
         <thead class="border-b border-border text-xs text-muted">
           <tr>
             <SortHead label="Weapon" col="name" {sortKey} {desc} onsort={sortBy} align="left" />
@@ -104,19 +113,38 @@
             <SortHead label="Kills" col="kills" {sortKey} {desc} onsort={sortBy} />
             <SortHead label="HS %" col="hsPct" {sortKey} {desc} onsort={sortBy} />
             <SortHead label="Operators" col="operators" {sortKey} {desc} onsort={sortBy} />
+            <th class="px-3 py-2 text-left font-medium">Carried by</th>
             <th class="w-44 px-3 py-2 text-left font-medium">Share of kills</th>
           </tr>
         </thead>
         <tbody class="tabular-nums">
           {#each shown as r (r.key)}
-            <tr class="border-b border-border/60 transition-colors last:border-0 hover:bg-surface-2">
+            <tr
+              class="cursor-pointer border-b border-border/60 transition-colors last:border-0 hover:bg-surface-2 focus-visible:bg-surface-2 focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-accent"
+              tabindex="0"
+              onclick={() => open(r.key)}
+              onkeydown={(e) => rowKey(e, r.key)}
+            >
               <td class="px-3 py-2">
-                <a href="/weapons/{encodeURIComponent(r.key)}" class={cn('font-medium', r.unnamed && 'font-normal text-muted italic')}>{r.name}</a>
+                <a href="/weapons/{encodeURIComponent(r.key)}" class={cn('font-medium', r.unnamed && 'font-normal text-muted italic')} onclick={(e) => e.stopPropagation()}>{r.name}</a>
               </td>
               <td class="px-3 py-2 text-muted">{slotLabel(r.slot)}</td>
               <td class="px-3 py-2 text-right font-semibold">{r.kills}</td>
               <td class="px-3 py-2 text-right">{r.hsPct.toFixed(0)}%</td>
               <td class="px-3 py-2 text-right">{r.operators}</td>
+              <td class="px-3 py-2">
+                <div class="flex flex-wrap gap-0.5">
+                  {#each r.loadoutOperators ?? [] as ok (ok)}
+                    <a
+                      href="/operators/{encodeURIComponent(ok)}"
+                      title={operatorName(ok)}
+                      aria-label={operatorName(ok)}
+                      class="rounded-full transition-transform hover:scale-110 focus-visible:outline-2 focus-visible:outline-accent"
+                      onclick={(e) => e.stopPropagation()}
+                    ><OperatorBadge opKey={ok} name={operatorName(ok)} size={22} /></a>
+                  {/each}
+                </div>
+              </td>
               <td class="px-3 py-2">
                 <div class="h-1.5 overflow-hidden rounded-full bg-surface-3">
                   <div class="h-full rounded-full bg-accent" style="width:{(r.kills / totalKills) * 100}%"></div>

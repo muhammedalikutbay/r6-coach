@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { tick } from 'svelte';
   import { Skull, Bomb, ShieldCheck, Clock, Crosshair, X, CircleHelp, Play, Star } from '@lucide/svelte';
   import OperatorBadge from '$lib/components/OperatorBadge.svelte';
   import MapThumb from '$lib/components/MapThumb.svelte';
@@ -72,6 +73,14 @@
     };
   });
 
+  // The player steps through the clips of the round of the playing clip, in kill feed order
+  // (the round clock counts down, so the larger value came first).
+  const roundClips = $derived(
+    playing
+      ? clipRows.filter((c) => c.round === playing!.round).sort((a, b) => b.timeS - a.timeS || a.id - b.id)
+      : []
+  );
+
   function clipChanged(c: ClipRow) {
     clipRows = clipRows.map((x) => (x.id === c.id ? c : x));
     if (playing?.id === c.id) playing = c;
@@ -96,6 +105,17 @@
         d: r.kills.filter((k) => k.victim === p.username).length
       }))
     );
+  }
+
+  let roundHead = $state<HTMLElement | null>(null);
+
+  /** Scoreboard operator icon: open the Rounds tab at that round. */
+  async function gotoRound(n: number) {
+    tab = 'rounds';
+    selected = n;
+    await tick();
+    document.getElementById('md-round-chip-' + n)?.scrollIntoView({ block: 'nearest', inline: 'center' });
+    roundHead?.scrollIntoView({ block: 'nearest' });
   }
 
   const fmtTime = (s: number) => `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, '0')}`;
@@ -158,11 +178,11 @@
               {ti === 0 ? 'Your team' : 'Opponents'} · {plural(ti === 0 ? m.scoreUs : m.scoreThem, 'round')} won
             </div>
             <div class="overflow-x-auto rounded-lg border border-border">
-              <table class="w-full min-w-[760px] table-fixed text-sm">
+              <table class="w-full text-sm">
                 <thead class="bg-surface-2 text-xs text-muted">
                   <tr>
                     <th class="w-40 px-3 py-2 text-left font-medium">Player</th>
-                    <th class="px-2 py-2 text-left font-medium">Operators</th>
+                    <th class="w-full px-2 py-2 text-left font-medium">Operators</th>
                     <th class="px-2 py-2 font-medium">K</th>
                     <th class="px-2 py-2 font-medium">D</th>
                     <th class="px-2 py-2 font-medium">HS%</th>
@@ -180,7 +200,15 @@
                       <td class="px-2 py-2">
                         <div class="flex flex-wrap gap-0.5">
                           {#each p.operatorsByRound as op, i (i)}
-                            <OperatorBadge opKey={op} name={opName(op)} size={20} />
+                            <button
+                              type="button"
+                              onclick={() => gotoRound(i + 1)}
+                              title="Round {i + 1} · {opName(op)}"
+                              aria-label="Round {i + 1} · {opName(op)}"
+                              class="shrink-0 rounded-full transition-transform hover:scale-110 focus-visible:outline-2 focus-visible:outline-accent"
+                            >
+                              <OperatorBadge opKey={op} name={opName(op)} size={22} class="pointer-events-none" />
+                            </button>
                           {/each}
                         </div>
                       </td>
@@ -206,6 +234,7 @@
             <button
               type="button"
               onclick={() => (selected = r.number)}
+              id="md-round-chip-{r.number}"
               title="Round {r.number}: {r.winCondition}"
               class={cn(
                 'flex w-10 flex-col items-center gap-0.5 rounded-md border py-1 text-xs',
@@ -219,7 +248,7 @@
           {/each}
         </div>
 
-        <div class="mb-3 flex flex-wrap items-center gap-x-4 gap-y-1 text-sm">
+        <div bind:this={roundHead} class="mb-3 flex flex-wrap items-center gap-x-4 gap-y-1 text-sm">
           <span class="font-semibold">Round {round.number}</span>
           <span class={round.winnerTeam === 0 ? 'text-good' : 'text-bad'}>
             {round.winnerTeam === 0 ? 'Won' : 'Lost'} · {round.winCondition}
@@ -299,5 +328,5 @@
 </div>
 
 {#if playing}
-  <ClipPlayer clip={playing} onclose={() => (playing = null)} onchange={clipChanged} />
+  <ClipPlayer clip={playing} list={roundClips} onclose={() => (playing = null)} onchange={clipChanged} onselect={(c) => (playing = c)} />
 {/if}

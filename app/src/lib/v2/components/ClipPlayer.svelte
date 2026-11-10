@@ -1,12 +1,31 @@
 <script lang="ts">
-  import { X, Star, FolderOpen, ExternalLink } from '@lucide/svelte';
+  import { X, Star, FolderOpen, ExternalLink, ChevronLeft, ChevronRight } from '@lucide/svelte';
   import Button from '$lib/components/ui/Button.svelte';
   import { toastError } from '$lib/toast.svelte';
   import { cn } from '$lib/utils';
   import * as clips from '$lib/v2/clips';
   import type { ClipRow } from '$lib/v2/types';
 
-  let { clip, onclose, onchange }: { clip: ClipRow; onclose: () => void; onchange?: (c: ClipRow) => void } = $props();
+  // `list` is the optional ordered set of clips the player can step through (it should contain
+  // `clip`); `onselect` is called with the clip to show next.
+  let { clip, list = [], onclose, onchange, onselect }: {
+    clip: ClipRow;
+    list?: ClipRow[];
+    onclose: () => void;
+    onchange?: (c: ClipRow) => void;
+    onselect?: (c: ClipRow) => void;
+  } = $props();
+
+  const index = $derived(list.findIndex((c) => c.id === clip.id));
+  const canStep = $derived(!!onselect && list.length > 1 && index >= 0);
+  const hasPrev = $derived(canStep && index > 0);
+  const hasNext = $derived(canStep && index < list.length - 1);
+
+  function step(delta: number) {
+    if (!canStep) return;
+    const next = list[index + delta];
+    if (next) onselect?.(next);
+  }
 
   /** How the video gets its bytes: the asset protocol first, a Blob read through the backend second. */
   type Source = 'asset' | 'blob';
@@ -133,6 +152,13 @@
 
   function onKey(e: KeyboardEvent) {
     if (e.key === 'Escape') onclose();
+    else if ((e.key === 'ArrowLeft' || e.key === 'ArrowRight') && !e.altKey && !e.ctrlKey && !e.metaKey && !e.shiftKey) {
+      const t = e.target as HTMLElement | null;
+      if (t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.tagName === 'SELECT')) return;
+      if (!canStep) return;
+      e.preventDefault();
+      step(e.key === 'ArrowLeft' ? -1 : 1);
+    }
   }
 </script>
 
@@ -155,6 +181,31 @@
           Round {clip.round} · {clip.kind === 'kill' ? 'Kill' : 'Death'} at {fmtTime(clip.timeS)} · {clips.fmtBytes(clip.size)}
         </div>
       </div>
+      {#if canStep}
+        <div class="flex items-center gap-1" data-testid="clip-nav">
+          <button
+            type="button"
+            onclick={() => step(-1)}
+            disabled={!hasPrev}
+            aria-label="Previous clip"
+            title="Previous clip (Left arrow)"
+            class="rounded-md p-1 text-muted hover:bg-surface-2 hover:text-foreground disabled:pointer-events-none disabled:opacity-30"
+          >
+            <ChevronLeft class="size-5" />
+          </button>
+          <span class="min-w-10 text-center text-xs text-muted tabular-nums" aria-live="polite">{index + 1} / {list.length}</span>
+          <button
+            type="button"
+            onclick={() => step(1)}
+            disabled={!hasNext}
+            aria-label="Next clip"
+            title="Next clip (Right arrow)"
+            class="rounded-md p-1 text-muted hover:bg-surface-2 hover:text-foreground disabled:pointer-events-none disabled:opacity-30"
+          >
+            <ChevronRight class="size-5" />
+          </button>
+        </div>
+      {/if}
       <button
         type="button"
         onclick={toggleStar}
