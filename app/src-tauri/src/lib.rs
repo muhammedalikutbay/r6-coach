@@ -225,8 +225,11 @@ fn set_replay_dir(
 }
 
 #[tauri::command]
-fn reset_database(db: tauri::State<store::Db>) -> Cmd<()> {
-    store::reset(&*lock(&db)?).map_err(|e| e.to_string())
+fn reset_database(db: tauri::State<store::Db>, watcher: tauri::State<watcher::Watcher>) -> Cmd<()> {
+    store::reset(&*lock(&db)?).map_err(|e| e.to_string())?;
+    // No Update button any more: read the replay folder again right away.
+    watcher.rewatch();
+    Ok(())
 }
 
 /// Environment variable that keeps all app data (database, clips, clip buffer, WebView2 data) in
