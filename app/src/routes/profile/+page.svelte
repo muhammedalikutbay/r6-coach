@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { onMount } from 'svelte';
   import PageHeader from '$lib/components/PageHeader.svelte';
   import Skeleton from '$lib/components/Skeleton.svelte';
   import ProfileStrip from '$lib/v2/components/profile/ProfileStrip.svelte';
@@ -22,7 +23,17 @@
   /** Season shown in the overview; null means the current one. */
   let pickedSeason = $state<number | null>(null);
 
-  /** Profile from Arenyze. Without `force` it comes from the backend's 15-minute cache. */
+  // The backend refreshes Arenyze once per launch; show the new data when that run finishes.
+  onMount(() => {
+    if (!('__TAURI_INTERNALS__' in window)) return;
+    let unlisten: (() => void) | undefined;
+    import('@tauri-apps/api/event').then(({ listen }) =>
+      listen('arenyze-updated', () => void load(false)).then((u) => (unlisten = u))
+    );
+    return () => unlisten?.();
+  });
+
+  /** Profile from Arenyze. Without `force` it is the data stored at the last refresh. */
   async function load(force: boolean) {
     try {
       status = await arenyzeStatus();

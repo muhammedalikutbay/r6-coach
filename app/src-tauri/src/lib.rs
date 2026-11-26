@@ -41,6 +41,9 @@ fn build_tray(app: &tauri::App) -> tauri::Result<()> {
             "open" => show_main_window(app),
             "quit" => {
                 log::info!("quit requested from the tray");
+                if let Some(clips) = app.try_state::<clips::ClipsState>() {
+                    clips.finish_recording();
+                }
                 app.exit(0);
             }
             _ => {}

@@ -262,6 +262,12 @@ impl ClipsState {
     fn enabled(&self) -> bool {
         self.settings.lock().map(|s| s.enabled).unwrap_or(false)
     }
+
+    /// Closes the segment being recorded so it is not lost when the app quits.
+    pub fn finish_recording(&self) {
+        self.recorder.flush();
+        self.recorder.shutdown();
+    }
 }
 
 /// Creates the recorder and the cutting thread. Call once at start-up, after the database is open.
