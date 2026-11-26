@@ -16,7 +16,7 @@
   let seq = 0;
 
   $effect(() => {
-    void refreshTick.value; // re-query after Update
+    void refreshTick.value; // re-query after an import
     const mine = ++seq;
     query({ ...DEFAULT_FILTER, operators: [], maps: [], range: 'last20' })
       .then((r) => {
@@ -26,7 +26,7 @@
       })
       .catch((e) => {
         if (mine !== seq) return;
-        console.error('[home] local summary failed', e);
+        console.error('[profile] local summary failed', e);
         failed = true;
       })
       .finally(() => {
@@ -51,11 +51,11 @@
       {#each Array(3) as _, i (i)}<Skeleton class="h-24" />{/each}
     </div>
   {:else if failed && !data}
-    <EmptyState title="Could not load your replays" text="Try Update, or open Settings to check the replay folder." icon={Inbox} />
+    <EmptyState title="Could not load your replays" text="Open Settings to check the replay folder." icon={Inbox} />
   {:else if !data || data.matchCount === 0}
     <EmptyState
       title="No matches yet"
-      text="Play a match with Match Replay recording on, then press Update. Your quick summary appears here."
+      text="Play a match with Match Replay recording on. New matches appear here a few seconds after a match ends."
       icon={Inbox}
     />
   {:else}
@@ -99,3 +99,4 @@
     {/if}
   {/if}
 </section>
+

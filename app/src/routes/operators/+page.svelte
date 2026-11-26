@@ -93,7 +93,7 @@
 {#if loading && !rows}
   <Skeleton class="h-72" />
 {:else if failed && !rows}
-  <EmptyState title="Could not load operators" text="Try changing the filter or press Update." icon={Users} />
+  <EmptyState title="Could not load operators" text="Try changing the filter, or restart the app if it keeps happening." icon={Users} />
 {:else if rows && rows.length === 0}
   <EmptyState title="No operators for this filter" text="Loosen the filter to see your operators." icon={Users}>
     <button class="rounded-lg bg-accent px-3 py-1.5 text-sm font-medium text-accent-foreground" onclick={() => filterStore.clear()}>

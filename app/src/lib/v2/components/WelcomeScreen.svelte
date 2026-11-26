@@ -1,8 +1,9 @@
 <script lang="ts">
   import { tick } from 'svelte';
   import { goto } from '$app/navigation';
-  import { BarChart3, Brain, Clapperboard, Trophy, FolderOpen, KeyRound, Video, ShieldCheck, Check } from '@lucide/svelte';
+  import { BarChart3, Brain, Clapperboard, Trophy, FolderOpen, KeyRound, Video, ShieldCheck, Check, Compass } from '@lucide/svelte';
   import { welcome, dismissWelcome } from '$lib/welcome.svelte';
+  import { startTour } from '$lib/v2/components/tour/tour.svelte';
   import { getReplayDir, setReplayDir, pickReplayDir } from '$lib/api';
   import { toast, toastError } from '$lib/toast.svelte';
   import Button from '$lib/components/ui/Button.svelte';
@@ -46,6 +47,12 @@
 
   function onkeydown(e: KeyboardEvent) {
     if (welcome.open && e.key === 'Escape') dismissWelcome();
+  }
+
+  // "Get started" closes the screen and begins the guided tour of the sidebar.
+  function getStarted() {
+    dismissWelcome();
+    startTour();
   }
 
   // Closes the screen and opens Settings, where the setup steps live.
@@ -120,6 +127,10 @@
             </li>
           {/each}
         </ol>
+        <p class="mt-3 flex items-center gap-2 text-xs text-muted">
+          <Compass class="size-4 flex-none text-accent" />
+          After you press Get started, a short tour shows you around the app. You can replay it any time from Settings.
+        </p>
       </div>
 
       <!-- Footer stays visible however small the window is; only the body above scrolls. -->
@@ -128,7 +139,7 @@
           <ShieldCheck class="size-4 flex-none text-good" />
           Everything stays on this PC. Replays are read locally and nothing is uploaded.
         </p>
-        <Button variant="primary" size="lg" class="flex-none" bind:ref={button} onclick={dismissWelcome}>Get started</Button>
+        <Button variant="primary" size="lg" class="flex-none" bind:ref={button} onclick={getStarted}>Get started</Button>
       </div>
     </div>
   </div>

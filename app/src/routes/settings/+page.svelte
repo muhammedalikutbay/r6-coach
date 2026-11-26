@@ -4,6 +4,7 @@
   import type { ReplayDirInfo } from '$lib/types';
   import { getReplayDir, setReplayDir, inspectReplayDir, pickReplayDir, resetDatabase } from '$lib/api';
   import { showWelcomeAgain } from '$lib/welcome.svelte';
+  import { startTour } from '$lib/v2/components/tour/tour.svelte';
   import { toast, toastError } from '$lib/toast.svelte';
   import PageHeader from '$lib/components/PageHeader.svelte';
   import Skeleton from '$lib/components/Skeleton.svelte';
@@ -67,7 +68,7 @@
     busy = true;
     try {
       await resetDatabase();
-      toast('success', 'Database reset. Press Update to read your replays again.');
+      toast('success', 'Database reset. Your replays will be imported again automatically.');
     } catch (e) {
       toastError(e);
     } finally {
@@ -111,6 +112,12 @@
     <h3 class="font-semibold">Welcome</h3>
     <p class="mt-1 mb-3 text-muted">The welcome screen is shown once, on first launch.</p>
     <Button onclick={showWelcomeAgain}>Show welcome again</Button>
+  </Card>
+
+  <Card>
+    <h3 class="font-semibold">Tutorial</h3>
+    <p class="mt-1 mb-3 text-muted">A short guided tour of the sidebar pages.</p>
+    <Button onclick={startTour}>Show tutorial again</Button>
   </Card>
 
   <Card>

@@ -93,7 +93,7 @@
   </div>
   <Skeleton class="mt-6 h-48" />
 {:else if failed && !data}
-  <EmptyState title="Could not load data" text="Try changing the filter or press Update." icon={Crosshair} />
+  <EmptyState title="Could not load data" text="Try changing the filter, or restart the app if it keeps happening." icon={Crosshair} />
 {:else if d}
   {#if d.kills === 0}
     <EmptyState title="No kills with this weapon for this filter" text="Loosen the filter to see this weapon's stats." icon={Crosshair}>

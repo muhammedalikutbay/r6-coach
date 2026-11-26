@@ -97,7 +97,7 @@
   </div>
   <Skeleton class="mt-6 h-48" />
 {:else if failed && !data}
-  <EmptyState title="Could not load data" text="Try changing the filter or press Update." icon={Users} />
+  <EmptyState title="Could not load data" text="Try changing the filter, or restart the app if it keeps happening." icon={Users} />
 {:else if d && s}
   {#if s.rounds === 0}
     <EmptyState

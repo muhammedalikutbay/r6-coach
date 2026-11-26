@@ -29,7 +29,7 @@
 
   $effect(() => {
     const filter = { ...filterStore.value, range: focus };
-    void refreshTick.value; // re-query after Update
+    void refreshTick.value; // re-query after an import
     let stale = false;
     loading = true;
     error = '';
@@ -197,5 +197,5 @@
     {/if}
   </div>
 {:else}
-  <EmptyState title="Not enough matches yet" text="Play and update to get your coach report." icon={Brain} />
+  <EmptyState title="Not enough matches yet" text="Play a few matches. New ones appear here a few seconds after a match ends." icon={Brain} />
 {/if}

@@ -94,7 +94,7 @@
 {#if loading && !rows}
   <Skeleton class="h-72" />
 {:else if failed && !rows}
-  <EmptyState title="Could not load weapons" text="Try changing the filter or press Update." icon={Crosshair} />
+  <EmptyState title="Could not load weapons" text="Try changing the filter, or restart the app if it keeps happening." icon={Crosshair} />
 {:else if rows && rows.length === 0}
   <EmptyState title="No weapon kills for this filter" text="Loosen the filter, or the weapon names of these kills are not known." icon={Crosshair}>
     <button class="rounded-lg bg-accent px-3 py-1.5 text-sm font-medium text-accent-foreground" onclick={() => filterStore.clear()}>

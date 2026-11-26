@@ -37,7 +37,7 @@
   // Reload from the first page whenever the global filter changes.
   $effect(() => {
     const f = $state.snapshot(filterStore.value);
-    void refreshTick.value; // re-query after Update
+    void refreshTick.value; // re-query after an import
     let stale = false;
     loading = true;
     error = '';
@@ -114,7 +114,7 @@
     {#each Array(6) as _, i (i)}<Skeleton class="h-16" />{/each}
   </div>
 {:else if matches.length === 0}
-  <EmptyState title="No matches found" text="Try widening the filter, or press Update after a match." icon={Swords} />
+  <EmptyState title="No matches found" text="Try widening the filter. New matches appear here a few seconds after a match ends." icon={Swords} />
 {:else}
   <div class="space-y-6">
     {#each groups as g (g.key)}

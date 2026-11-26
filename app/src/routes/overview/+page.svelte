@@ -48,7 +48,7 @@
 
   $effect(() => {
     const f = $state.snapshot(filterStore.value);
-    void refreshTick.value; // re-query after Update
+    void refreshTick.value; // re-query after an import
     const mine = ++seq;
     loading = true;
     query(f)
@@ -103,7 +103,7 @@
   </div>
   <Skeleton class="mt-6 h-48" />
 {:else if failed && !data}
-  <EmptyState title="Could not load data" text="Try changing the filter or press Update." icon={LayoutDashboard} />
+  <EmptyState title="Could not load data" text="Try changing the filter, or restart the app if it keeps happening." icon={LayoutDashboard} />
 {:else if data && data.matchCount === 0}
   <EmptyState title="No matches for this filter" text="Loosen the filter to see your stats." icon={LayoutDashboard}>
     <button class="rounded-lg bg-accent px-3 py-1.5 text-sm font-medium text-accent-foreground" onclick={() => filterStore.clear()}>

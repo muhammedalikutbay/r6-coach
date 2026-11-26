@@ -3,20 +3,18 @@
   import { page } from '$app/state';
   import { goto, afterNavigate } from '$app/navigation';
   import { onMount } from 'svelte';
-  import { House, LayoutDashboard, Swords, Users, Crosshair, Brain, Settings, RefreshCw } from '@lucide/svelte';
-  import { getReplayDir, refresh } from '$lib/api';
-  import { toast, toastError } from '$lib/toast.svelte';
+  import { House, LayoutDashboard, Swords, Users, Crosshair, Brain, UserRound, Settings } from '@lucide/svelte';
+  import { getReplayDir } from '$lib/api';
   import { cn } from '$lib/utils';
   import { onReplaysUpdated, refreshTick } from '$lib/v2/refresh.svelte';
   import { watchClipWarnings } from '$lib/v2/clips';
   import WelcomeScreen from '$lib/v2/components/WelcomeScreen.svelte';
+  import TourOverlay from '$lib/v2/components/tour/TourOverlay.svelte';
   import TitleBar from '$lib/v2/components/TitleBar.svelte';
   import Toaster from '$lib/components/Toaster.svelte';
   import FilterBar from '$lib/v2/components/FilterBar.svelte';
-  import Button from '$lib/components/ui/Button.svelte';
 
   let { children } = $props();
-  let updating = $state(false);
   let mainEl: HTMLElement | undefined = $state();
 
   // The scrolling element is <main>, so SvelteKit's own scroll reset does not reach it.
@@ -41,13 +39,13 @@
   });
 
   // Auto refresh: the backend imports new replays by itself and sends `replays-updated`.
-  // A manual Update bumps the tick itself, so only automatic imports that changed something bump here.
+  // Imports that changed something bump the tick, so every open view re-queries.
   onMount(() => {
     let unlisten: (() => void) | undefined;
     let closed = false;
     onReplaysUpdated((r) => {
       console.info('replays-updated', r);
-      if (!updating && r.newMatches + r.updatedMatches > 0) refreshTick.bump();
+      if (r.newMatches + r.updatedMatches > 0) refreshTick.bump();
     })
       .then((u) => (closed ? u() : (unlisten = u)))
       .catch((e) => console.error('cannot listen for replay updates', e));
@@ -57,41 +55,31 @@
     };
   });
 
+  // `id` is what the first-run tour points at (data-tour on the link).
   const tabs = [
-    { href: '/home', label: 'Home', icon: House },
-    { href: '/overview', label: 'Overview', icon: LayoutDashboard },
-    { href: '/matches', label: 'Matches', icon: Swords },
-    { href: '/operators', label: 'Operators', icon: Users },
-    { href: '/weapons', label: 'Weapons', icon: Crosshair },
-    { href: '/coach', label: 'Coach', icon: Brain },
-    { href: '/settings', label: 'Settings', icon: Settings }
+    { id: 'home', href: '/home', label: 'Home', icon: House },
+    { id: 'overview', href: '/overview', label: 'Overview', icon: LayoutDashboard },
+    { id: 'matches', href: '/matches', label: 'Matches', icon: Swords },
+    { id: 'operators', href: '/operators', label: 'Operators', icon: Users },
+    { id: 'weapons', href: '/weapons', label: 'Weapons', icon: Crosshair },
+    { id: 'coach', href: '/coach', label: 'Coach', icon: Brain },
+    { id: 'profile', href: '/profile', label: 'Profile', icon: UserRound },
+    { id: 'settings', href: '/settings', label: 'Settings', icon: Settings }
   ];
 
-  async function update() {
-    updating = true;
-    try {
-      const r = await refresh();
-      if (r.newMatches > 0 || r.failed.length === 0) refreshTick.bump();
-      if (r.failed.length > 0) toast('error', `${r.failed.length} folder(s) could not be read: ${r.failed[0].error}`);
-      else if (r.newMatches > 0) toast('success', `${r.newMatches} new ${r.newMatches === 1 ? 'match' : 'matches'} added.`);
-      else toast('info', 'No new matches found. Play a game, then press Update.');
-    } catch (e) {
-      toastError(e);
-    } finally {
-      updating = false;
-    }
-  }
+  // The global filter does not apply to Home, Profile (online profile) or Settings.
+  const showFilter = $derived(!['/home', '/profile', '/settings'].some((p) => page.url.pathname === p || page.url.pathname.startsWith(p + '/')));
 </script>
 
 <div class="flex h-screen min-w-0 flex-col">
 <TitleBar />
 <div class="flex min-h-0 min-w-0 flex-1">
-  <nav class="flex w-[76px] flex-none flex-col items-stretch gap-1 border-r border-border bg-surface-1 px-2 py-3">
-    <div class="mb-3 text-center text-[11px] font-extrabold tracking-wider text-accent">R6 COACH</div>
+  <nav aria-label="Main" class="flex w-[76px] flex-none flex-col items-stretch gap-1 overflow-y-auto border-r border-border bg-surface-1 px-2 py-2">
     {#each tabs as t (t.href)}
       {@const active = page.url.pathname === t.href || page.url.pathname.startsWith(t.href + '/')}
       <a
         href={t.href}
+        data-tour={t.id}
         aria-current={active ? 'page' : undefined}
         class={cn(
           'flex flex-col items-center gap-1 rounded-xl px-1 py-2 text-[11px] font-medium transition',
@@ -105,16 +93,13 @@
   </nav>
 
   <div class="flex min-w-0 flex-1 flex-col">
-    <header class="flex flex-none items-center justify-between gap-3 border-b border-border bg-surface-1/60 px-5 py-2.5">
-      <div class="min-w-0 flex-1">
-        <!-- The global filter does not apply to Home (online profile) or Settings. -->
-        {#if !page.url.pathname.startsWith('/home') && !page.url.pathname.startsWith('/settings')}<FilterBar hideRange={page.url.pathname.startsWith('/coach')} />{/if}
-      </div>
-      <Button variant="primary" onclick={update} disabled={updating}>
-        <RefreshCw class={cn('size-4', updating && 'animate-spin')} />
-        {updating ? 'Updating…' : 'Update'}
-      </Button>
-    </header>
+    {#if showFilter}
+      <header class="flex flex-none items-center justify-between gap-3 border-b border-border bg-surface-1/60 px-5 py-2.5">
+        <div class="min-w-0 flex-1">
+          <FilterBar hideRange={page.url.pathname.startsWith('/coach')} />
+        </div>
+      </header>
+    {/if}
     <main bind:this={mainEl} class="min-w-0 flex-1 overflow-y-auto px-5 py-5">
       {@render children()}
     </main>
@@ -122,4 +107,5 @@
 </div>
 </div>
 <WelcomeScreen />
+<TourOverlay />
 <Toaster />
