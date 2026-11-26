@@ -14,3 +14,7 @@ lto = true
 opt-level = 3
 panic = "abort"
 strip = true
+
+# windows-capture 2.0.1 plus `VideoEncoder::send_frame_at` (see third_party/windows-capture/PATCH.md).
+[patch.crates-io]
+windows-capture = { path = "third_party/windows-capture" }

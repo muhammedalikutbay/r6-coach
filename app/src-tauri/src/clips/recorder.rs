@@ -95,21 +95,65 @@ pub fn game_matcher() -> Matcher {
 pub struct RecorderConfig {
     pub segment_secs: u64,
     pub poll: Duration,
-    /// Frame rate the encoder is told to expect.
+    /// Frame rate of the clips, and the rate the encoder is told to expect.
     ///
-    /// Not 60 on purpose. The Media Foundation encoder converts whatever arrives to this constant
-    /// rate. When fewer frames arrive than it expects (the game runs below 60 fps, which also
-    /// happens for a while right after the game was minimized and restored) it stretches and
-    /// repeats frames, and the video timeline drifts away from the real one by up to a second
-    /// (measured with a test window: content about 1 s ahead of the stamped time). Frames that
-    /// arrive faster than the declared rate are simply dropped by their timestamps and keep the
-    /// timeline exact (measured: within 20 ms). So the declared rate must stay below what the game
-    /// can sustain; 30 fps is safe for almost every PC and still good enough for kill clips.
+    /// Media Foundation converts whatever arrives to this constant rate and re-times the stream
+    /// when frames come slower (measured: content up to 1 s off after the game's frame rate
+    /// dropped). So the recorder never lets it see an irregular stream: it sends at most this many
+    /// frames per second (`SlotLimiter`) and stamps the n-th one at `n / fps`; the real time of
+    /// every sent frame goes to the `.clock` file and the cutter builds the clip's timeline from
+    /// it. 30 fps is plenty for kill clips.
     pub fps: u32,
 }
 
 /// See `RecorderConfig::fps`.
 pub const CLIP_FPS: u32 = 30;
+
+/// Decides which frames of the capture go to the encoder so that it sees a constant frame rate.
+///
+/// Frames are offered with their capture time (100 ns, since the first frame of the segment). A
+/// frame is sent when its capture time reaches the next slot (a quarter of a slot early still
+/// counts, so a frame that is a hair early is not skipped for a whole slot); faster frames are
+/// dropped. When the game is slower than the slots every frame is sent, and the slots start over
+/// from that frame. The n-th sent frame is stamped `n / fps` (`stamp`), a perfect constant-rate
+/// stream, so that Media Foundation keeps exactly one sample per frame and never re-times anything;
+/// the real time of each sent frame goes to the `.clock` file instead.
+#[cfg_attr(not(windows), allow(dead_code))]
+#[derive(Clone, Copy, Debug)]
+struct SlotLimiter {
+    fps: u32,
+    interval: i64,
+    next_slot: i64,
+    sent: u64,
+}
+
+#[cfg_attr(not(windows), allow(dead_code))]
+impl SlotLimiter {
+    fn new(fps: u32) -> Self {
+        let fps = fps.max(1);
+        Self { fps, interval: 10_000_000 / i64::from(fps), next_slot: 0, sent: 0 }
+    }
+
+    /// `Some(n)`: send this frame as the n-th (0-based); `None`: drop it.
+    fn offer(&mut self, capture_ticks: i64) -> Option<u64> {
+        if capture_ticks + self.interval / 4 < self.next_slot {
+            return None;
+        }
+        let n = self.sent;
+        self.sent += 1;
+        self.next_slot += self.interval;
+        if self.next_slot <= capture_ticks {
+            // The game is slower than the slots: restart the slots from this frame.
+            self.next_slot = capture_ticks + self.interval;
+        }
+        Some(n)
+    }
+
+    /// The stamp (100 ns) of the n-th sent frame.
+    fn stamp(&self, n: u64) -> i64 {
+        (n as i128 * 10_000_000 / i128::from(self.fps)) as i64
+    }
+}
 
 impl Default for RecorderConfig {
     fn default() -> Self {
@@ -345,7 +389,7 @@ mod platform {
     use super::super::audio::{self, AudioCapture, AudioMode, PcmQueue};
     use super::super::buffer;
     use super::super::clock::FrameClock;
-    use super::{now_ms, RecorderConfig, Shared, WindowInfo};
+    use super::{now_ms, RecorderConfig, Shared, SlotLimiter, WindowInfo};
 
     type Err = Box<dyn std::error::Error + Send + Sync>;
 
@@ -362,8 +406,10 @@ mod platform {
         frames: u32,
         /// Capture time (100 ns, the system-relative clock) of the first frame.
         first_ts: Option<i64>,
-        /// `(time since the first frame in 100 ns, wall ms when the frame reached us)` per frame.
-        arrivals: Vec<(i64, i64)>,
+        /// Per sent frame: `(stamp the encoder got, capture time since the first frame in 100 ns,
+        /// wall ms when the frame reached us)`.
+        sent: Vec<(i64, i64, i64)>,
+        limiter: SlotLimiter,
         /// Sound frames handed to the encoder so far.
         audio_frames: u64,
     }
@@ -474,7 +520,8 @@ mod platform {
                 height: h,
                 frames: 0,
                 first_ts: None,
-                arrivals: Vec::new(),
+                sent: Vec::new(),
+                limiter: SlotLimiter::new(self.fps),
                 audio_frames: 0,
             });
             Ok(())
@@ -495,7 +542,7 @@ mod platform {
             }
             // The segment spans the first to the last frame it holds (not the moment the capture
             // was stopped, which can be seconds after the last frame when the game is minimized).
-            let clock = FrameClock::from_arrivals(&seg.arrivals);
+            let clock = FrameClock::from_sent(&seg.sent);
             let start_ms = clock.first_wall().unwrap_or(seg.start_ms);
             let end_ms = clock.last_wall().unwrap_or_else(now_ms).max(start_ms);
             // The clock goes first: a finished segment must never be visible without it.
@@ -548,13 +595,19 @@ mod platform {
                 self.begin_segment(fw, fh)?;
             }
             if let Some(seg) = self.seg.as_mut() {
-                seg.encoder.send_frame(frame)?;
-                seg.frames += 1;
-                // The encoder's own timeline starts at its first frame; so does ours.
+                // Capture time since the first frame of the segment (the first offered frame is
+                // always sent, so that is the first frame of the file).
                 let ts = frame.timestamp().map(|t| t.Duration).unwrap_or(0);
-                let rel = ts - *seg.first_ts.get_or_insert(ts);
-                seg.arrivals.push((rel.max(0), arrived_ms));
-                if let Some(queue) = &self.audio {
+                let rel = (ts - *seg.first_ts.get_or_insert(ts)).max(0);
+                let slot = seg.limiter.offer(rel);
+                if let Some(n) = slot {
+                    let stamp = seg.limiter.stamp(n);
+                    seg.encoder.send_frame_at(frame, stamp)?;
+                    seg.frames += 1;
+                    seg.sent.push((stamp, rel, arrived_ms));
+                }
+                // The sound stays on the real capture clock: its time 0 is the first frame's wall time.
+                if let (Some(queue), Some(_)) = (&self.audio, slot) {
                     let pcm = queue.take_all();
                     let incoming = (pcm.len() / audio::BYTES_PER_FRAME) as u64;
                     let plan = audio::plan_block(seg.audio_frames, incoming, audio::frames_for(rel));
@@ -816,11 +869,23 @@ pub(crate) mod tests {
     /// decoded frame tells when it was on screen (given a rough idea of it). It writes its
     /// start (Unix ms) into `t0.txt` and can minimize itself for a while.
     pub(crate) fn spawn_test_window(dir: &std::path::Path, minimize_at_s: u32, minimize_for_s: u32, with_sound: bool) -> (std::process::Child, i64) {
+        spawn_test_window_slow(dir, minimize_at_s, minimize_for_s, with_sound, None)
+    }
+
+    /// Like `spawn_test_window`; `slow = Some((from_s, to_s, ms))` repaints only every `ms` between
+    /// the two seconds (and as fast as possible otherwise).
+    pub(crate) fn spawn_test_window_slow(
+        dir: &std::path::Path,
+        minimize_at_s: u32,
+        minimize_for_s: u32,
+        with_sound: bool,
+        slow: Option<(u32, u32, u32)>,
+    ) -> (std::process::Child, i64) {
         use std::process::{Command, Stdio};
         let script = dir.join("win.ps1");
         std::fs::write(
             &script,
-            r#"param([string]$T0File, [int]$MinAt, [int]$MinFor, [int]$Freeze, [string]$Wav)
+            r#"param([string]$T0File, [int]$MinAt, [int]$MinFor, [int]$Freeze, [string]$Wav, [int]$SlowFrom = 0, [int]$SlowTo = 0, [int]$SlowMs = 80)
 Add-Type -AssemblyName System.Windows.Forms
 Add-Type -AssemblyName System.Drawing
 $f = New-Object Windows.Forms.Form
@@ -860,7 +925,15 @@ $update = {
 if ($env:R6K_FAST) {
   # Repaint as fast as the desktop lets us (more than 60 frames per second reach the capture).
   $f.Show()
-  while ($f.Visible) { & $update; [Windows.Forms.Application]::DoEvents() }
+  # Optional slow phase (seconds SlowFrom..SlowTo): one repaint every SlowMs, like a game whose
+  # frame rate dropped after alt-tab. The window stays visible.
+  while ($f.Visible) {
+    if ($SlowTo -gt 0) {
+      $e = $sw.ElapsedMilliseconds
+      if ($e -ge $SlowFrom * 1000 -and $e -lt $SlowTo * 1000) { Start-Sleep -Milliseconds $SlowMs }
+    }
+    & $update; [Windows.Forms.Application]::DoEvents()
+  }
 } else {
   $t = New-Object Windows.Forms.Timer
   $t.Interval = 10
@@ -879,6 +952,9 @@ if ($env:R6K_FAST) {
             .arg("-T0File")
             .arg(&t0_file)
             .args(["-MinAt", &minimize_at_s.to_string(), "-MinFor", &minimize_for_s.to_string(), "-Freeze", if std::env::var("R6K_FREEZE").is_ok() { "1" } else { "0" }]);
+        if let Some((from, to, ms)) = slow {
+            cmd.env("R6K_FAST", "1").args(["-SlowFrom", &from.to_string(), "-SlowTo", &to.to_string(), "-SlowMs", &ms.to_string()]);
+        }
         if with_sound {
             let wav = dir.join("tone.wav");
             write_tone_wav(&wav);
@@ -930,6 +1006,171 @@ if ($env:R6K_FAST) {
                 video_ms as f64 / 1000.0
             );
         }
+        rec.shutdown();
+        let _ = child.kill();
+        let _ = child.wait();
+    }
+
+    fn find_ffmpeg() -> Option<PathBuf> {
+        if let Ok(p) = std::env::var("R6K_FFMPEG") {
+            return Some(PathBuf::from(p));
+        }
+        let pk = PathBuf::from(std::env::var("LOCALAPPDATA").ok()?).join("Microsoft").join("WinGet").join("Packages");
+        for e in std::fs::read_dir(pk).ok()?.flatten() {
+            if !e.file_name().to_string_lossy().starts_with("Gyan.FFmpeg") {
+                continue;
+            }
+            for b in std::fs::read_dir(e.path()).ok()?.flatten() {
+                let exe = b.path().join("bin").join("ffmpeg.exe");
+                if exe.exists() {
+                    return Some(exe);
+                }
+            }
+        }
+        None
+    }
+
+    /// Wall time (Unix ms) that a test-window colour shows, resolved against the estimate `est`
+    /// (red = whole seconds mod 8 in steps of 32, green = the fraction of the second).
+    pub(crate) fn wall_from_colour(r: u8, g: u8, est: i64) -> i64 {
+        let sec = ((f64::from(r) / 32.0).round() as i64).rem_euclid(8);
+        let frac = (f64::from(g) * 1000.0 / 255.0).round() as i64;
+        let in_cycle = sec * 1000 + frac;
+        let base = (est - in_cycle).div_euclid(8000) * 8000;
+        [base - 8000, base, base + 8000, base + 16_000].iter().map(|b| b + in_cycle).min_by_key(|w| (w - est).abs()).unwrap_or(est)
+    }
+
+    /// Decodes a clip with ffmpeg: `(pts seconds, shown wall time)` per frame. `file_wall` is the
+    /// wall time of the file's time 0. Three patches of the label background are read; a frame
+    /// counts only when two of them agree (a single patch now and then shows a stray colour).
+    fn decode_clip(ffmpeg: &std::path::Path, clip: &std::path::Path, file_wall: i64) -> Vec<(f64, i64)> {
+        use std::process::{Command, Stdio};
+        let mut per_patch: Vec<Vec<(f64, i64)>> = Vec::new();
+        for (x, y) in [(24, 80), (40, 380), (760, 200)] {
+            let out = Command::new(ffmpeg)
+                .args(["-v", "info", "-nostats", "-i"])
+                .arg(clip)
+                .args(["-vf", &format!("crop=8:8:{x}:{y},scale=1:1:flags=area,showinfo"), "-fps_mode", "passthrough", "-an", "-f", "rawvideo", "-pix_fmt", "rgb24", "-"])
+                .stdout(Stdio::piped())
+                .stderr(Stdio::piped())
+                .output()
+                .expect("run ffmpeg");
+            let log = String::from_utf8_lossy(&out.stderr);
+            let pts: Vec<f64> = log
+                .lines()
+                .filter(|l| l.contains("Parsed_showinfo"))
+                .filter_map(|l| l.split("pts_time:").nth(1)?.split_whitespace().next()?.parse().ok())
+                .collect();
+            if std::env::var("R6K_DRIFT_DEBUG").is_ok() {
+                println!("  patch ({x},{y}): {:?}", out.stdout.chunks_exact(3).take(20).map(|p| (p[0], p[1], p[2])).collect::<Vec<_>>());
+            }
+            per_patch.push(
+                out.stdout
+                    .chunks_exact(3)
+                    .zip(pts)
+                    // Blue is always about 90; the form sometimes flashes its grey background (240).
+                    .filter(|(px, _)| (60..=120).contains(&px[2]))
+                    .map(|(px, t)| (t, wall_from_colour(px[0], px[1], file_wall + (t * 1000.0) as i64)))
+                    .collect(),
+            );
+        }
+        let mut out = Vec::new();
+        for &(t, w0) in &per_patch[0] {
+            let at = |p: usize| per_patch[p].iter().find(|(t2, _)| (t2 - t).abs() < 1e-6).map(|x| x.1);
+            let agree = |a: i64, b: Option<i64>| b.is_some_and(|b| (a - b).abs() <= 60);
+            if agree(w0, at(1)) || agree(w0, at(2)) {
+                out.push((t, w0));
+            }
+        }
+        out
+    }
+
+    /// Records the test window with a slow phase (about 12 fps from second 8 to 16, as after an
+    /// alt-tab) and checks where clips cut before, inside and after it put the content on the
+    /// wall clock: error = (file wall + frame pts) - the wall time the frame shows.
+    /// `cargo test -p r6koc-app clips::recorder::tests::fps_drop_drift -- --ignored --nocapture`
+    /// (`R6K_FFMPEG` = path of ffmpeg.exe; found in the WinGet folder otherwise).
+    #[test]
+    #[ignore]
+    fn fps_drop_drift() {
+        let Some(ffmpeg) = find_ffmpeg() else {
+            println!("SKIPPED: ffmpeg not found (set R6K_FFMPEG)");
+            return;
+        };
+        let tmp = tempfile::tempdir().unwrap();
+        let out_dir = std::env::var("R6K_CLIP_E2E_OUT").map(PathBuf::from).unwrap_or_else(|_| tmp.path().join("out"));
+        std::fs::create_dir_all(&out_dir).unwrap();
+        // `R6K_DRIFT_SOUND=1`: the window also plays a tone; each clip is checked for gaps in it.
+        let sound = std::env::var("R6K_DRIFT_SOUND").is_ok();
+        let (mut child, t0) = spawn_test_window_slow(tmp.path(), 0, 0, sound, Some((8, 16, 80)));
+        let settings = Arc::new(Mutex::new(ClipSettings { enabled: true, record_audio: sound, ..Default::default() }));
+        let rec = Recorder::start(
+            tmp.path().join("buffer"),
+            settings,
+            Box::new(|w| w.title == "R6K-CLIP-TEST"),
+            RecorderConfig { segment_secs: 60, poll: Duration::from_millis(500), fps: CLIP_FPS },
+            Arc::new(|e| println!("event: {e:?}")),
+        );
+        std::thread::sleep(Duration::from_millis((t0 + 31_000 - now_ms()).max(1000) as u64));
+        rec.flush();
+        let segs = rec.with_buffer(|d| buffer::list_segments(d));
+        for s in &segs {
+            let (frames, video_ms) = crate::clips::cutter::probe(&s.path).unwrap();
+            println!("segment wall {:.2}..{:.2} s, video {} frames / {:.2} s", (s.start_ms - t0) as f64 / 1000.0, (s.end_ms - t0) as f64 / 1000.0, frames, video_ms as f64 / 1000.0);
+        }
+        let mut worst = 0.0f64;
+        for at in [5i64, 12, 20, 26] {
+            let (a, b) = (t0 + (at - 1) * 1000, t0 + (at + 1) * 1000);
+            let sel = rec.with_buffer(|_| buffer::select_for_window(&segs, a, b));
+            let clip = out_dir.join(format!("drift-{at}.mp4"));
+            let cut = match crate::clips::cutter::cut(&sel, a, b, (a + b) / 2, &clip) {
+                Ok(c) => c,
+                Err(e) => {
+                    println!("clip around +{at} s: no clip ({e})");
+                    continue;
+                }
+            };
+            let file_wall = a - cut.lead_ms;
+            let frames = decode_clip(&ffmpeg, &clip, file_wall);
+            if std::env::var("R6K_DRIFT_DEBUG").is_ok() {
+                for (i, (t, shown)) in frames.iter().enumerate() {
+                    println!("  #{i} pts {t:.3} s shown wall +{:.3} s err {:+.0} ms", (*shown - t0) as f64 / 1000.0, (file_wall as f64 + t * 1000.0) - *shown as f64);
+                }
+            }
+            let mut err: Vec<f64> = frames.iter().map(|(t, shown)| (file_wall as f64 + t * 1000.0) - *shown as f64).collect();
+            err.sort_by(|x, y| x.partial_cmp(y).unwrap());
+            let mut abs: Vec<f64> = err.iter().map(|e| e.abs()).collect();
+            abs.sort_by(|x, y| x.partial_cmp(y).unwrap());
+            let med = |v: &[f64]| v.get(v.len() / 2).copied().unwrap_or(f64::NAN);
+            println!(
+                "clip around +{at:>2} s: {} frames, {} ms file, error median {:+.0} ms, |median| {:.0} ms, |p90| {:.0} ms, |max| {:.0} ms",
+                err.len(),
+                cut.duration_ms,
+                med(&err),
+                med(&abs),
+                abs.get(abs.len() * 9 / 10).copied().unwrap_or(f64::NAN),
+                abs.last().copied().unwrap_or(f64::NAN)
+            );
+            worst = worst.max(med(&abs));
+            if sound {
+                // The tone plays without a pause: silence in the clip means sound that is missing
+                // or placed on the wrong time.
+                let out = std::process::Command::new(&ffmpeg)
+                    .args(["-v", "info", "-nostats", "-i"])
+                    .arg(&clip)
+                    .args(["-map", "0:a", "-af", "silencedetect=n=-45dB:d=0.05", "-f", "null", "-"])
+                    .output()
+                    .expect("run ffmpeg");
+                let log = String::from_utf8_lossy(&out.stderr);
+                let silences: Vec<&str> = log.lines().filter(|l| l.contains("silence_start") || l.contains("silence_end")).collect();
+                let audio_s = log.lines().filter_map(|l| l.split("time=").nth(1)).filter_map(|r| r.split_whitespace().next()).last().unwrap_or("none");
+                println!("    sound: track {} , audio length {audio_s}, silence events: {}", cut.audio, silences.len());
+                for l in silences.iter().take(6) {
+                    println!("      {}", l.trim());
+                }
+            }
+        }
+        println!("worst |median| error: {worst:.0} ms");
         rec.shutdown();
         let _ = child.kill();
         let _ = child.wait();
@@ -1013,5 +1254,73 @@ $t.Start()
         let _ = child.kill();
         let _ = child.wait();
         assert!(cut.duration_ms > 6_000);
+    }
+}
+
+#[cfg(test)]
+mod limiter_tests {
+    use super::SlotLimiter;
+
+    const MS: i64 = 10_000;
+
+    /// Offers frames every `step_ticks` from `from` to `to` ticks; returns the sent `(time, n)`.
+    fn run(l: &mut SlotLimiter, from: i64, to: i64, step_ticks: i64) -> Vec<(i64, u64)> {
+        let mut out = Vec::new();
+        let mut t = from;
+        while t < to {
+            if let Some(n) = l.offer(t) {
+                out.push((t, n));
+            }
+            t += step_ticks;
+        }
+        out
+    }
+
+    #[test]
+    fn a_fast_stream_is_cut_down_to_the_clip_rate() {
+        let mut l = SlotLimiter::new(30);
+        // 144 fps for 2 s: the sent count is about 30 per second, spaced about 33 ms.
+        let sent = run(&mut l, 0, 2_000 * MS, 10_000_000 / 144);
+        assert!((59..=61).contains(&sent.len()), "{}", sent.len());
+        for w in sent.windows(2) {
+            let d = (w[1].0 - w[0].0) / MS;
+            assert!((27..=41).contains(&d), "gap {d} ms");
+        }
+        // Numbered without holes.
+        assert!(sent.iter().enumerate().all(|(i, &(_, n))| n == i as u64));
+    }
+
+    #[test]
+    fn a_sixty_fps_stream_keeps_every_second_frame() {
+        let mut l = SlotLimiter::new(30);
+        let sent = run(&mut l, 0, 1_000 * MS, 10_000_000 / 60);
+        assert!((29..=31).contains(&sent.len()), "{}", sent.len());
+    }
+
+    #[test]
+    fn a_slow_stream_sends_every_frame_and_recovers() {
+        let mut l = SlotLimiter::new(30);
+        let mut sent = run(&mut l, 0, 1_000 * MS, 10_000_000 / 60);
+        let before = sent.len();
+        // 12 fps for 3 s: every frame goes through (the first one may land a hair before its slot).
+        let slow = run(&mut l, 1_000 * MS, 4_000 * MS, 83 * MS);
+        assert!((36..=37).contains(&slow.len()), "{}", slow.len());
+        assert!(slow.windows(2).all(|w| w[1].0 - w[0].0 == 83 * MS));
+        let slow_len = slow.len();
+        sent.extend(slow);
+        // Fast again: back to about 30 per second.
+        let fast = run(&mut l, 4_000 * MS, 5_000 * MS, 10_000_000 / 60);
+        assert!((28..=31).contains(&fast.len()), "{}", fast.len());
+        assert_eq!(fast[0].1, (before + slow_len) as u64);
+    }
+
+    #[test]
+    fn stamps_are_a_constant_rate_stream() {
+        let l = SlotLimiter::new(30);
+        assert_eq!(l.stamp(0), 0);
+        assert_eq!(l.stamp(30), 10_000_000);
+        assert_eq!(l.stamp(3), 1_000_000);
+        // No rounding drift over an hour of frames.
+        assert_eq!(l.stamp(30 * 3600), 3600 * 10_000_000);
     }
 }

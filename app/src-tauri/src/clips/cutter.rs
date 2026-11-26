@@ -83,6 +83,9 @@ struct Open {
     metas: Vec<SampleMeta>,
     /// Wall time (Unix ms) of every video sample.
     walls: Vec<i64>,
+    /// The clock has one stamp per video sample: the samples, and the sound with them, are placed
+    /// by wall time (`video_ticks`, `audio_start_ticks`) instead of the encoder's own timeline.
+    wall_timeline: bool,
     audio: Option<AudioTrack>,
 }
 
@@ -143,6 +146,7 @@ fn open_segment(seg: &Segment) -> Result<Open, String> {
     // If the encoder kept every frame, the i-th sample is the i-th stamped frame; otherwise look
     // the sample's time up on the stamped timeline.
     let clock = FrameClock::read(&seg.clock_path());
+    let wall_timeline = clock.as_ref().is_some_and(|c| c.len() == metas.len());
     let walls = metas
         .iter()
         .enumerate()
@@ -152,7 +156,22 @@ fn open_segment(seg: &Segment) -> Result<Open, String> {
             None => seg.start_ms + (m.dts * 1000 / timescale) as i64,
         })
         .collect();
-    Ok(Open { reader, track_id, timescale, width, height, sps, pps, metas, walls, audio })
+    Ok(Open { reader, track_id, timescale, width, height, sps, pps, metas, walls, wall_timeline, audio })
+}
+
+/// Clip time (in `timescale` units) of a video frame shown at `wall` ms, for a clip whose time 0
+/// is `origin_wall`. The clip's timeline is the wall clock itself, so a stretch in which the game
+/// delivered few frames plays at real speed (the frames are held).
+fn video_ticks(wall: i64, origin_wall: i64, timescale: u64) -> u64 {
+    ((wall - origin_wall).max(0) as u64) * timescale / 1000
+}
+
+/// Clip time (in the sound's `timescale` units) of a sound sample that lies `audio_dts` units into
+/// a segment whose first frame has the wall time `seg_first_wall`. The sound of a segment starts
+/// at its first frame (the recorder pads and trims it against the frames' real capture times).
+fn audio_start_ticks(seg_first_wall: i64, origin_wall: i64, audio_dts: u64, timescale: u64) -> u64 {
+    let offset = (i128::from(seg_first_wall) - i128::from(origin_wall)) * i128::from(timescale) / 1000 + i128::from(audio_dts);
+    offset.max(0) as u64
 }
 
 /// Frame count and video length (ms) of a segment, from its sample tables.
@@ -288,8 +307,12 @@ fn cut_into(segments: &[Segment], start_ms: i64, end_ms: i64, anchor_ms: i64, tm
         let open = &mut opens[f.seg];
         let f0 = first_of[f.seg].unwrap_or(f.idx);
         let dts = open.metas[f.idx].dts;
-        let base = if f.seg == first_seg { 0 } else { ((open.walls[f0] - origin_wall).max(0) as u64) * ts / 1000 };
-        let mut new_dts = base + dts.saturating_sub(open.metas[f0].dts);
+        let mut new_dts = if open.wall_timeline {
+            video_ticks(f.wall, origin_wall, ts)
+        } else {
+            let base = if f.seg == first_seg { 0 } else { ((open.walls[f0] - origin_wall).max(0) as u64) * ts / 1000 };
+            base + dts.saturating_sub(open.metas[f0].dts)
+        };
         if let Some(prev) = last_dts {
             new_dts = new_dts.max(prev + 1);
         }
@@ -336,12 +359,18 @@ fn cut_into(segments: &[Segment], start_ms: i64, end_ms: i64, anchor_ms: i64, tm
         let a_dts: Vec<u64> = track.metas.iter().map(|m| m.dts).collect();
         let f0 = first_of[s].unwrap_or(0);
         let f_last = used.iter().rev().find(|f| f.seg == s).map_or(f0, |f| f.idx);
-        let v_start_ms = (open.metas[f0].dts * 1000 / open.timescale) as i64;
-        let v_end_ms = (open.metas[f_last].dts * 1000 / open.timescale) as i64;
+        let wall_timeline = open.wall_timeline;
+        // On the wall timeline the sound is selected by wall time: audio time 0 is the first frame.
+        let seg_first_wall = open.walls.first().copied().unwrap_or(0);
+        let (v_start_ms, v_end_ms) = if wall_timeline {
+            (open.walls[f0], open.walls[f_last])
+        } else {
+            ((open.metas[f0].dts * 1000 / open.timescale) as i64, (open.metas[f_last].dts * 1000 / open.timescale) as i64)
+        };
         let base_ms = if s == first_seg { 0 } else { (open.walls[f0] - origin_wall).max(0) };
         audio_cfg.get_or_insert((a_ts, a_cfg));
         for (i, &adts) in a_dts.iter().enumerate() {
-            let a_ms = (adts * 1000 / a_ts) as i64;
+            let a_ms = (adts * 1000 / a_ts) as i64 + if wall_timeline { seg_first_wall } else { 0 };
             if a_ms < v_start_ms {
                 continue;
             }
@@ -349,8 +378,12 @@ fn cut_into(segments: &[Segment], start_ms: i64, end_ms: i64, anchor_ms: i64, tm
                 break;
             }
             let sample = open.reader.read_sample(track_id, i as u32 + 1).map_err(|e| format!("cannot read sound: {e}"))?.ok_or("sound sample missing")?;
-            let start_time = (base_ms as u64) * a_ts / 1000 + adts.saturating_sub(v_start_ms as u64 * a_ts / 1000);
-            audio.push(Out { ms: base_ms + (a_ms - v_start_ms), sample: Mp4Sample { start_time, duration: sample.duration, rendering_offset: 0, is_sync: true, bytes: sample.bytes } });
+            let (start_time, ms) = if wall_timeline {
+                (audio_start_ticks(seg_first_wall, origin_wall, adts, a_ts), a_ms - origin_wall)
+            } else {
+                (base_ms as u64 * a_ts / 1000 + adts.saturating_sub(v_start_ms as u64 * a_ts / 1000), base_ms + (a_ms - v_start_ms))
+            };
+            audio.push(Out { ms, sample: Mp4Sample { start_time, duration: sample.duration, rendering_offset: 0, is_sync: true, bytes: sample.bytes } });
         }
     }
     // Keep the sound strictly increasing and let each sample last until the next one.
@@ -654,6 +687,76 @@ pub(crate) mod tests {
             c.push(i64::from(i) * 10_000_000 / 30, wall);
         }
         c.write(&s.clock_path()).unwrap();
+    }
+
+    #[test]
+    fn wall_timeline_helpers() {
+        // 90 kHz-like timescale: a frame 2.5 s after the origin.
+        assert_eq!(video_ticks(1_002_500, 1_000_000, 90_000), 225_000);
+        assert_eq!(video_ticks(999_000, 1_000_000, 90_000), 0);
+        // Sound 1 s into a segment whose first frame is 4 s after the clip origin, 48 kHz timescale.
+        assert_eq!(audio_start_ticks(1_004_000, 1_000_000, 48_000, 48_000), 5 * 48_000);
+        // A segment that starts before the origin (the clip begins mid-segment): never negative.
+        assert_eq!(audio_start_ticks(1_000_000, 1_003_000, 48_000, 48_000), 0);
+        assert_eq!(audio_start_ticks(1_000_000, 1_003_000, 5 * 48_000, 48_000), 2 * 48_000);
+    }
+
+    /// 30 fps stamps for a game that slowed down to about 12 fps for a stretch: the clock holds
+    /// the real wall times, one per sample. The clip must play that stretch at real speed.
+    #[test]
+    fn a_slow_stretch_plays_at_real_speed_on_the_wall_timeline() {
+        let t = tempfile::tempdir().unwrap();
+        let start = 2_000_000i64;
+        let frames = 150u32;
+        // Frames 0..60 every 33 ms; frames 60..90 every 83 ms; the rest every 33 ms again.
+        let mut walls = Vec::new();
+        let mut w = start;
+        for i in 0..frames {
+            walls.push(w);
+            w += if (60..90).contains(&i) { 83 } else { 33 };
+        }
+        let end = *walls.last().unwrap();
+        let path = t.path().join(crate::clips::buffer::segment_name(start, end));
+        synthetic_segment(&path, 1, 30, frames, 30, 0xab);
+        let s = Segment { start_ms: start, end_ms: end, path };
+        let mut c = FrameClock::new();
+        for (i, &wall) in walls.iter().enumerate() {
+            c.push(i as i64 * 10_000_000 / 30, wall);
+        }
+        c.write(&s.clock_path()).unwrap();
+
+        // The window sits after the slow stretch; the clip starts at the keyframe at sample 90.
+        let (a, b) = (walls[100], walls[140]);
+        let out = t.path().join("clip.mp4");
+        let cut = cut(&[s.clone()], a, b, (a + b) / 2, &out).unwrap();
+        let (samples, ts, _) = read_all(&out);
+        assert_eq!(samples[0].1, 90);
+        assert_eq!(cut.lead_ms, a - walls[90]);
+
+        // A window across the slow stretch: the held frames last 83 ms each.
+        let (a, b) = (walls[45], walls[110]);
+        let out2 = t.path().join("clip2.mp4");
+        let cut2 = cut_and_len(&s, a, b, &out2);
+        assert_eq!(cut2.0, walls[30]);
+        let (samples, ts2, _) = read_all(&out2);
+        assert_eq!(ts, ts2);
+        let idx = |n: u32| samples.iter().position(|x| x.1 == n).unwrap();
+        let ms = |ticks: u32| i64::from(ticks) * 1000 / i64::from(ts);
+        // Sample 70 is inside the slow stretch: it lasts until sample 71 (83 ms), not 33 ms.
+        assert!((ms(samples[idx(70)].3) - 83).abs() <= 1, "{}", ms(samples[idx(70)].3));
+        assert!((ms(samples[idx(10 + 30)].3) - 33).abs() <= 1);
+        // The whole clip is as long as the wall clock between its first and last frame.
+        let total: u32 = samples.iter().map(|x| x.3).sum();
+        let first_wall = walls[30];
+        let last_idx = samples.last().unwrap().1 as usize;
+        let expect = walls[last_idx] - first_wall;
+        assert!((ms(total) - expect - 33).abs() <= 3, "total {} expect {}", ms(total), expect);
+    }
+
+    /// Cuts and returns `(origin wall, duration)`.
+    fn cut_and_len(s: &Segment, a: i64, b: i64, out: &Path) -> (i64, i64) {
+        let c = cut(&[s.clone()], a, b, (a + b) / 2, out).unwrap();
+        (a - c.lead_ms, c.duration_ms)
     }
 
     #[test]

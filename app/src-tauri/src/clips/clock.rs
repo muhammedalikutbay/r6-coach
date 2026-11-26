@@ -44,12 +44,28 @@ impl FrameClock {
     /// (a busy encoder, a slow start-up). The capture times themselves are exact and run at real
     /// speed, so the wall time of a frame is its capture time plus one constant: the smallest
     /// delay seen in the segment. Real holes (no frames for a while) stay holes.
+    #[allow(dead_code)]
     pub fn from_arrivals(arrivals: &[(i64, i64)]) -> Self {
         let offset = arrivals.iter().map(|&(t, w)| w - t / TICKS_PER_MS).min();
         let mut c = Self::new();
         if let Some(off) = offset {
             for &(t, _) in arrivals {
                 c.push(t, t / TICKS_PER_MS + off);
+            }
+        }
+        c
+    }
+
+    /// Builds the clock of a segment whose frames were stamped for the encoder by the recorder
+    /// (`n / fps`) and not by their capture times. `sent` holds, per sent frame, `(the stamp the
+    /// encoder got, capture time since the first frame, wall time at which the frame reached us)`.
+    /// The wall time of a frame comes from its real capture time exactly as in `from_arrivals`.
+    pub fn from_sent(sent: &[(i64, i64, i64)]) -> Self {
+        let offset = sent.iter().map(|&(_, rel, w)| w - rel / TICKS_PER_MS).min();
+        let mut c = Self::new();
+        if let Some(off) = offset {
+            for &(stamp, rel, _) in sent {
+                c.push(stamp, rel / TICKS_PER_MS + off);
             }
         }
         c
@@ -171,6 +187,21 @@ mod tests {
         // The hole is kept (4 s between frame 9 and frame 10 plus the normal step).
         assert_eq!(c.wall_of(10).unwrap() - c.wall_of(9).unwrap(), step + 4_000);
         assert_eq!(FrameClock::from_arrivals(&[]).len(), 0);
+    }
+
+    #[test]
+    fn sent_frames_keep_their_real_wall_time_under_constant_rate_stamps() {
+        // Constant 30 fps stamps; the real capture times slow down to 12 fps in the middle.
+        let step = 333_333i64;
+        let real_ms = [0i64, 33, 66, 150, 233, 316, 350];
+        let sent: Vec<(i64, i64, i64)> = real_ms.iter().enumerate().map(|(n, &ms)| (n as i64 * step, ms * TICKS_PER_MS, 5_000 + ms + 7)).collect();
+        let c = FrameClock::from_sent(&sent);
+        assert_eq!(c.len(), 7);
+        assert_eq!(c.wall_of(0), Some(5_007));
+        assert_eq!(c.wall_of(3), Some(5_157));
+        assert_eq!(c.wall_of(6), Some(5_357));
+        assert_eq!(c.wall_at(3 * step), Some(5_157));
+        assert_eq!(FrameClock::from_sent(&[]).len(), 0);
     }
 
     #[test]
