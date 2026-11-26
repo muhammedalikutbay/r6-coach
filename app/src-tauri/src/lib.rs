@@ -14,6 +14,49 @@ use std::process::{Command, Stdio};
 use std::sync::Mutex;
 use tauri::{Emitter, Manager};
 
+/// Label of the main window (created in `setup`).
+const MAIN_WINDOW: &str = "main";
+
+/// Shows, un-minimizes and focuses the main window (tray click, tray menu, second launch).
+fn show_main_window(app: &tauri::AppHandle) {
+    if let Some(w) = app.get_webview_window(MAIN_WINDOW) {
+        let _ = w.show();
+        let _ = w.unminimize();
+        let _ = w.set_focus();
+    }
+}
+
+/// Tray icon (v7): left click shows the window, the menu has "Open R6 Coach" and "Quit".
+fn build_tray(app: &tauri::App) -> tauri::Result<()> {
+    use tauri::menu::{Menu, MenuItem};
+    use tauri::tray::{MouseButton, MouseButtonState, TrayIconBuilder, TrayIconEvent};
+    let open = MenuItem::with_id(app, "open", "Open R6 Coach", true, None::<&str>)?;
+    let quit = MenuItem::with_id(app, "quit", "Quit", true, None::<&str>)?;
+    let menu = Menu::with_items(app, &[&open, &quit])?;
+    let mut tray = TrayIconBuilder::with_id("main")
+        .tooltip("R6 Coach")
+        .menu(&menu)
+        .show_menu_on_left_click(false)
+        .on_menu_event(|app, event| match event.id().as_ref() {
+            "open" => show_main_window(app),
+            "quit" => {
+                log::info!("quit requested from the tray");
+                app.exit(0);
+            }
+            _ => {}
+        })
+        .on_tray_icon_event(|tray, event| {
+            if let TrayIconEvent::Click { button: MouseButton::Left, button_state: MouseButtonState::Up, .. } = event {
+                show_main_window(tray.app_handle());
+            }
+        });
+    if let Some(icon) = app.default_window_icon() {
+        tray = tray.icon(icon.clone());
+    }
+    tray.build(app)?;
+    Ok(())
+}
+
 /// Tauri event sent after every import (manual or automatic), payload `store::RefreshResult`.
 pub const EVENT_REPLAYS_UPDATED: &str = "replays-updated";
 
@@ -228,7 +271,18 @@ fn app_dirs(app: &tauri::AppHandle) -> tauri::Result<AppDirs> {
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     if let Err(e) = tauri::Builder::default()
+        // Must be the first plugin: a second launch shows the running (maybe hidden) window.
+        .plugin(tauri_plugin_single_instance::init(|app, _args, _cwd| show_main_window(app)))
         .plugin(tauri_plugin_dialog::init())
+        // Closing the main window hides it; the app keeps running in the tray (recorder, watcher).
+        .on_window_event(|window, event| {
+            if let tauri::WindowEvent::CloseRequested { api, .. } = event {
+                if window.label() == MAIN_WINDOW {
+                    api.prevent_close();
+                    let _ = window.hide();
+                }
+            }
+        })
         .setup(|app| {
             let dirs = app_dirs(app.handle())?;
             std::fs::create_dir_all(&dirs.data)?;
@@ -244,11 +298,15 @@ pub fn run() {
             app.manage(w);
             // Arenyze state; no network call until the user has entered a key and asks for rank.
             app.manage(arenyze::ArenyzeState::new());
+            // The one automatic Arenyze refresh of this launch (only when a key is saved), in the
+            // background; stored data is served meanwhile.
+            tauri::async_runtime::spawn(arenyze::startup_refresh(app.handle().clone()));
             // The window is created here (`"create": false` in tauri.conf.json) so that its
             // WebView2 data folder can follow the override, and only after the state is managed.
             // Without the override the folder is the one Tauri would have used anyway.
             let cfg = app.config().app.windows.first().cloned().ok_or("no window in tauri.conf.json")?;
             tauri::WebviewWindowBuilder::from_config(app.handle(), &cfg)?.decorations(false).data_directory(dirs.local.clone()).build()?;
+            build_tray(app)?;
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![

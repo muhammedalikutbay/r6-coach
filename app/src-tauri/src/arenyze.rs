@@ -4,8 +4,10 @@
 //! # Network rule
 //! * The app talks only to `public-api.arenyze.com`, only when the user entered a key, and only
 //!   for the tracked player's own profile (username of the newest stored match, platform `uplay`).
-//! * Calls happen on a manual refresh, or when the 15-minute cache is stale and the last attempt
-//!   is at least 10 minutes old. There is no background timer.
+//! * Calls happen on a manual refresh, and once per app launch in the background right after start
+//!   (v7, only when a key is saved; the free plan has a monthly call limit). After that the stored
+//!   data is served for the whole session; there is no TTL and no timer. A (season, mode) operator
+//!   table is fetched the first time it is asked for in a session and then reused.
 //!
 //! # Secrets
 //! The key lives in the Windows Credential Manager (`keyring`). It is never logged, never written
@@ -54,16 +56,10 @@ const KEY_CACHE: &str = "arenyze_profile_cache";
 const KEY_QUOTA: &str = "arenyze_quota";
 const KEY_LEGACY_DONE: &str = "arenyze_legacy_cleaned";
 
-/// How long a fetched profile is served without a new request.
-const CACHE_TTL_SECS: i64 = 15 * 60;
-/// Minimum gap between two automatic network attempts (also after a failed one).
-const AUTO_GAP: Duration = Duration::from_secs(10 * 60);
 /// Minimum gap between two manual refreshes.
 const MANUAL_GAP: Duration = Duration::from_secs(20);
 const HTTP_TIMEOUT: Duration = Duration::from_secs(20);
 const MAX_HISTORY_POINTS: usize = 150;
-/// Cache lifetime of one (season, mode) operator table.
-const OPERATORS_TTL_SECS: i64 = 15 * 60;
 /// A season needs this many ranked matches to count as the "best K/D season" (when any does).
 const PEAK_KD_MIN_MATCHES: u64 = 20;
 
@@ -1304,9 +1300,11 @@ fn newest_username(conn: &rusqlite::Connection) -> Option<String> {
 #[derive(Default)]
 struct Inner {
     cache: Option<CachedProfile>,
-    /// Operator tables by (season, mode); memory only, valid for 15 minutes.
+    /// Operator tables by (season, mode); memory only, reused for the whole session.
     ops_cache: std::collections::HashMap<(String, String), OperatorsView>,
     last_attempt: Option<Instant>,
+    /// The one automatic network attempt of this launch has been made (success or not).
+    auto_done: bool,
     last_error: Option<String>,
 }
 
@@ -1350,10 +1348,6 @@ impl ArenyzeState {
 
 fn now_iso() -> String {
     Utc::now().to_rfc3339_opts(SecondsFormat::Secs, true)
-}
-
-fn age_secs(iso: &str, now: DateTime<Utc>) -> Option<i64> {
-    DateTime::parse_from_rfc3339(iso).ok().map(|t| (now - t.with_timezone(&Utc)).num_seconds())
 }
 
 fn pct_encode(s: &str) -> String {
@@ -1536,21 +1530,89 @@ pub async fn arenyze_clear_key(state: tauri::State<'_, ArenyzeState>, db: tauri:
     Ok(status_of(&*lock(&db)?, &state))
 }
 
+/// Why the profile is requested (decides whether the network is used).
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+enum ProfileRequest {
+    /// The user pressed the refresh button.
+    Manual,
+    /// The one background refresh right after the app starts.
+    Startup,
+    /// A page asks for the profile: stored data, network only when there is nothing stored yet and
+    /// the automatic attempt of this launch has not happened.
+    View,
+}
+
+/// Pure network policy (v7): one automatic attempt per launch, manual refresh always.
+fn should_fetch(req: ProfileRequest, has_cached: bool, auto_done: bool) -> bool {
+    match req {
+        ProfileRequest::Manual => true,
+        ProfileRequest::Startup => !auto_done,
+        ProfileRequest::View => !has_cached && !auto_done,
+    }
+}
+
+/// Stored profile of the tracked player, straight from the database (no lock on the fetch state).
+fn stored_profile(db: &store::Db) -> Cmd<Option<OnlineProfile>> {
+    let conn = lock(db)?;
+    let Some(username) = newest_username(&conn) else {
+        return Ok(None);
+    };
+    Ok(load_json::<CachedProfile>(&conn, KEY_CACHE).filter(|c| c.username.eq_ignore_ascii_case(&username)).map(|c| c.profile))
+}
+
 /// The tracked player's online profile; `null` without a key or before the first replay import.
-/// Served from the 15-minute cache unless `force`. A failed refresh without `force` serves the
-/// older cached profile (its `fetchedAt` shows its age), except for key problems.
+/// Without `force` it serves the stored profile and never refreshes on its own (the startup
+/// refresh is `startup_refresh`); a failed automatic refresh serves the older stored profile (its
+/// `fetchedAt` shows its age), except for key problems.
 #[tauri::command]
 pub async fn online_profile(
     state: tauri::State<'_, ArenyzeState>,
     db: tauri::State<'_, store::Db>,
     force: bool,
 ) -> Cmd<Option<OnlineProfile>> {
+    profile_request(&state, &db, if force { ProfileRequest::Manual } else { ProfileRequest::View }).await
+}
+
+/// Tauri event sent after the startup refresh stored a new profile.
+pub const EVENT_ARENYZE_UPDATED: &str = "arenyze-updated";
+
+/// The automatic refresh once per app launch, run in the background right after start. Stored data
+/// is served meanwhile (`online_profile` does not wait for a running fetch). Emits `arenyze-updated`
+/// when a new profile arrived.
+pub async fn startup_refresh(app: tauri::AppHandle) {
+    use tauri::{Emitter, Manager};
+    if key_load().is_none() {
+        return;
+    }
+    let state = app.state::<ArenyzeState>();
+    let db = app.state::<store::Db>();
+    match profile_request(&state, &db, ProfileRequest::Startup).await {
+        Ok(Some(_)) => {
+            if let Err(e) = app.emit(EVENT_ARENYZE_UPDATED, ()) {
+                log::warn!("cannot emit {EVENT_ARENYZE_UPDATED}: {e}");
+            }
+        }
+        Ok(None) => {}
+        Err(e) => log::info!("arenyze: startup refresh: {e}"),
+    }
+}
+
+async fn profile_request(state: &ArenyzeState, db: &store::Db, req: ProfileRequest) -> Cmd<Option<OnlineProfile>> {
     let Some(key) = key_load() else {
         return Ok(None);
     };
-    let mut inner = state.inner.lock().await;
+    let manual = req == ProfileRequest::Manual;
+    let mut inner = if req == ProfileRequest::View {
+        match state.inner.try_lock() {
+            Ok(g) => g,
+            // A fetch is running: show what is stored instead of waiting for the network.
+            Err(_) => return stored_profile(db),
+        }
+    } else {
+        state.inner.lock().await
+    };
     let (stored, username) = {
-        let conn = lock(&db)?;
+        let conn = lock(db)?;
         (load_json::<CachedProfile>(&conn, KEY_CACHE), newest_username(&conn))
     };
     let Some(username) = username else {
@@ -1560,21 +1622,20 @@ pub async fn online_profile(
         inner.cache = stored;
     }
     let cached = inner.cache.clone().filter(|c| c.username.eq_ignore_ascii_case(&username));
-    let now = Utc::now();
-    if !force {
-        if let Some(c) = cached.as_ref().filter(|c| age_secs(&c.profile.fetched_at, now).is_some_and(|a| a < CACHE_TTL_SECS)) {
-            return Ok(Some(c.profile.clone()));
-        }
+    if !should_fetch(req, cached.is_some(), inner.auto_done) {
+        return Ok(cached.map(|c| c.profile));
     }
-    if let Some(t) = inner.last_attempt {
-        let gap = if force { MANUAL_GAP } else { AUTO_GAP };
-        if t.elapsed() < gap {
-            return match (cached, force) {
-                (Some(c), _) => Ok(Some(c.profile)),
-                (None, true) => Err(OnlineError::TooSoon.message()),
-                (None, false) => Err(inner.last_error.clone().unwrap_or_else(|| OnlineError::TooSoon.message())),
-            };
+    if manual {
+        if let Some(t) = inner.last_attempt {
+            if t.elapsed() < MANUAL_GAP {
+                return match cached {
+                    Some(c) => Ok(Some(c.profile)),
+                    None => Err(OnlineError::TooSoon.message()),
+                };
+            }
         }
+    } else {
+        inner.auto_done = true;
     }
 
     let client = state.client().map_err(|e| e.message())?;
@@ -1586,13 +1647,13 @@ pub async fn online_profile(
     if !raw.is_empty() {
         state.set_raw(Some(raw));
     }
-    if let Ok(conn) = lock(&db) {
+    if let Ok(conn) = lock(db) {
         store_quota(&conn, quota);
     }
     match result {
         Ok(profile) => {
             let fresh = CachedProfile { username: username.clone(), profile: profile.clone() };
-            if let Ok(conn) = lock(&db) {
+            if let Ok(conn) = lock(db) {
                 save_json(&conn, KEY_CACHE, Some(&fresh));
             }
             inner.cache = Some(fresh);
@@ -1609,7 +1670,7 @@ pub async fn online_profile(
             log::info!("arenyze: refresh failed: {e:?}");
             inner.last_error = Some(e.message());
             match cached {
-                Some(c) if !force && !e.is_key_problem() => Ok(Some(c.profile)),
+                Some(c) if !manual && !e.is_key_problem() => Ok(Some(c.profile)),
                 _ => Err(e.message()),
             }
         }
@@ -1637,12 +1698,8 @@ fn normalize_operator_query(season: &str, mode: &str) -> Option<(String, String)
     ok.then_some((season, mode))
 }
 
-fn ops_view_fresh(view: &OperatorsView, now: DateTime<Utc>) -> bool {
-    age_secs(&view.fetched_at, now).is_some_and(|a| (0..OPERATORS_TTL_SECS).contains(&a))
-}
-
 /// Operator table for one season and playlist (the Home selectors). Called only when the user picks a
-/// combination; answered from the 15-minute (season, mode) cache when it is there, unless `force`.
+/// combination; fetched the first time a combination is asked for in a session and reused after that, unless `force`.
 #[tauri::command]
 pub async fn online_operators(
     state: tauri::State<'_, ArenyzeState>,
@@ -1654,9 +1711,8 @@ pub async fn online_operators(
     let (season, mode) = normalize_operator_query(&season, &mode).ok_or_else(|| "Unknown season or playlist.".to_string())?;
     let key = key_load().ok_or_else(|| "Add your Arenyze key in Settings to load operator stats.".to_string())?;
     let mut inner = state.inner.lock().await;
-    let now = Utc::now();
     if !force {
-        if let Some(v) = inner.ops_cache.get(&(season.clone(), mode.clone())).filter(|v| ops_view_fresh(v, now)) {
+        if let Some(v) = inner.ops_cache.get(&(season.clone(), mode.clone())) {
             return Ok(v.clone());
         }
     }
@@ -2062,12 +2118,32 @@ mod tests {
     }
 
     #[test]
-    fn operator_cache_lasts_fifteen_minutes() {
-        let now = DateTime::parse_from_rfc3339("2026-11-09T12:00:00Z").unwrap().with_timezone(&Utc);
-        let view = |at: &str| OperatorsView { season: "all".into(), mode: "all".into(), operators: vec![], fetched_at: at.into() };
-        assert!(ops_view_fresh(&view("2026-11-09T11:46:00Z"), now));
-        assert!(!ops_view_fresh(&view("2026-11-09T11:44:59Z"), now));
-        assert!(!ops_view_fresh(&view("garbage"), now));
+    fn automatic_refresh_happens_once_per_launch() {
+        use ProfileRequest::*;
+        // Startup: one network attempt, even when a profile is stored; never twice.
+        assert!(should_fetch(Startup, true, false));
+        assert!(should_fetch(Startup, false, false));
+        assert!(!should_fetch(Startup, true, true));
+        assert!(!should_fetch(Startup, false, true));
+        // Pages only read stored data; with nothing stored they may trigger the one attempt.
+        assert!(!should_fetch(View, true, false));
+        assert!(!should_fetch(View, true, true));
+        assert!(should_fetch(View, false, false));
+        assert!(!should_fetch(View, false, true));
+        // The manual refresh always goes to the network.
+        assert!(should_fetch(Manual, true, true));
+        assert!(should_fetch(Manual, false, false));
+    }
+
+    #[test]
+    fn operator_tables_are_kept_for_the_session() {
+        // No TTL: whatever age the stored table has, a repeated request is served from memory.
+        let mut inner = Inner::default();
+        let key = ("Y11S3".to_string(), "ranked".to_string());
+        let view = OperatorsView { season: key.0.clone(), mode: key.1.clone(), operators: vec![], fetched_at: "2020-01-01T00:00:00Z".into() };
+        inner.ops_cache.insert(key.clone(), view);
+        assert!(inner.ops_cache.get(&key).is_some());
+        assert!(!inner.auto_done);
     }
 
     #[test]
