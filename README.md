@@ -6,7 +6,7 @@
 
 A free, open-source desktop coach for Rainbow Six Siege on PC. It reads your own Match Replay files and turns them into stats, plain-language coaching, kill clips and, if you want, your rank. Everything stays on your computer.
 
-**No release has been published yet.** For now, [build it from source](#install-and-first-run); releases will follow. · [Türkçe](#türkçe)
+**[Download the latest version](https://github.com/muhammedalikutbay/r6-coach/releases/latest)** (Windows installer) · [Türkçe](#türkçe)
 
 ![R6 Coach home page](docs/screenshots/home.png)
 
@@ -50,18 +50,9 @@ The first-run welcome screen is in [docs/screenshots/welcome.png](docs/screensho
 
 ## Install and first run
 
-There is no installer to download yet. Until the first release, build the app from source (see [Build from source](#build-from-source) for the tools you need):
+Download `R6-Coach-Setup-<version>.exe` from the [latest release](https://github.com/muhammedalikutbay/r6-coach/releases/latest) and run it. It installs for your user only; administrator access is not required. The installer is not code-signed yet, so Windows SmartScreen may warn: select **More info**, then **Run anyway** if you trust the release you downloaded.
 
-```powershell
-git clone https://github.com/muhammedalikutbay/r6-coach.git
-cd r6-coach
-.\tools\r6-dissect\build.ps1          # builds the replay parser (Go sidecar)
-cd app
-npm ci
-npm run tauri build -- --no-bundle    # builds target\release\r6koc-app.exe
-```
-
-Run `target\release\r6koc-app.exe` from the repository root. To build an installer instead, run `.\tools\build-installer.ps1`; it writes `R6-Coach-Setup-<version>.exe` to a `dist` folder.
+To build it yourself instead, see [Build from source](#build-from-source); `.\tools\build-installer.ps1` writes the same installer to a `dist` folder.
 
 First run: the welcome screen finds your `MatchReplay` folder (you can change it), then offers two optional steps, an Arenyze key and kill clips. Play a match with Match Replay on; it appears in the app a few seconds after the match ends.
 
@@ -126,18 +117,7 @@ Tests that need real replays are marked `#[ignore]` and read the folder in the `
 - `data/`: operator, map and weapon name tables.
 - `docs/`: the specs of every iteration (`v2-spec.md` to `v7-spec.md`), the Arenyze API notes and the coach audit.
 
-## Contributors
-
-<table>
-  <tr>
-    <td align="center">
-      <a href="https://github.com/yavuzhanalbayrak"><img src="https://avatars.githubusercontent.com/u/82886846?v=4" width="80" alt="yavuzhanalbayrak"><br><sub><b>yavuzhanalbayrak</b></sub></a><br><sub>Testing and ideas</sub>
-    </td>
-    <td align="center">
-      <a href="https://github.com/muhammedalikutbay"><img src="https://github.com/muhammedalikutbay.png?size=160" width="80" alt="muhammedalikutbay"><br><sub><b>muhammedalikutbay</b></sub></a><br><sub>Author</sub>
-    </td>
-  </tr>
-</table>
+## Contributing
 
 Bug reports, test results and ideas are welcome: open an issue. For code changes, run the checks above first and do not commit replay files or databases.
 
@@ -161,7 +141,7 @@ R6 Coach is an unofficial fan project. It is not affiliated with or endorsed by 
 
 Rainbow Six Siege (PC) için ücretsiz, açık kaynaklı bir masaüstü koçu. Kendi Match Replay dosyalarınızı okur ve bunları istatistiğe, sade bir dille koçluk tavsiyesine, öldürme kliplerine ve isterseniz rank bilgisine çevirir. Her şey kendi bilgisayarınızda kalır.
 
-**Henüz yayımlanmış bir sürüm yok.** Şimdilik [kaynaktan derleyin](#kurulum-ve-ilk-çalıştırma); sürümler sonra gelecek. · [English](#r6-coach)
+**[En son sürümü indirin](https://github.com/muhammedalikutbay/r6-coach/releases/latest)** (Windows kurulum dosyası) · [English](#r6-coach)
 
 ![R6 Coach ana sayfa](docs/screenshots/home.png)
 
@@ -205,18 +185,9 @@ Tüm görüntülerde anonimleştirilmiş veri kullanıldı; oyuncu adları uydur
 
 ### Kurulum ve ilk çalıştırma
 
-İndirilecek bir kurulum dosyası henüz yok. İlk sürüme kadar uygulamayı kaynaktan derleyin (gereken araçlar için [Kaynaktan derleme](#kaynaktan-derleme)):
+[En son sürümden](https://github.com/muhammedalikutbay/r6-coach/releases/latest) `R6-Coach-Setup-<sürüm>.exe` dosyasını indirip çalıştırın. Yalnız sizin kullanıcınız için kurulur; yönetici izni gerekmez. Kurulum dosyası henüz kod imzalı değil, bu yüzden Windows SmartScreen uyarabilir: indirdiğiniz sürüme güveniyorsanız **Ek bilgi**, ardından **Yine de çalıştır**'ı seçin.
 
-```powershell
-git clone https://github.com/muhammedalikutbay/r6-coach.git
-cd r6-coach
-.\tools\r6-dissect\build.ps1          # replay ayrıştırıcıyı (Go yan programı) derler
-cd app
-npm ci
-npm run tauri build -- --no-bundle    # target\release\r6koc-app.exe üretir
-```
-
-`target\release\r6koc-app.exe` dosyasını depo kökünden çalıştırın. Kurulum paketi isterseniz `.\tools\build-installer.ps1` komutu `dist` klasörüne `R6-Coach-Setup-<sürüm>.exe` yazar.
+Kendiniz derlemek isterseniz [Kaynaktan derleme](#kaynaktan-derleme) bölümüne bakın; `.\tools\build-installer.ps1` aynı kurulum dosyasını `dist` klasörüne yazar.
 
 İlk çalıştırma: karşılama ekranı `MatchReplay` klasörünüzü bulur (değiştirebilirsiniz), sonra iki isteğe bağlı adım sunar: Arenyze anahtarı ve klipler. Match Replay açıkken bir maç oynayın; maç bittikten birkaç saniye sonra uygulamada görünür.
 
@@ -281,18 +252,7 @@ Gerçek replay gerektiren testler `#[ignore]` ile işaretlidir ve `R6K_REPLAY_DI
 - `data/`: operatör, harita ve silah ad tabloları.
 - `docs/`: her iterasyonun şartnamesi (`v2-spec.md` ile `v7-spec.md`), Arenyze API notları ve koç denetimi.
 
-### Katkıda bulunanlar
-
-<table>
-  <tr>
-    <td align="center">
-      <a href="https://github.com/yavuzhanalbayrak"><img src="https://avatars.githubusercontent.com/u/82886846?v=4" width="80" alt="yavuzhanalbayrak"><br><sub><b>yavuzhanalbayrak</b></sub></a><br><sub>Test ve fikirler</sub>
-    </td>
-    <td align="center">
-      <a href="https://github.com/muhammedalikutbay"><img src="https://github.com/muhammedalikutbay.png?size=160" width="80" alt="muhammedalikutbay"><br><sub><b>muhammedalikutbay</b></sub></a><br><sub>Yazar</sub>
-    </td>
-  </tr>
-</table>
+### Katkı
 
 Hata bildirimleri, test sonuçları ve fikirler memnuniyetle karşılanır: bir issue açın. Kod değişikliği için önce yukarıdaki kontrolleri çalıştırın ve replay dosyalarını veya veritabanlarını commit etmeyin.
 
