@@ -19,8 +19,8 @@ use std::collections::BTreeMap;
 use std::path::{Path, PathBuf};
 use std::process::Command;
 
-const DEFAULT_REPLAYS: &str = r"C:\Users\Kutbay\Desktop\R6Koc-veri\MatchReplay";
-const DEFAULT_CACHE: &str = r"C:\Users\Kutbay\Desktop\R6Koc-veri\dissect";
+const DEFAULT_REPLAYS: &str = "MatchReplay";
+const DEFAULT_CACHE: &str = "dissect-cache";
 
 #[derive(Parser)]
 #[command(name = "r6k", about = "R6Koc developer CLI")]

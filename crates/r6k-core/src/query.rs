@@ -1151,7 +1151,8 @@ mod tests {
     // --- real data (needs the dissect cache; run with `cargo test -- --ignored`) ---
 
     fn load_real() -> Vec<FullMatch> {
-        let dir = std::path::Path::new(r"C:\Users\Kutbay\Desktop\R6Koc-veri\dissect");
+        let dir_var = std::env::var("R6K_DISSECT_CACHE").expect("set R6K_DISSECT_CACHE to a folder of parsed match JSON files");
+        let dir = std::path::Path::new(&dir_var);
         let mut v: Vec<FullMatch> = std::fs::read_dir(dir)
             .unwrap()
             .filter_map(|e| e.ok().map(|e| e.path()))

@@ -1,7 +1,7 @@
 # Builds the NSIS installer from a clean checkout and copies it outside the repo.
-# Steps: sidecar (Go) -> npm ci -> tauri build -> copy to R6Koc-dagitim.
+# Steps: sidecar (Go) -> npm ci -> tauri build -> copy to ..\dist (git-ignored).
 # Usage (PowerShell, repo root): powershell -ExecutionPolicy Bypass -File .\tools\build-installer.ps1 [-OutDir <folder>]
-param([string]$OutDir = 'C:\Users\Kutbay\Desktop\R6Koc-dagitim')
+param([string]$OutDir = (Join-Path $PSScriptRoot '..\dist'))
 $ErrorActionPreference = 'Stop'
 $repo = (Resolve-Path (Join-Path $PSScriptRoot '..')).Path
 

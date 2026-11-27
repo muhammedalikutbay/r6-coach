@@ -3,7 +3,7 @@
 Status: approved direction from the user (2026-11-01). v1 works but the user found the design weak and the content thin.
 Goal: a desktop app that feels like r6.tracker.network for ONE player (`H.A.N-01`), built from local match replays + the one-time Tracker baseline, with a built-in coach that compares the last match and the last 5 matches against the player's own history.
 
-Reference screenshots of Tracker (overview, operators, maps, match scoreboard, rounds, trends): `C:\Users\Kutbay\Desktop\ObsidianVault\Projeler\R6Koc\AI\tracker-referans\`.
+Reference screenshots of Tracker (overview, operators, maps, match scoreboard, rounds, trends): the maintainer's local `tracker-referans` folder (not in the repository).
 
 ## Working rules for this phase
 - No installer until the user says the app is done. For milestone checks build a standalone exe (`npm run tauri build -- --no-bundle`).

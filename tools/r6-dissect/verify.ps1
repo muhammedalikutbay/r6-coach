@@ -4,7 +4,7 @@
 # (apart from the unknown-ID name fallback, which is only compared when the reference succeeded).
 param(
     [string]$Exe = (Join-Path $PSScriptRoot '..\..\app\src-tauri\binaries\r6-dissect-x86_64-pc-windows-msvc.exe'),
-    [string]$DataDir = 'C:\Users\Kutbay\Desktop\R6Koc-veri\MatchReplay',
+    [string]$DataDir = $env:R6K_REPLAY_DIR,
     [string]$ReferenceExe = ''
 )
 $ErrorActionPreference = 'Stop'

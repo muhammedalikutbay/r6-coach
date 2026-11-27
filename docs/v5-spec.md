@@ -21,7 +21,7 @@ Status: user feedback 2026-11-09 after testing v4 on a gaming PC. Builds on `doc
 10. Take initiative where something is missing. At the end an independent agent reviews the UI.
 
 ## Real Arenyze response (from the user's PC, 2026-11-08)
-Local copy, never commit it: `C:\Users\Kutbay\Desktop\R6Koc-wt\_v5\arenyze-real-response.json`.
+The maintainer keeps a local copy outside the repository; never commit it.
 Profile V2 top-level keys: `account`, `banned`, `history`, `meta`, `player`, `seasons`, `stats`.
 - Rank: `stats.platform_families_full_profiles[0].board_ids_full_profiles[]` with `board_id`
   `ranked` | `standard` | `casual`; each `full_profiles[0]` has `season_id` and
@@ -43,7 +43,7 @@ Profile V2 top-level keys: `account`, `banned`, `history`, `meta`, `player`, `se
 under that folder instead of `%APPDATA%` / `%LOCALAPPDATA%`. Agents may run the real app only with
 this variable set to a folder in their worktree or scratchpad, after checking that the real folders'
 modification times do not change. A copy of the user's database for such runs:
-`C:\Users\Kutbay\Desktop\R6Koc-wt\_v5\r6koc-sample.db` (copy it first; never commit it).
+a local sample database kept outside the repository (copy it first; never commit it; `tools/demo-data/sanitize.mjs` builds an anonymized one).
 
 ## Unknown ids found in the sample data (2026-11-09)
 - Maps (Quick Match on the user's PC): 441842102525, 430788891316, 446546313105.

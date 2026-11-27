@@ -169,7 +169,14 @@ async function main() {
   const name = args.scenario.endsWith('.json') ? args.scenario : `${args.scenario}.json`;
   const scenarioPath = resolve(here, 'scenarios', name);
   if (!existsSync(scenarioPath)) throw new Error(`scenario not found: ${scenarioPath}`);
-  const scenario = JSON.parse(readFileSync(scenarioPath, 'utf8'));
+  // `${NAME}` in a scenario is replaced by the environment variable NAME (see README).
+  const missing = new Set();
+  const text = readFileSync(scenarioPath, 'utf8').replace(/\$\{([A-Z0-9_]+)\}/g, (m, name) => {
+    if (process.env[name] === undefined) missing.add(name);
+    return process.env[name] ?? m;
+  });
+  if (missing.size > 0) throw new Error(`set these environment variables for ${name}: ${[...missing].join(', ')}`);
+  const scenario = JSON.parse(text);
 
   if (await findPageTarget(args.port)) {
     throw new Error(`port ${args.port} is already served by a debuggable WebView; pick another --port`);

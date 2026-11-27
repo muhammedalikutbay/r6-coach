@@ -11,3 +11,14 @@ app/src-tauri/binaries/
 
 # Cargo build output
 target/
+
+# Local data and tool state: never commit (real replays hold other players' names)
+*.rec
+MatchReplay/
+R6Koc-veri/
+dissect-cache/
+dist/
+arenyze-*.json
+.codex/
+AGENTS.md
+.claude/settings.local.json

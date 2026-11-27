@@ -1,6 +1,6 @@
 [package]
 name = "r6koc-app"
-version = "0.1.0"
+version = "0.7.0"
 description = "R6 Coach"
 authors = ["Kutbay"]
 edition = "2024"

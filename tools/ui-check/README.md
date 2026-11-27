@@ -24,6 +24,25 @@ The tool sets `WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS=--remote-debugging-port=<po
 When done it kills only the process tree it started (`taskkill /PID <pid> /T /F`), never by name.
 Note: `tauri dev` also needs the Vite dev port (1420) free.
 
+## Scenario placeholders
+
+A scenario may contain `${NAME}`; the runner replaces it with the environment variable `NAME` and
+stops with a list of the missing ones. Use forward slashes in the values. The shipped scenarios use:
+
+| Variable | Meaning |
+|---|---|
+| `R6K_REPLAY_DIR` | Your `MatchReplay` folder (or a copy of a few matches), for scenarios that point the app at real replays |
+| `R6K_EMPTY_DIR` | An existing empty folder whose name ends in `r6k-empty-dir` (`accept-replay-dir`) |
+| `R6K_SHOTS_DIR` | Folder for the screenshots of `v5-after` |
+
+```powershell
+$env:R6K_REPLAY_DIR = 'D:/R6/MatchReplay'
+node tools/ui-check/run.mjs --scenario accept-real-data
+```
+
+Some scenarios reset the database. Run them only with `R6COACH_DATA_DIR` set to a throwaway folder,
+never against your own app data.
+
 ## Scenario format
 
 `scenarios/<name>.json`: `{ "steps": [ ... ] }`. Steps:

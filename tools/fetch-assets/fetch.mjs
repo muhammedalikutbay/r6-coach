@@ -19,7 +19,7 @@ import { fileURLToPath } from 'node:url';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const ROOT = resolve(HERE, '..', '..');
-const VERI = process.env.R6K_VERI ?? 'C:\\Users\\Kutbay\\Desktop\\R6Koc-veri';
+const VERI = process.env.R6K_VERI ?? 'R6Koc-veri';
 const TRACKER_DIR = join(VERI, 'tracker');
 const ASSETS_DIR = join(ROOT, 'app', 'static', 'assets');
 const OP_DIR = join(ASSETS_DIR, 'operators');

@@ -174,7 +174,8 @@ mod tests {
         use std::path::Path;
         let sidecar =
             Path::new(env!("CARGO_MANIFEST_DIR")).join("binaries/r6-dissect-x86_64-pc-windows-msvc.exe");
-        let dir = Path::new(r"C:\Users\Kutbay\Desktop\R6Koc-veri\MatchReplay");
+        let dir_var = std::env::var("R6K_REPLAY_DIR").expect("set R6K_REPLAY_DIR to a MatchReplay folder to run this test");
+        let dir = Path::new(&dir_var);
         let t = tempfile::tempdir().unwrap();
         let db = store::Db(std::sync::Mutex::new(store::open(&t.path().join("r6koc.db")).unwrap()));
         let first = store::refresh(&db, dir, |p| crate::dissect_json(&sidecar, p)).unwrap();

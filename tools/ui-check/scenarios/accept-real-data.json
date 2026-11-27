@@ -7,7 +7,7 @@
     { "type": "wait", "text": "Let's go", "timeout": 30000 },
     { "type": "click", "text": "Let's go" },
     { "type": "eval", "expr": "Promise.resolve(window.__TAURI_INTERNALS__.invoke('reset_database')).then(() => 'reset')", "expect": "reset" },
-    { "type": "eval", "expr": "Promise.resolve(window.__TAURI_INTERNALS__.invoke('set_replay_dir', { path: 'C:/Users/Kutbay/Desktop/R6Koc-veri/MatchReplay' })).then(() => 'saved')", "expect": "saved" },
+    { "type": "eval", "expr": "Promise.resolve(window.__TAURI_INTERNALS__.invoke('set_replay_dir', { path: '${R6K_REPLAY_DIR}' })).then(() => 'saved')", "expect": "saved" },
     { "type": "reload" },
     { "type": "wait", "text": "No matches yet", "timeout": 15000 },
     { "type": "screenshot", "path": "real-home-empty.png" },

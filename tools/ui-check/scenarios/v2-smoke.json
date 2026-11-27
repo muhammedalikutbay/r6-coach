@@ -24,7 +24,7 @@
     },
     {
       "type": "eval",
-      "expr": "Promise.resolve(window.__TAURI_INTERNALS__.invoke('set_replay_dir', { path: 'C:/Users/Kutbay/Desktop/R6Koc-veri/MatchReplay' })).then(() => 'saved')",
+      "expr": "Promise.resolve(window.__TAURI_INTERNALS__.invoke('set_replay_dir', { path: '${R6K_REPLAY_DIR}' })).then(() => 'saved')",
       "expect": "saved"
     },
     {

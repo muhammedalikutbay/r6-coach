@@ -17,7 +17,7 @@ Status: user feedback 2026-11-10 after testing v5. Builds on `docs/v5-spec.md`.
    side in one row in round order, and clicking an icon opens the Rounds tab at that round.
 8. Clip player navigation: opened from Matches > Rounds, step between the clips of the same round;
    opened from an Operator or Weapon screen, step between that screen's clips.
-9. App icon: use `C:\Users\Kutbay\Desktop\R6Koc-wt\_v6\app-icon.ico` (the user's file).
+9. App icon: use the maintainer's own icon file (now in `app/src-tauri/icons/`).
 10. No standard Windows title bar. A custom title bar that fits the app design, with minimize,
     maximize/restore and close.
 11. Clips settings: while the recorder is running ("Recording the game window"), the clip settings

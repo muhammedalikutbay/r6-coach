@@ -667,7 +667,8 @@ mod tests {
     #[ignore]
     fn real_rounds_give_the_players_kills_and_deaths() {
         let sidecar = Path::new(env!("CARGO_MANIFEST_DIR")).join("binaries/r6-dissect-x86_64-pc-windows-msvc.exe");
-        let dir = Path::new("C:/Users/Kutbay/Desktop/R6Koc-veri/MatchReplay");
+        let dir_var = std::env::var("R6K_REPLAY_DIR").expect("set R6K_REPLAY_DIR to a MatchReplay folder to run this test");
+        let dir = Path::new(&dir_var);
         let (mut rounds, mut kills, mut deaths, mut with_start, mut mismatches) = (0, 0, 0, 0, 0);
         for m in std::fs::read_dir(dir).unwrap().flatten().filter(|e| e.path().is_dir()) {
             for f in std::fs::read_dir(m.path()).unwrap().flatten().filter(|e| e.path().extension().is_some_and(|x| x == "rec")) {

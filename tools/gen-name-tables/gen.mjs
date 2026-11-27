@@ -25,7 +25,7 @@ const arg = (name, dflt) => {
   const i = argv.indexOf('--' + name);
   return i >= 0 ? argv[i + 1] : dflt;
 };
-const veri = arg('veri', 'C:\\Users\\Kutbay\\Desktop\\R6Koc-veri');
+const veri = arg('veri', process.env.R6K_VERI ?? 'R6Koc-veri');
 const exe = arg('exe', path.join(repo, 'app', 'src-tauri', 'binaries', 'r6-dissect-x86_64-pc-windows-msvc.exe'));
 const outDir = arg('out', path.join(repo, 'data'));
 const dissectDir = path.join(repo, 'tools', 'r6-dissect', 'dissect');

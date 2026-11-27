@@ -19,7 +19,7 @@ const arg = (name, dflt) => {
   return i >= 0 ? argv[i + 1] : dflt;
 };
 const show = argv.includes('--show');
-const veri = arg('veri', 'C:\\Users\\Kutbay\\Desktop\\R6Koc-veri');
+const veri = arg('veri', process.env.R6K_VERI ?? 'R6Koc-veri');
 const outFile = arg('out', path.join(repo, 'data', 'baseline.json'));
 const trackerDir = path.join(veri, 'tracker');
 
